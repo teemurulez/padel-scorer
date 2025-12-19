@@ -1,6 +1,6 @@
 # tests/test_court_movement.py
 import pytest
-from court_movement import get_previous_teammates, sort_players_by_court_position, assign_teams_with_separation
+from court_movement import get_previous_teammates, sort_players_by_court_position, assign_teams_with_separation, generate_next_round_pairings
 
 def test_get_previous_teammates_empty_round():
     """Test that empty round history returns empty set"""
@@ -106,3 +106,36 @@ def test_assign_teams_prevents_same_teammates():
         assert court[1] != 2
     if court[0] == 2:
         assert court[1] != 1
+
+def test_generate_next_round_pairings_moves_winners_up():
+    """Test that winners from court 2 move to court 1"""
+    previous_matches = [
+        {
+            'court_number': 1,
+            'player1_id': 1,
+            'player2_id': 2,
+            'player3_id': 3,
+            'player4_id': 4,
+            'winning_team': 2  # 3, 4 won
+        },
+        {
+            'court_number': 2,
+            'player1_id': 5,
+            'player2_id': 6,
+            'player3_id': 7,
+            'player4_id': 8,
+            'winning_team': 1  # 5, 6 won
+        }
+    ]
+
+    result = generate_next_round_pairings(previous_matches, num_courts=2)
+
+    # Court 1 should have winners from both courts
+    # Court 2 should have losers from both courts
+    court1 = result[0]
+    court2 = result[1]
+
+    # Winners: 3, 4, 5, 6 should be on court 1
+    assert set(court1) == {3, 4, 5, 6}
+    # Losers: 1, 2, 7, 8 should be on court 2
+    assert set(court2) == {1, 2, 7, 8}

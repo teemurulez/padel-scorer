@@ -111,3 +111,71 @@ def assign_teams_with_separation(sorted_player_ids, previous_matches, num_courts
         courts.append([p1, p2, p3, p4])
 
     return courts
+
+def generate_next_round_pairings(previous_matches, num_courts):
+    """
+    Generate court and team assignments for next round based on results.
+
+    King of the Court rules:
+    - Winners move up in court order (lower court number = higher)
+    - Losers move down in court order
+    - Previous teammates are separated when possible
+
+    Args:
+        previous_matches: List of completed match dicts from previous round
+        num_courts: Number of courts available
+
+    Returns:
+        List of court assignments [court1, court2, ...] where each court
+        is [player1_id, player2_id, player3_id, player4_id]
+    """
+    # Step 1: Separate all winners and losers by court
+    # Sort matches by court number
+    sorted_matches = sorted(previous_matches, key=lambda m: m['court_number'])
+
+    all_winners = []
+    all_losers = []
+
+    for match in sorted_matches:
+        if match['winning_team'] == 1:
+            # Team 1 won
+            winners = [match['player1_id'], match['player2_id']]
+            losers = [match['player3_id'], match['player4_id']]
+        else:
+            # Team 2 won
+            winners = [match['player3_id'], match['player4_id']]
+            losers = [match['player1_id'], match['player2_id']]
+
+        all_winners.extend(winners)
+        all_losers.extend(losers)
+
+    # Step 2: Combine winners first, then losers
+    # This puts all winners at the top courts, all losers at bottom courts
+    sorted_players = all_winners + all_losers
+
+    # Step 3: Redistribute to new courts
+    # Top 4 players -> Court 1
+    # Next 4 players -> Court 2, etc.
+    final_courts = []
+
+    for court_idx in range(num_courts):
+        start = court_idx * 4
+        end = start + 4
+
+        if end > len(sorted_players):
+            break
+
+        # Get 4 players for this court
+        court_players = sorted_players[start:end]
+        p1, p2, p3, p4 = court_players
+
+        # Check if default pairing has previous teammates
+        p1_teammates = get_previous_teammates(p1, previous_matches)
+
+        if p2 in p1_teammates:
+            # Swap to separate teammates
+            p2, p3 = p3, p2
+
+        final_courts.append([p1, p2, p3, p4])
+
+    return final_courts
