@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Start Round</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>{{ tournament['name'] }}</h1>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if current_round %}
+            <p class="info-text">Round {{ current_round['round_number'] }} is in progress.</p>
+            <a href="{{ url_for('active_round', tournament_id=tournament['id'], round_id=current_round['id']) }}"
+               class="btn-primary">View Current Round</a>
+        {% else %}
+            <p class="info-text">Ready to start a new round with randomized pairs!</p>
+        {% endif %}
+
+        <form method="POST">
+            <button type="submit" class="btn-primary">
+                {% if current_round %}
+                    Start Next Round
+                {% else %}
+                    Start First Round
+                {% endif %}
+            </button>
+        </form>
+
+        <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary">
+            View Leaderboard
+        </a>
+    </div>
+</body>
+</html>

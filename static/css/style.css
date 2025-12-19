@@ -1,0 +1,355 @@
+/* Mobile-first design for Padel King of the Court */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: #f5f5f5;
+    padding: 10px;
+    line-height: 1.6;
+    color: #333;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+h1 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+    font-size: 28px;
+}
+
+h2 {
+    color: #34495e;
+    margin-bottom: 15px;
+    font-size: 20px;
+}
+
+.welcome-text, .info-text {
+    margin-bottom: 20px;
+    color: #555;
+    font-size: 16px;
+}
+
+/* Messages */
+.messages {
+    margin-bottom: 20px;
+}
+
+.message {
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    color: #856404;
+}
+
+.message.success {
+    background: #d4edda;
+    border-left-color: #28a745;
+    color: #155724;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #555;
+    font-size: 16px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #777;
+    font-size: 14px;
+}
+
+/* Buttons */
+.btn-primary, .btn-secondary {
+    display: inline-block;
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 4px;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.btn-primary:hover,
+.btn-primary:active {
+    background: #2980b9;
+}
+
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.btn-secondary:hover,
+.btn-secondary:active {
+    background: #7f8c8d;
+}
+
+.btn-large {
+    font-size: 22px;
+    padding: 20px;
+}
+
+/* Match Cards */
+.matches {
+    margin: 20px 0;
+}
+
+.match-card {
+    background: #f9f9f9;
+    border: 3px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.match-card.completed {
+    opacity: 0.8;
+    border-color: #27ae60;
+    background: #eafaf1;
+}
+
+.court-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #3498db;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.teams {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.team {
+    flex: 1;
+    text-align: center;
+    min-width: 120px;
+}
+
+.team strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.team p {
+    margin: 3px 0;
+    font-size: 15px;
+    color: #555;
+}
+
+.vs {
+    font-weight: bold;
+    padding: 0 15px;
+    color: #95a5a6;
+    font-size: 18px;
+}
+
+.actions {
+    margin-top: 15px;
+}
+
+.completed-badge {
+    background: #27ae60;
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+/* Score Entry */
+.score-entry h2 {
+    text-align: center;
+    color: #555;
+    margin-bottom: 25px;
+}
+
+.team-selection {
+    margin: 20px 0;
+}
+
+.team-option {
+    display: block;
+    margin-bottom: 15px;
+    cursor: pointer;
+}
+
+.team-option input[type="radio"] {
+    display: none;
+}
+
+.team-box {
+    border: 3px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    background: white;
+    transition: all 0.2s;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.team-option input[type="radio"]:checked + .team-box {
+    border-color: #3498db;
+    background: #ebf5fb;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+}
+
+.team-box strong {
+    display: block;
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.team-box p {
+    font-size: 17px;
+    margin: 5px 0;
+    color: #555;
+}
+
+/* Leaderboard */
+.leaderboard {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.leaderboard th {
+    background: #3498db;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.leaderboard td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.leaderboard tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.leaderboard .rank {
+    font-weight: bold;
+    width: 60px;
+    color: #3498db;
+    font-size: 18px;
+}
+
+.leaderboard .player-name {
+    font-size: 16px;
+}
+
+.leaderboard .points {
+    font-weight: bold;
+    color: #27ae60;
+    width: 80px;
+    text-align: center;
+    font-size: 18px;
+}
+
+/* Round actions */
+.round-actions {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 2px solid #ecf0f1;
+}
+
+/* Responsive for tablets and desktop */
+@media (min-width: 768px) {
+    .container {
+        padding: 30px;
+    }
+
+    h1 {
+        font-size: 32px;
+    }
+
+    .btn-primary, .btn-secondary {
+        width: auto;
+        min-width: 200px;
+        display: inline-block;
+        margin-right: 10px;
+    }
+
+    .teams {
+        flex-wrap: nowrap;
+    }
+
+    .team {
+        min-width: 150px;
+    }
+}
+
+/* High visibility for outdoor use */
+@media (prefers-contrast: high) {
+    .btn-primary {
+        background: #2c3e50;
+    }
+
+    .court-number {
+        color: #000;
+    }
+}

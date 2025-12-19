@@ -71,3 +71,43 @@ def sort_players_by_court_position(matches):
         result.extend(losers)
 
     return result
+
+def assign_teams_with_separation(sorted_player_ids, previous_matches, num_courts):
+    """
+    Assign players to courts and teams, avoiding previous teammates.
+
+    Args:
+        sorted_player_ids: Players in court hierarchy order (winners->losers)
+        previous_matches: Previous round matches for teammate history
+        num_courts: Number of courts to fill
+
+    Returns:
+        List of court assignments, each court is [p1, p2, p3, p4]
+        where p1+p2 are team 1, p3+p4 are team 2
+    """
+    courts = []
+    players_per_court = 4
+
+    for court_idx in range(num_courts):
+        start_idx = court_idx * players_per_court
+        end_idx = start_idx + players_per_court
+
+        if end_idx > len(sorted_player_ids):
+            break  # Not enough players for this court
+
+        court_players = sorted_player_ids[start_idx:end_idx]
+
+        # Try to assign teams avoiding previous teammates
+        # Strategy: Take players in order but swap if needed
+        p1, p2, p3, p4 = court_players
+
+        # Check if p1 and p2 were previous teammates
+        p1_teammates = get_previous_teammates(p1, previous_matches)
+
+        if p2 in p1_teammates:
+            # Swap p2 with p3 to separate teammates
+            p2, p3 = p3, p2
+
+        courts.append([p1, p2, p3, p4])
+
+    return courts

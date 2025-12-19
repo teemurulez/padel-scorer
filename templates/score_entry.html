@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enter Score</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container score-entry">
+        <h1>Court {{ match['court_number'] }}</h1>
+        <h2>Select Winning Team</h2>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <div class="team-selection">
+                <label class="team-option">
+                    <input type="radio" name="winning_team" value="1" required>
+                    <div class="team-box">
+                        <strong>Team 1</strong>
+                        <p>{{ match['player1_name'] }}</p>
+                        <p>{{ match['player2_name'] }}</p>
+                    </div>
+                </label>
+
+                <label class="team-option">
+                    <input type="radio" name="winning_team" value="2" required>
+                    <div class="team-box">
+                        <strong>Team 2</strong>
+                        <p>{{ match['player3_name'] }}</p>
+                        <p>{{ match['player4_name'] }}</p>
+                    </div>
+                </label>
+            </div>
+
+            <button type="submit" class="btn-primary btn-large">
+                Confirm Winner
+            </button>
+
+            <a href="{{ url_for('active_round', tournament_id=match['tournament_id'], round_id=match['round_id']) }}"
+               class="btn-secondary">Cancel</a>
+        </form>
+    </div>
+</body>
+</html>

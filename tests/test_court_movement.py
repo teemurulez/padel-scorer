@@ -1,6 +1,6 @@
 # tests/test_court_movement.py
 import pytest
-from court_movement import get_previous_teammates, sort_players_by_court_position
+from court_movement import get_previous_teammates, sort_players_by_court_position, assign_teams_with_separation
 
 def test_get_previous_teammates_empty_round():
     """Test that empty round history returns empty set"""
@@ -75,3 +75,34 @@ def test_sort_players_multi_court():
     result = sort_players_by_court_position(matches)
     # Court 1 winners, Court 1 losers, Court 2 winners, Court 2 losers
     assert result == [1, 2, 3, 4, 7, 8, 5, 6]
+
+def test_assign_teams_prevents_same_teammates():
+    """Test that previous teammates are not paired together"""
+    sorted_player_ids = [1, 2, 3, 4]  # 4 players for 1 court
+    previous_matches = [
+        {
+            'player1_id': 1,
+            'player2_id': 2,
+            'player3_id': 3,
+            'player4_id': 4,
+            'winning_team': 1
+        }
+    ]
+
+    result = assign_teams_with_separation(
+        sorted_player_ids=sorted_player_ids,
+        previous_matches=previous_matches,
+        num_courts=1
+    )
+
+    # Result should be list of court assignments
+    # Each court has [p1, p2, p3, p4] where p1+p2 are NOT previous teammates
+    assert len(result) == 1
+    court = result[0]
+    assert len(court) == 4
+
+    # Player 1 and 2 were teammates, should NOT be together
+    if court[0] == 1:
+        assert court[1] != 2
+    if court[0] == 2:
+        assert court[1] != 1
