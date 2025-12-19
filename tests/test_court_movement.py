@@ -51,3 +51,27 @@ def test_sort_players_by_court_position_winners_first():
     result = sort_players_by_court_position(matches)
     # Winners (3, 4) should come before losers (1, 2) for court 1
     assert result == [3, 4, 1, 2]
+
+def test_sort_players_multi_court():
+    """Test sorting across multiple courts maintains court order"""
+    matches = [
+        {
+            'court_number': 1,
+            'player1_id': 1,
+            'player2_id': 2,
+            'player3_id': 3,
+            'player4_id': 4,
+            'winning_team': 1
+        },
+        {
+            'court_number': 2,
+            'player1_id': 5,
+            'player2_id': 6,
+            'player3_id': 7,
+            'player4_id': 8,
+            'winning_team': 2
+        }
+    ]
+    result = sort_players_by_court_position(matches)
+    # Court 1 winners, Court 1 losers, Court 2 winners, Court 2 losers
+    assert result == [1, 2, 3, 4, 7, 8, 5, 6]
