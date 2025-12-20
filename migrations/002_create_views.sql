@@ -12,8 +12,8 @@ SELECT
 FROM player_registry pr
 LEFT JOIN tournament_players tp ON pr.id = tp.player_id
 LEFT JOIN tournaments t ON tp.tournament_id = t.id
-WHERE (t.status IN ('completed', 'archived') AND t.completed_at >= datetime('now', '-180 days'))
-   OR t.id IS NULL
+    AND t.status IN ('completed', 'archived')
+    AND t.completed_at >= datetime('now', '-180 days')
 GROUP BY pr.id, pr.first_name, pr.last_name
 ORDER BY seed_points DESC;
 
@@ -80,5 +80,8 @@ SELECT
 FROM player_registry pr
 LEFT JOIN tournament_players tp ON pr.id = tp.player_id
 LEFT JOIN tournaments t ON tp.tournament_id = t.id
-WHERE t.status IN ('completed', 'archived') OR t.id IS NULL
+    AND t.status IN ('completed', 'archived')
 GROUP BY pr.id, pr.first_name, pr.last_name;
+
+-- Performance indexes for views
+CREATE INDEX IF NOT EXISTS idx_tournaments_completed_at ON tournaments(completed_at);
