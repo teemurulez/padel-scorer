@@ -354,5 +354,85 @@ def leaderboard(tournament_id):
                           tournament=tournament,
                           players=players)
 
+@app.route('/tournament/<int:tournament_id>/complete', methods=['POST'])
+def complete_tournament(tournament_id):
+    """Complete a tournament and calculate final rankings"""
+    db = get_db()
+
+    tournament = db.execute(
+        "SELECT * FROM tournaments WHERE id = ?",
+        (tournament_id,)
+    ).fetchone()
+
+    if not tournament:
+        flash("Tournament not found")
+        return redirect('/'), 404
+
+    # Calculate final rankings based on total_points
+    players_ranked = db.execute("""
+        SELECT
+            tp.player_id,
+            tp.total_points,
+            pr.first_name,
+            pr.last_name
+        FROM tournament_players tp
+        JOIN player_registry pr ON tp.player_id = pr.id
+        WHERE tp.tournament_id = ?
+        ORDER BY tp.total_points DESC, pr.last_name ASC
+    """, (tournament_id,)).fetchall()
+
+    # Update final_rank for each player
+    for rank, player in enumerate(players_ranked, start=1):
+        db.execute("""
+            UPDATE tournament_players
+            SET final_rank = ?
+            WHERE tournament_id = ? AND player_id = ?
+        """, (rank, tournament_id, player['player_id']))
+
+    # Update tournament status
+    db.execute("""
+        UPDATE tournaments
+        SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (tournament_id,))
+
+    db.commit()
+
+    winner = players_ranked[0] if players_ranked else None
+    if winner:
+        flash(f"Tournament completed! Winner: {winner['first_name']} {winner['last_name']}")
+    else:
+        flash("Tournament completed!")
+
+    return redirect('/')
+
+@app.route('/tournament/<int:tournament_id>/archive', methods=['POST'])
+def archive_tournament(tournament_id):
+    """Archive a completed tournament (read-only)"""
+    db = get_db()
+
+    tournament = db.execute(
+        "SELECT status FROM tournaments WHERE id = ?",
+        (tournament_id,)
+    ).fetchone()
+
+    if not tournament:
+        flash("Tournament not found")
+        return redirect('/'), 404
+
+    if tournament['status'] != 'completed':
+        flash("Can only archive completed tournaments")
+        return redirect('/')
+
+    db.execute("""
+        UPDATE tournaments
+        SET status = 'archived', archived_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (tournament_id,))
+    db.commit()
+
+    flash("Tournament archived")
+    return redirect('/')
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')
