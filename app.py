@@ -434,5 +434,56 @@ def archive_tournament(tournament_id):
     flash("Tournament archived")
     return redirect('/')
 
+@app.route('/player/create', methods=['POST'])
+def create_player():
+    """Create a new player in the registry"""
+    first_name = request.form.get('first_name', '').strip()
+    last_name = request.form.get('last_name', '').strip()
+
+    if not first_name or not last_name:
+        flash("First name and last name are required")
+        return redirect(request.referrer or '/')
+
+    db = get_db()
+
+    # Check for duplicate
+    existing = db.execute(
+        "SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?",
+        (first_name, last_name)
+    ).fetchone()
+
+    if existing:
+        flash(f"⚠️ {first_name} {last_name} already exists in registry")
+        return redirect('/players')
+
+    # Create new player
+    cursor = db.execute(
+        "INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)",
+        (first_name, last_name)
+    )
+    db.commit()
+
+    flash(f"✅ Added {first_name} {last_name} to player registry")
+    return redirect('/players')
+
+
+@app.route('/players')
+def players_list():
+    """Show all players in registry"""
+    db = get_db()
+    players = db.execute("""
+        SELECT
+            pr.id,
+            pr.first_name,
+            pr.last_name,
+            ps.seed_points,
+            ps.recent_tournaments
+        FROM player_registry pr
+        LEFT JOIN player_seeding ps ON pr.id = ps.player_id
+        ORDER BY pr.last_name, pr.first_name
+    """).fetchall()
+
+    return render_template('players_list.html', players=players)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')

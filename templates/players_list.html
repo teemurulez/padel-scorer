@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Player Registry - Padel King of the Court</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>Player Registry</h1>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flashes">
+                {% for message in messages %}
+                    <div class="flash">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="add-player-form">
+        <h2>Add New Player</h2>
+        <form method="POST" action="/player/create">
+            <label>First Name:</label>
+            <input type="text" name="first_name" required>
+
+            <label>Last Name:</label>
+            <input type="text" name="last_name" required>
+
+            <button type="submit">Add Player</button>
+        </form>
+    </div>
+
+    <div class="players-list">
+        <h2>All Players ({{ players|length }})</h2>
+        {% if players %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Seed Points</th>
+                    <th>Recent Tournaments</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in players %}
+                <tr>
+                    <td>
+                        {{ player.last_name }}, {{ player.first_name }}
+                    </td>
+                    <td>{{ player.seed_points or 0 }}</td>
+                    <td>{{ player.recent_tournaments or 0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No players in registry yet. Add your first player above!</p>
+        {% endif %}
+    </div>
+
+    <div class="navigation">
+        <a href="/">Back to Home</a>
+    </div>
+</body>
+</html>
