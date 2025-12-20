@@ -4,6 +4,7 @@ import random
 import sqlite3
 from config import Config
 from database import get_db, init_db
+from court_movement import generate_next_round_pairings
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -107,10 +108,6 @@ def start_round(tournament_id):
             flash(f'Need {required_players} players for {num_courts} courts. You have {num_players}.')
             return redirect(url_for('setup_tournament'))
 
-        # Shuffle players
-        player_list = list(players)
-        random.shuffle(player_list)
-
         # Get or create current round
         last_round = db.execute(
             'SELECT * FROM rounds WHERE tournament_id = ? ORDER BY round_number DESC LIMIT 1',
@@ -125,19 +122,49 @@ def start_round(tournament_id):
         )
         round_id = cursor.lastrowid
 
-        # Create matches (4 players per court)
-        for court in range(num_courts):
-            idx = court * 4
-            if idx + 3 < num_players:
+        # Determine pairing strategy
+        if round_number == 1:
+            # Round 1: Random pairing (existing logic)
+            player_list = list(players)
+            random.shuffle(player_list)
+
+            for court in range(num_courts):
+                idx = court * 4
+                if idx + 3 < num_players:
+                    db.execute(
+                        '''INSERT INTO matches
+                           (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
+                           VALUES (?, ?, ?, ?, ?, ?)''',
+                        (round_id, court + 1,
+                         player_list[idx]['id'],
+                         player_list[idx + 1]['id'],
+                         player_list[idx + 2]['id'],
+                         player_list[idx + 3]['id'])
+                    )
+        else:
+            # Round 2+: Movement-based pairing
+            previous_matches = db.execute(
+                '''SELECT m.* FROM matches m
+                   JOIN rounds r ON m.round_id = r.id
+                   WHERE r.tournament_id = ?
+                   AND r.round_number = ?
+                   AND m.completed = 1''',
+                (tournament_id, round_number - 1)
+            ).fetchall()
+
+            # Convert to list of dicts
+            previous_matches = [dict(m) for m in previous_matches]
+
+            # Generate new pairings
+            court_assignments = generate_next_round_pairings(previous_matches, num_courts)
+
+            # Create matches from assignments
+            for court_num, players_on_court in enumerate(court_assignments, start=1):
                 db.execute(
                     '''INSERT INTO matches
                        (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
                        VALUES (?, ?, ?, ?, ?, ?)''',
-                    (round_id, court + 1,
-                     player_list[idx]['id'],
-                     player_list[idx + 1]['id'],
-                     player_list[idx + 2]['id'],
-                     player_list[idx + 3]['id'])
+                    (round_id, court_num, *players_on_court)
                 )
 
         db.commit()
