@@ -156,3 +156,72 @@ def test_table_exists_with_created_table(test_db):
     assert table_exists(cursor, 'new_table') is True
 
     conn.close()
+
+
+def test_column_exists_rejects_invalid_table_name(test_db):
+    """Test that column_exists rejects table names with invalid characters"""
+    conn = sqlite3.connect(test_db)
+    cursor = conn.cursor()
+
+    # Test SQL injection attempt
+    with pytest.raises(ValueError, match="Invalid table name"):
+        column_exists(cursor, "test_table; DROP TABLE test_table;--", "name")
+
+    # Test table name with spaces
+    with pytest.raises(ValueError, match="Invalid table name"):
+        column_exists(cursor, "test table", "name")
+
+    # Test table name with special characters
+    with pytest.raises(ValueError, match="Invalid table name"):
+        column_exists(cursor, "test-table", "name")
+
+    conn.close()
+
+
+def test_table_exists_rejects_invalid_table_name(test_db):
+    """Test that table_exists rejects table names with invalid characters"""
+    conn = sqlite3.connect(test_db)
+    cursor = conn.cursor()
+
+    # Test SQL injection attempt
+    with pytest.raises(ValueError, match="Invalid table name"):
+        table_exists(cursor, "test_table; DROP TABLE test_table;--")
+
+    # Test table name with spaces
+    with pytest.raises(ValueError, match="Invalid table name"):
+        table_exists(cursor, "test table")
+
+    # Test table name with special characters
+    with pytest.raises(ValueError, match="Invalid table name"):
+        table_exists(cursor, "test-table")
+
+    conn.close()
+
+
+def test_column_exists_accepts_valid_table_names_with_underscores(test_db):
+    """Test that column_exists accepts valid table names with underscores"""
+    conn = sqlite3.connect(test_db)
+    cursor = conn.cursor()
+
+    # Create table with underscores
+    cursor.execute("CREATE TABLE test_table_123 (id INTEGER PRIMARY KEY, name TEXT)")
+
+    # Should work with underscores
+    assert column_exists(cursor, 'test_table_123', 'name') is True
+    assert column_exists(cursor, 'test_table_123', 'nonexistent') is False
+
+    conn.close()
+
+
+def test_table_exists_accepts_valid_table_names_with_underscores(test_db):
+    """Test that table_exists accepts valid table names with underscores"""
+    conn = sqlite3.connect(test_db)
+    cursor = conn.cursor()
+
+    # Create table with underscores
+    cursor.execute("CREATE TABLE test_table_123 (id INTEGER PRIMARY KEY)")
+
+    # Should work with underscores
+    assert table_exists(cursor, 'test_table_123') is True
+
+    conn.close()

@@ -27,6 +27,9 @@ def get_db_path():
 
 def column_exists(cursor, table_name, column_name):
     """Check if a column exists in a table"""
+    # Validate table_name contains only alphanumeric and underscores
+    if not table_name.replace('_', '').isalnum():
+        raise ValueError(f"Invalid table name: {table_name}")
     cursor.execute(f"PRAGMA table_info({table_name})")
     columns = [row[1] for row in cursor.fetchall()]
     return column_name in columns
@@ -34,6 +37,9 @@ def column_exists(cursor, table_name, column_name):
 
 def table_exists(cursor, table_name):
     """Check if a table exists in the database"""
+    # Validate table_name contains only alphanumeric and underscores
+    if not table_name.replace('_', '').isalnum():
+        raise ValueError(f"Invalid table name: {table_name}")
     cursor.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
         (table_name,)
@@ -55,6 +61,7 @@ def run_migration(db_path):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON")
 
     try:
         print("\n=== Phase 3 Database Migration ===\n")
