@@ -167,6 +167,9 @@ def start_round(tournament_id):
                     (round_id, court_num, *players_on_court)
                 )
 
+            # Add feedback message
+            flash(f'Round {round_number} started! Winners moved up, losers moved down.')
+
         db.commit()
 
         # Update tournament status
