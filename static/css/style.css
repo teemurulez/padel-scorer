@@ -310,6 +310,19 @@ h2 {
     font-size: 18px;
 }
 
+.leaderboard .matches {
+    width: 80px;
+    text-align: center;
+    color: #666;
+}
+
+.leaderboard .win-rate {
+    width: 80px;
+    text-align: center;
+    color: #28a745;
+    font-weight: bold;
+}
+
 /* Round actions */
 .round-actions {
     margin-top: 30px;

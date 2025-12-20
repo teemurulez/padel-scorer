@@ -331,10 +331,23 @@ def leaderboard(tournament_id):
         flash('Tournament not found')
         return redirect(url_for('index'))
 
-    # Get all players sorted by total points
+    # Get all players with their match statistics
     players = db.execute(
-        '''SELECT * FROM players
-           ORDER BY total_points DESC, name ASC'''
+        '''SELECT
+            p.id,
+            p.name,
+            p.total_points,
+            COUNT(DISTINCT s.match_id) as matches_played,
+            ROUND(CAST(p.total_points AS FLOAT) /
+                  NULLIF(COUNT(DISTINCT s.match_id), 0) * 100, 1) as win_rate
+           FROM players p
+           LEFT JOIN scores s ON p.id = s.player_id
+           LEFT JOIN matches m ON s.match_id = m.id
+           LEFT JOIN rounds r ON m.round_id = r.id
+           WHERE r.tournament_id = ?
+           GROUP BY p.id, p.name, p.total_points
+           ORDER BY p.total_points DESC, p.name ASC''',
+        (tournament_id,)
     ).fetchall()
 
     return render_template('leaderboard.html',

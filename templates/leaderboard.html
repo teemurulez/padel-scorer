@@ -27,6 +27,8 @@
                     <th>Rank</th>
                     <th>Player</th>
                     <th>Points</th>
+                    <th>Matches</th>
+                    <th>Win %</th>
                 </tr>
             </thead>
             <tbody>
@@ -35,6 +37,14 @@
                     <td class="rank">{{ loop.index }}</td>
                     <td class="player-name">{{ player['name'] }}</td>
                     <td class="points">{{ player['total_points'] }}</td>
+                    <td class="matches">{{ player['matches_played'] }}</td>
+                    <td class="win-rate">
+                        {% if player['win_rate'] %}
+                            {{ player['win_rate'] }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
