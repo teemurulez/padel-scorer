@@ -8,7 +8,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>Round {{ round_data['round_number'] }}</h1>
+        <div class="round-info">
+            <h1>Round {{ round_data['round_number'] }}</h1>
+            {% if round_data['round_number'] > 1 %}
+                <p class="movement-note">Winners moved up • Losers moved down</p>
+            {% endif %}
+        </div>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
