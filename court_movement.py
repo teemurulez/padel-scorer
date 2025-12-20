@@ -129,6 +129,19 @@ def generate_next_round_pairings(previous_matches, num_courts):
         List of court assignments [court1, court2, ...] where each court
         is [player1_id, player2_id, player3_id, player4_id]
     """
+    # Validate all matches are completed
+    for match in previous_matches:
+        # Check if match has a winner - winning_team must be set
+        if match.get('winning_team') is None:
+            raise ValueError(
+                f"Cannot generate pairings: Match {match.get('id')} has incomplete matches"
+            )
+        # If completed field exists, it must be truthy
+        if 'completed' in match and not match['completed']:
+            raise ValueError(
+                f"Cannot generate pairings: Match {match.get('id')} has incomplete matches"
+            )
+
     # Step 1: Separate all winners and losers by court
     # Sort matches by court number
     sorted_matches = sorted(previous_matches, key=lambda m: m['court_number'])

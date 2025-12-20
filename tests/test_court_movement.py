@@ -139,3 +139,21 @@ def test_generate_next_round_pairings_moves_winners_up():
     assert set(court1) == {3, 4, 5, 6}
     # Losers: 1, 2, 7, 8 should be on court 2
     assert set(court2) == {1, 2, 7, 8}
+
+def test_generate_pairings_handles_incomplete_matches():
+    """Test that algorithm handles incomplete previous round gracefully"""
+    previous_matches = [
+        {
+            'court_number': 1,
+            'player1_id': 1,
+            'player2_id': 2,
+            'player3_id': 3,
+            'player4_id': 4,
+            'winning_team': None,  # Not completed
+            'completed': 0
+        }
+    ]
+
+    # Should raise error or handle gracefully
+    with pytest.raises(ValueError, match="incomplete matches"):
+        generate_next_round_pairings(previous_matches, num_courts=1)
