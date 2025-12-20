@@ -4,15 +4,21 @@ from app import app
 
 
 @pytest.fixture
-def client():
-    """Create test client with in-memory database"""
+def client(tmp_path):
+    """Create test client with temporary database"""
+    import os
+    db_path = tmp_path / "test_tournament_lifecycle.db"
     app.config['TESTING'] = True
-    app.config['DATABASE'] = ':memory:'
+    app.config['DATABASE'] = str(db_path)
 
     with app.test_client() as client:
         with app.app_context():
             init_test_db()
         yield client
+
+    # Cleanup
+    if os.path.exists(db_path):
+        os.remove(db_path)
 
 
 def init_test_db():
@@ -20,21 +26,34 @@ def init_test_db():
     from database import get_db
     db = get_db()
 
-    # Create minimal Phase 3 schema for testing
+    # Drop existing tables to ensure clean slate
     db.executescript("""
-        CREATE TABLE IF NOT EXISTS seasons (
+        DROP TABLE IF EXISTS scores;
+        DROP TABLE IF EXISTS matches;
+        DROP TABLE IF EXISTS rounds;
+        DROP TABLE IF EXISTS tournament_players;
+        DROP TABLE IF EXISTS tournaments;
+        DROP TABLE IF EXISTS player_registry;
+        DROP TABLE IF EXISTS players;
+        DROP TABLE IF EXISTS seasons;
+    """)
+    db.commit()
+
+    # Create Phase 2 + Phase 3 schema for testing (hybrid for redirect compatibility)
+    db.executescript("""
+        CREATE TABLE seasons (
             id INTEGER PRIMARY KEY,
             year INTEGER,
             status TEXT
         );
 
-        CREATE TABLE IF NOT EXISTS player_registry (
+        CREATE TABLE player_registry (
             id INTEGER PRIMARY KEY,
             first_name TEXT,
             last_name TEXT
         );
 
-        CREATE TABLE IF NOT EXISTS tournaments (
+        CREATE TABLE tournaments (
             id INTEGER PRIMARY KEY,
             name TEXT,
             num_courts INTEGER,
@@ -44,7 +63,7 @@ def init_test_db():
             archived_at TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS tournament_players (
+        CREATE TABLE tournament_players (
             tournament_id INTEGER,
             player_id INTEGER,
             final_rank INTEGER,
@@ -52,6 +71,40 @@ def init_test_db():
             match_wins INTEGER,
             match_losses INTEGER,
             PRIMARY KEY (tournament_id, player_id)
+        );
+
+        -- Phase 2 tables for redirect compatibility
+        CREATE TABLE players (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            total_points INTEGER DEFAULT 0,
+            tournament_id INTEGER
+        );
+
+        CREATE TABLE rounds (
+            id INTEGER PRIMARY KEY,
+            tournament_id INTEGER,
+            round_number INTEGER,
+            status TEXT DEFAULT 'in_progress'
+        );
+
+        CREATE TABLE matches (
+            id INTEGER PRIMARY KEY,
+            round_id INTEGER,
+            court_number INTEGER,
+            player1_id INTEGER,
+            player2_id INTEGER,
+            player3_id INTEGER,
+            player4_id INTEGER,
+            winning_team INTEGER,
+            completed INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE scores (
+            id INTEGER PRIMARY KEY,
+            match_id INTEGER,
+            player_id INTEGER,
+            points INTEGER DEFAULT 0
         );
 
         -- Insert test data

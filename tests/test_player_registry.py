@@ -4,15 +4,21 @@ from app import app
 
 
 @pytest.fixture
-def client():
-    """Create test client with in-memory database"""
+def client(tmp_path):
+    """Create test client with temporary database"""
+    import os
+    db_path = tmp_path / "test_player_registry.db"
     app.config['TESTING'] = True
-    app.config['DATABASE'] = ':memory:'
+    app.config['DATABASE'] = str(db_path)
 
     with app.test_client() as client:
         with app.app_context():
             init_test_db()
         yield client
+
+    # Cleanup
+    if os.path.exists(db_path):
+        os.remove(db_path)
 
 
 def init_test_db():
@@ -20,22 +26,31 @@ def init_test_db():
     from database import get_db
     db = get_db()
 
+    # Drop existing tables and views to ensure clean slate
+    db.executescript("""
+        DROP VIEW IF EXISTS player_seeding;
+        DROP TABLE IF EXISTS tournament_players;
+        DROP TABLE IF EXISTS tournaments;
+        DROP TABLE IF EXISTS player_registry;
+    """)
+    db.commit()
+
     # Create minimal Phase 3 schema for testing
     db.executescript("""
-        CREATE TABLE IF NOT EXISTS player_registry (
+        CREATE TABLE player_registry (
             id INTEGER PRIMARY KEY,
             first_name TEXT,
             last_name TEXT
         );
 
-        CREATE TABLE IF NOT EXISTS tournaments (
+        CREATE TABLE tournaments (
             id INTEGER PRIMARY KEY,
             name TEXT,
             status TEXT DEFAULT 'setup',
             completed_at TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS tournament_players (
+        CREATE TABLE tournament_players (
             tournament_id INTEGER,
             player_id INTEGER,
             total_points INTEGER,
@@ -43,7 +58,7 @@ def init_test_db():
         );
 
         -- Create player_seeding view
-        CREATE VIEW IF NOT EXISTS player_seeding AS
+        CREATE VIEW player_seeding AS
         SELECT
             pr.id as player_id,
             pr.first_name,

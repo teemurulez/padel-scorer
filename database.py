@@ -5,7 +5,17 @@ DATABASE = 'instance/padel.db'
 
 def get_db():
     """Get database connection with row factory for dict-like access"""
-    conn = sqlite3.connect(DATABASE)
+    # Check if we're in a Flask app context with a custom DATABASE config
+    try:
+        from flask import current_app
+        db_path = current_app.config.get('DATABASE', DATABASE)
+    except (ImportError, RuntimeError):
+        # Not in Flask context or Flask not available
+        db_path = DATABASE
+
+    # Use URI mode if the path starts with 'file:'
+    uri_mode = db_path.startswith('file:')
+    conn = sqlite3.connect(db_path, uri=uri_mode)
     conn.row_factory = sqlite3.Row  # Returns rows as dictionaries
     return conn
 
