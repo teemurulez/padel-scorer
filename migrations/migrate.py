@@ -72,7 +72,9 @@ def run_migration(db_path):
         columns_to_add = [
             ('season_id', 'INTEGER'),
             ('month', 'INTEGER'),
-            ('status', 'TEXT DEFAULT "setup"')
+            ('status', 'TEXT DEFAULT "setup"'),
+            ('completed_at', 'TIMESTAMP'),
+            ('archived_at', 'TIMESTAMP')
         ]
 
         for col_name, col_type in columns_to_add:
