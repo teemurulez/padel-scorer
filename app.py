@@ -276,11 +276,21 @@ def court_selection(tournament_id, round_id):
         flash('Round not found')
         return redirect(url_for('index'))
 
+    # Validate round belongs to tournament
+    if round_obj['tournament_id'] != tournament_id:
+        flash('Round not found in this tournament')
+        return redirect(url_for('index'))
+
     # Get all matches for this round
     matches = db.execute(
         'SELECT * FROM matches WHERE round_id = ? ORDER BY court_number',
         (round_id,)
     ).fetchall()
+
+    # Check for empty matches
+    if not matches:
+        flash('No matches found for this round. Please contact the organizer.')
+        return redirect(url_for('index'))
 
     # Add player details to each match
     matches_with_players = []
