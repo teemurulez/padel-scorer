@@ -332,13 +332,17 @@ def court_selection(tournament_id, round_id):
         matches=matches_with_players
     )
 
-@app.route('/tournament/<int:tournament_id>/round/<int:round_id>/court/<int:court_number>/confirm')
+@app.route('/tournament/<int:tournament_id>/round/<int:round_id>/court/<int:court_number>/confirm', methods=['GET', 'POST'])
 def confirm_match_teams(tournament_id, round_id, court_number):
     """
-    Show pre-match confirmation screen with drag-and-drop team shuffling.
+    Show pre-match confirmation screen with drag-and-drop team shuffling (GET).
+    Save final team configuration and proceed to score entry (POST).
 
-    Displays the 4 players assigned to this court, allowing users to
+    GET: Displays the 4 players assigned to this court, allowing users to
     optionally shuffle teams via drag-and-drop before starting the match.
+
+    POST: Validates and saves the final team configuration (potentially shuffled),
+    then redirects to score entry.
 
     Args:
         tournament_id (int): ID of the tournament
@@ -346,8 +350,9 @@ def confirm_match_teams(tournament_id, round_id, court_number):
         court_number (int): Court number for this match
 
     Returns:
-        Rendered template (confirm_match.html) with team boxes, or
-        redirect with flash message on error
+        GET: Rendered template (confirm_match.html) with team boxes
+        POST: Redirect to active_tournament (score entry) on success,
+              redirect back to confirm screen with error on validation failure
 
     Redirects if:
         - Tournament not found
@@ -359,6 +364,87 @@ def confirm_match_teams(tournament_id, round_id, court_number):
     """
     db = get_db_connection()
 
+    # Handle POST request (save shuffled teams)
+    if request.method == 'POST':
+        # Get match first
+        match = db.execute(
+            'SELECT * FROM matches WHERE round_id = ? AND court_number = ?',
+            (round_id, court_number)
+        ).fetchone()
+
+        if not match:
+            flash('Match not found')
+            return redirect(url_for('court_selection', tournament_id=tournament_id, round_id=round_id))
+
+        # Get submitted team configuration
+        try:
+            new_team1_p1 = int(request.form['team1_player1'])
+            new_team1_p2 = int(request.form['team1_player2'])
+            new_team2_p1 = int(request.form['team2_player1'])
+            new_team2_p2 = int(request.form['team2_player2'])
+        except (KeyError, ValueError):
+            flash("Invalid form submission.")
+            return redirect(url_for('confirm_match_teams',
+                                    tournament_id=tournament_id,
+                                    round_id=round_id,
+                                    court_number=court_number))
+
+        # Validation 1: Exactly 4 unique players
+        submitted_players = [new_team1_p1, new_team1_p2, new_team2_p1, new_team2_p2]
+        if len(set(submitted_players)) != 4:
+            flash("Invalid team configuration: All 4 players must be unique.")
+            return redirect(url_for('confirm_match_teams',
+                                    tournament_id=tournament_id,
+                                    round_id=round_id,
+                                    court_number=court_number))
+
+        # Validation 2: Players must be from original match
+        original_players = {match['player1_id'], match['player2_id'], match['player3_id'], match['player4_id']}
+        if set(submitted_players) != original_players:
+            flash("Invalid team configuration: Players must be from the original match.")
+            return redirect(url_for('confirm_match_teams',
+                                    tournament_id=tournament_id,
+                                    round_id=round_id,
+                                    court_number=court_number))
+
+        # Validation 3: Teams must have exactly 2 players each
+        if len({new_team1_p1, new_team1_p2}) != 2 or len({new_team2_p1, new_team2_p2}) != 2:
+            flash("Each team must have exactly 2 different players.")
+            return redirect(url_for('confirm_match_teams',
+                                    tournament_id=tournament_id,
+                                    round_id=round_id,
+                                    court_number=court_number))
+
+        # Check if teams were shuffled
+        original_team1 = {match['player1_id'], match['player2_id']}
+        new_team1 = {new_team1_p1, new_team1_p2}
+        teams_changed = original_team1 != new_team1
+
+        if teams_changed:
+            # Store original pairing before overwriting
+            db.execute('''
+                UPDATE matches
+                SET original_player1_id = ?,
+                    original_player2_id = ?,
+                    original_player3_id = ?,
+                    original_player4_id = ?,
+                    teams_shuffled = 1,
+                    player1_id = ?,
+                    player2_id = ?,
+                    player3_id = ?,
+                    player4_id = ?
+                WHERE id = ?
+            ''', (
+                match['player1_id'], match['player2_id'], match['player3_id'], match['player4_id'],
+                new_team1_p1, new_team1_p2, new_team2_p1, new_team2_p2,
+                match['id']
+            ))
+            db.commit()
+
+        # Redirect to active tournament (score entry screen)
+        return redirect(url_for('active_tournament', tournament_id=tournament_id))
+
+    # Handle GET request (show confirmation screen)
     # Get tournament
     tournament = db.execute(
         'SELECT * FROM tournaments WHERE id = ?',
