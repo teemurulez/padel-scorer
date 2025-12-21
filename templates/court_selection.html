@@ -89,6 +89,7 @@
                         <p>{{ match.player4['first_name'] }} {{ match.player4['last_name'] }}</p>
                     </div>
                 </div>
+                <!-- TODO: Replace hardcoded URL with url_for('confirm_match_teams', ...) when route is implemented (Task 4) -->
                 <a href="/tournament/{{ tournament.id }}/round/{{ round.id }}/court/{{ match.court_number }}/confirm"
                    class="btn btn-primary">
                     Go to Court {{ match.court_number }}

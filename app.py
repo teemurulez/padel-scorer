@@ -252,7 +252,30 @@ def start_round(tournament_id):
 @app.route('/tournament/<int:tournament_id>/round/<int:round_id>/courts')
 def court_selection(tournament_id, round_id):
     """
-    Shows all courts for this round with links to confirmation screens.
+    Display court selection screen for a round.
+
+    Shows all courts for this round with algorithm-generated team pairings.
+    Users can click "Go to Court N" to proceed to the pre-match confirmation
+    screen where they can optionally shuffle teams before starting the match.
+
+    Args:
+        tournament_id (int): ID of the tournament
+        round_id (int): ID of the round
+
+    Returns:
+        Rendered template (court_selection.html) with court grid, or
+        redirect to index with flash message on error
+
+    Redirects to index if:
+        - Tournament not found
+        - Round not found
+        - Round doesn't belong to tournament
+        - No matches found for round
+
+    Template variables:
+        tournament: Tournament database row
+        round: Round database row
+        matches: List of match dicts with enriched player data
     """
     db = get_db_connection()
 
