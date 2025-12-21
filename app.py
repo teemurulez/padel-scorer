@@ -384,6 +384,11 @@ def confirm_match_teams(tournament_id, round_id, court_number):
         flash('Round not found')
         return redirect(url_for('index'))
 
+    # Validate round belongs to tournament
+    if round_obj['tournament_id'] != tournament_id:
+        flash('Round not found in this tournament')
+        return redirect(url_for('index'))
+
     # Get match
     match = db.execute(
         'SELECT * FROM matches WHERE round_id = ? AND court_number = ?',
@@ -398,6 +403,17 @@ def confirm_match_teams(tournament_id, round_id, court_number):
     if match['completed']:
         flash("This match has already been completed.")
         return redirect(url_for('leaderboard', tournament_id=tournament_id))
+
+    # Check if scores already entered (prevent shuffle after scoring starts)
+    existing_scores = db.execute(
+        'SELECT COUNT(*) as count FROM scores WHERE match_id = ?',
+        (match['id'],)
+    ).fetchone()
+
+    if existing_scores['count'] > 0:
+        flash("Match already in progress. Team shuffling not available.")
+        # Redirect to active tournament scoring
+        return redirect(url_for('active_tournament', tournament_id=tournament_id))
 
     # Get player details
     players = {
