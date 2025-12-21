@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Court Selection - Round {{ round['round_number'] }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .court-selection {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .court-grid {
+            display: grid;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .court-card {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px solid #ddd;
+        }
+        .court-card h3 {
+            margin-top: 0;
+            color: #2196F3;
+        }
+        .players-preview {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .team {
+            flex: 1;
+        }
+        .team strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        .team p {
+            margin: 3px 0;
+            font-size: 14px;
+        }
+        .vs {
+            font-weight: bold;
+            color: #999;
+            font-size: 18px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-top: -10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="court-selection">
+        <h2>Round {{ round['round_number'] }} - Select Your Court</h2>
+        <p class="subtitle">{{ tournament['name'] }}</p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="flash-message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="court-grid">
+            {% for match in matches %}
+            <div class="court-card">
+                <h3>Court {{ match.court_number }}</h3>
+                <div class="players-preview">
+                    <div class="team">
+                        <strong>Team 1:</strong>
+                        <p>{{ match.player1['first_name'] }} {{ match.player1['last_name'] }}</p>
+                        <p>{{ match.player2['first_name'] }} {{ match.player2['last_name'] }}</p>
+                    </div>
+                    <div class="vs">VS</div>
+                    <div class="team">
+                        <strong>Team 2:</strong>
+                        <p>{{ match.player3['first_name'] }} {{ match.player3['last_name'] }}</p>
+                        <p>{{ match.player4['first_name'] }} {{ match.player4['last_name'] }}</p>
+                    </div>
+                </div>
+                <a href="/tournament/{{ tournament.id }}/round/{{ round.id }}/court/{{ match.court_number }}/confirm"
+                   class="btn btn-primary">
+                    Go to Court {{ match.court_number }}
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="actions">
+            <a href="/" class="btn btn-secondary">Back to Home</a>
+        </div>
+    </div>
+</body>
+</html>

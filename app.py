@@ -249,6 +249,56 @@ def start_round(tournament_id):
 
     return render_template('start_round.html', tournament=tournament, current_round=current_round)
 
+@app.route('/tournament/<int:tournament_id>/round/<int:round_id>/courts')
+def court_selection(tournament_id, round_id):
+    """
+    Shows all courts for this round with links to confirmation screens.
+    """
+    db = get_db_connection()
+
+    # Get tournament
+    tournament = db.execute(
+        'SELECT * FROM tournaments WHERE id = ?',
+        (tournament_id,)
+    ).fetchone()
+
+    if not tournament:
+        flash('Tournament not found')
+        return redirect(url_for('index'))
+
+    # Get round
+    round_obj = db.execute(
+        'SELECT * FROM rounds WHERE id = ?',
+        (round_id,)
+    ).fetchone()
+
+    if not round_obj:
+        flash('Round not found')
+        return redirect(url_for('index'))
+
+    # Get all matches for this round
+    matches = db.execute(
+        'SELECT * FROM matches WHERE round_id = ? ORDER BY court_number',
+        (round_id,)
+    ).fetchall()
+
+    # Add player details to each match
+    matches_with_players = []
+    for match in matches:
+        match_dict = dict(match)
+        match_dict['player1'] = get_player(match['player1_id'])
+        match_dict['player2'] = get_player(match['player2_id'])
+        match_dict['player3'] = get_player(match['player3_id'])
+        match_dict['player4'] = get_player(match['player4_id'])
+        matches_with_players.append(match_dict)
+
+    return render_template(
+        'court_selection.html',
+        tournament=tournament,
+        round=round_obj,
+        matches=matches_with_players
+    )
+
 @app.route('/tournament/<int:tournament_id>')
 def active_tournament(tournament_id):
     """Show active round for tournament"""
