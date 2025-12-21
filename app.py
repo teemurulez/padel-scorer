@@ -30,6 +30,44 @@ def close_db(error):
     if db is not None:
         db.close()
 
+def get_player(player_id):
+    """
+    Helper to get player with backward compatibility.
+    Tries Phase 3 player_registry first, falls back to Phase 2 players table.
+    """
+    db = get_db_connection()
+
+    # Try Phase 3 registry first
+    result = db.execute(
+        'SELECT id, first_name, last_name FROM player_registry WHERE id = ?',
+        (player_id,)
+    ).fetchone()
+
+    if result:
+        return dict(result)
+
+    # Fallback to Phase 2 players table
+    result = db.execute(
+        'SELECT id, name FROM players WHERE id = ?',
+        (player_id,)
+    ).fetchone()
+
+    if result:
+        # Split name into first/last (best effort)
+        parts = result['name'].split(' ', 1)
+        return {
+            'id': result['id'],
+            'first_name': parts[0] if len(parts) > 0 else 'Unknown',
+            'last_name': parts[1] if len(parts) > 1 else ''
+        }
+
+    # Player not found - return placeholder
+    return {
+        'id': player_id,
+        'first_name': '[Deleted',
+        'last_name': f'Player {player_id}]'
+    }
+
 # Routes
 
 @app.route('/')
