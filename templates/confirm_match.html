@@ -78,22 +78,11 @@
         </div>
     </div>
 
-    <!-- TODO: Add shuffle.js in Task 7 -->
     <script>
         const TOURNAMENT_ID = {{ tournament.id }};
         const ROUND_ID = {{ round.id }};
         const COURT_NUMBER = {{ court_number }};
-
-        // Placeholder functions until Task 7 (JavaScript implementation)
-        function confirmAndStartMatch() {
-            alert('Start Match functionality will be implemented in Task 5 (POST route)');
-            // Will POST to save_confirmed_teams endpoint
-        }
-
-        function resetToOriginal() {
-            alert('Reset functionality will be implemented in Task 7 (JavaScript)');
-            // Will reload page to reset teams
-        }
     </script>
+    <script src="{{ url_for('static', filename='js/shuffle.js') }}"></script>
 </body>
 </html>
