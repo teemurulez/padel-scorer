@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Teams - Court {{ court_number }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- TODO: Add shuffle.css in Task 6 -->
+    <style>
+        .pre-match-confirmation {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header h2 {
+            text-align: center;
+            color: #2196F3;
+            margin-bottom: 10px;
+        }
+        .instruction {
+            text-align: center;
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        .teams-container {
+            display: flex;
+            gap: 20px;
+            margin: 30px 0;
+            align-items: center;
+        }
+        .team-box {
+            flex: 1;
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px solid #ddd;
+        }
+        .team-box h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #2196F3;
+            text-align: center;
+        }
+        .player-slot {
+            background: white;
+            border: 2px solid #2196F3;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 10px 0;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .player-slot:hover {
+            background: #e3f2fd;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+        }
+        .player-name {
+            font-weight: 500;
+            color: #333;
+        }
+        .drag-handle {
+            color: #999;
+            font-size: 18px;
+            user-select: none;
+        }
+        .vs-divider {
+            font-weight: bold;
+            font-size: 24px;
+            color: #999;
+        }
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .btn-large {
+            flex: 1;
+            padding: 15px;
+            font-size: 18px;
+        }
+        .flash-messages {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 20px 0;
+        }
+        .flash-message {
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="pre-match-confirmation">
+        <header>
+            <h2>Round {{ round.round_number }}, Court {{ court_number }}</h2>
+            <p class="instruction">👆 Drag players to swap teams, then start match</p>
+        </header>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="flash-message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="teams-container">
+            <!-- Team 1 Box -->
+            <div class="team-box team-1" data-team="1">
+                <h3>Team 1</h3>
+                <div class="player-slot"
+                     data-player-id="{{ players.team1[0].id }}"
+                     draggable="true">
+                    <span class="player-name">{{ players.team1[0].first_name }} {{ players.team1[0].last_name }}</span>
+                    <span class="drag-handle">⋮⋮</span>
+                </div>
+                <div class="player-slot"
+                     data-player-id="{{ players.team1[1].id }}"
+                     draggable="true">
+                    <span class="player-name">{{ players.team1[1].first_name }} {{ players.team1[1].last_name }}</span>
+                    <span class="drag-handle">⋮⋮</span>
+                </div>
+            </div>
+
+            <div class="vs-divider">VS</div>
+
+            <!-- Team 2 Box -->
+            <div class="team-box team-2" data-team="2">
+                <h3>Team 2</h3>
+                <div class="player-slot"
+                     data-player-id="{{ players.team2[0].id }}"
+                     draggable="true">
+                    <span class="player-name">{{ players.team2[0].first_name }} {{ players.team2[0].last_name }}</span>
+                    <span class="drag-handle">⋮⋮</span>
+                </div>
+                <div class="player-slot"
+                     data-player-id="{{ players.team2[1].id }}"
+                     draggable="true">
+                    <span class="player-name">{{ players.team2[1].first_name }} {{ players.team2[1].last_name }}</span>
+                    <span class="drag-handle">⋮⋮</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary btn-large" onclick="confirmAndStartMatch()">
+                ✓ Start Match
+            </button>
+            <button class="btn btn-secondary" onclick="resetToOriginal()">
+                ↺ Reset to Original
+            </button>
+        </div>
+
+        <div class="actions">
+            <a href="/tournament/{{ tournament.id }}/round/{{ round.id }}/courts" class="btn btn-secondary">
+                ← Back to Court Selection
+            </a>
+        </div>
+    </div>
+
+    <!-- TODO: Add shuffle.js in Task 7 -->
+    <script>
+        const TOURNAMENT_ID = {{ tournament.id }};
+        const ROUND_ID = {{ round.id }};
+        const COURT_NUMBER = {{ court_number }};
+
+        // Placeholder functions until Task 7 (JavaScript implementation)
+        function confirmAndStartMatch() {
+            alert('Start Match functionality will be implemented in Task 5 (POST route)');
+            // Will POST to save_confirmed_teams endpoint
+        }
+
+        function resetToOriginal() {
+            alert('Reset functionality will be implemented in Task 7 (JavaScript)');
+            // Will reload page to reset teams
+        }
+    </script>
+</body>
+</html>

@@ -332,6 +332,94 @@ def court_selection(tournament_id, round_id):
         matches=matches_with_players
     )
 
+@app.route('/tournament/<int:tournament_id>/round/<int:round_id>/court/<int:court_number>/confirm')
+def confirm_match_teams(tournament_id, round_id, court_number):
+    """
+    Show pre-match confirmation screen with drag-and-drop team shuffling.
+
+    Displays the 4 players assigned to this court, allowing users to
+    optionally shuffle teams via drag-and-drop before starting the match.
+
+    Args:
+        tournament_id (int): ID of the tournament
+        round_id (int): ID of the round
+        court_number (int): Court number for this match
+
+    Returns:
+        Rendered template (confirm_match.html) with team boxes, or
+        redirect with flash message on error
+
+    Redirects if:
+        - Tournament not found
+        - Tournament is archived
+        - Round not found
+        - Match not found
+        - Match already completed
+        - Scores already entered (prevents mid-match shuffle)
+    """
+    db = get_db_connection()
+
+    # Get tournament
+    tournament = db.execute(
+        'SELECT * FROM tournaments WHERE id = ?',
+        (tournament_id,)
+    ).fetchone()
+
+    if not tournament:
+        flash('Tournament not found')
+        return redirect(url_for('index'))
+
+    # Check if tournament is archived
+    if tournament['status'] == 'archived':
+        flash("Cannot modify archived tournament.")
+        return redirect(url_for('index'))
+
+    # Get round
+    round_obj = db.execute(
+        'SELECT * FROM rounds WHERE id = ?',
+        (round_id,)
+    ).fetchone()
+
+    if not round_obj:
+        flash('Round not found')
+        return redirect(url_for('index'))
+
+    # Get match
+    match = db.execute(
+        'SELECT * FROM matches WHERE round_id = ? AND court_number = ?',
+        (round_id, court_number)
+    ).fetchone()
+
+    if not match:
+        flash('Match not found')
+        return redirect(url_for('index'))
+
+    # Check if match already completed
+    if match['completed']:
+        flash("This match has already been completed.")
+        return redirect(url_for('leaderboard', tournament_id=tournament_id))
+
+    # Get player details
+    players = {
+        'team1': [
+            get_player(match['player1_id']),
+            get_player(match['player2_id'])
+        ],
+        'team2': [
+            get_player(match['player3_id']),
+            get_player(match['player4_id'])
+        ]
+    }
+
+    return render_template(
+        'confirm_match.html',
+        tournament=tournament,
+        round=round_obj,
+        court_number=court_number,
+        match=match,
+        players=players
+    )
+
 @app.route('/tournament/<int:tournament_id>')
 def active_tournament(tournament_id):
     """Show active round for tournament"""
