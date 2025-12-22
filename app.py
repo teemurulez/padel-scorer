@@ -173,7 +173,7 @@ def start_round(tournament_id):
                         p.id,
                         COALESCE(ps.seed_points, 0) as seed_points
                     FROM players p
-                    LEFT JOIN player_seeding ps ON p.id = ps.player_id
+                    LEFT JOIN player_seeding ps ON p.id = ps.id
                     ORDER BY seed_points DESC
                 """).fetchall()
             except:
