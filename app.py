@@ -174,16 +174,14 @@ def start_round(tournament_id):
                         COALESCE(ps.seed_points, 0) as seed_points
                     FROM players p
                     LEFT JOIN player_seeding ps ON p.id = ps.player_id
-                    WHERE p.tournament_id = ?
                     ORDER BY seed_points DESC
-                """, (tournament_id,)).fetchall()
+                """).fetchall()
             except:
                 # Fallback if player_seeding view doesn't exist (Phase 2)
                 players_with_seeds = db.execute("""
                     SELECT id, 0 as seed_points
                     FROM players
-                    WHERE tournament_id = ?
-                """, (tournament_id,)).fetchall()
+                """).fetchall()
 
             players_with_seeds = [dict(p) for p in players_with_seeds]
             court_assignments = generate_seeded_round1_pairings(players_with_seeds, num_courts)
