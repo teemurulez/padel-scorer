@@ -108,10 +108,18 @@ def setup_tournament():
         )
         tournament_id = cursor.lastrowid
 
-        # Add players
+        # Add players to Phase 3 player_registry
         for name in player_names:
+            # Split name into first and last (assume "First Last" format)
+            parts = name.strip().split(' ', 1)
+            first_name = parts[0] if len(parts) > 0 else ''
+            last_name = parts[1] if len(parts) > 1 else ''
+
             try:
-                db.execute('INSERT INTO players (name) VALUES (?)', (name,))
+                db.execute(
+                    'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+                    (first_name, last_name)
+                )
             except sqlite3.IntegrityError:
                 flash(f'Player {name} already exists, skipping')
 
@@ -134,8 +142,8 @@ def start_round(tournament_id):
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        # Get all players
-        players = db.execute('SELECT * FROM players ORDER BY RANDOM()').fetchall()
+        # Get all players from player_registry (Phase 3)
+        players = db.execute('SELECT id FROM player_registry ORDER BY RANDOM()').fetchall()
         num_players = len(players)
         num_courts = tournament['num_courts']
 
