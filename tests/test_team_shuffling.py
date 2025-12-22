@@ -271,3 +271,76 @@ def test_no_shuffle_does_not_set_flag(client):
 
         assert match['teams_shuffled'] == 0
         assert match['original_player1_id'] is None
+
+
+def test_complete_shuffle_workflow(client):
+    """Test full workflow: court selection -> confirm -> shuffle -> submit"""
+    with app.app_context():
+        from database import get_db
+        db = get_db()
+
+        # Setup tournament with 8 players, 2 courts
+        # Note: init_test_db already creates Player 1-5, we need to add 6-8
+        for i in range(6, 9):
+            db.execute("INSERT INTO players (name) VALUES (?)", (f'Player {i}',))
+
+        cursor = db.execute("INSERT INTO tournaments (name, num_courts, status) VALUES ('Test Tournament', 2, 'active')")
+        tournament_id = cursor.lastrowid
+
+        cursor = db.execute("INSERT INTO rounds (tournament_id, round_number) VALUES (?, 1)", (tournament_id,))
+        round_id = cursor.lastrowid
+
+        # Create 2 matches
+        db.execute("""
+            INSERT INTO matches (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
+            VALUES (?, 1, 1, 2, 3, 4)
+        """, (round_id,))
+        match_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        db.execute("""
+            INSERT INTO matches (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
+            VALUES (?, 2, 5, 6, 7, 8)
+        """, (round_id,))
+        db.commit()
+
+    # Step 1: Navigate to court selection
+    response = client.get(f'/tournament/{tournament_id}/round/{round_id}/courts')
+    assert response.status_code == 200
+    assert b'Court 1' in response.data
+    assert b'Court 2' in response.data
+
+    # Step 2: Navigate to Court 1 confirmation
+    response = client.get(f'/tournament/{tournament_id}/round/{round_id}/court/1/confirm')
+    assert response.status_code == 200
+    assert b'Drag players to swap teams' in response.data
+    assert b'John Doe' in response.data  # Player 1 from registry
+
+    # Step 3: Shuffle teams (swap players 2 and 3)
+    response = client.post(
+        f'/tournament/{tournament_id}/round/{round_id}/court/1/confirm',
+        data={
+            'team1_player1': '1',
+            'team1_player2': '3',  # Shuffled
+            'team2_player1': '2',  # Shuffled
+            'team2_player2': '4'
+        },
+        follow_redirects=False
+    )
+
+    # Should redirect to active tournament
+    assert response.status_code == 302
+    assert f'/tournament/{tournament_id}' in response.location
+
+    # Step 4: Verify shuffle was saved
+    with app.app_context():
+        from database import get_db
+        db = get_db()
+        match = db.execute('SELECT * FROM matches WHERE id = ?', (match_id,)).fetchone()
+
+        assert match['teams_shuffled'] == 1
+        assert match['player1_id'] == 1
+        assert match['player2_id'] == 3  # Swapped
+        assert match['player3_id'] == 2  # Swapped
+        assert match['player4_id'] == 4
+        assert match['original_player2_id'] == 2
+        assert match['original_player3_id'] == 3
