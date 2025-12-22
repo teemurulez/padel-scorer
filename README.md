@@ -139,6 +139,34 @@ The system uses a simple swap strategy:
 
 For more details, see [docs/COURT_MOVEMENT.md](docs/COURT_MOVEMENT.md)
 
+## Manual Team Shuffling
+
+Players can manually adjust team pairings before matches start.
+
+### User Flow
+
+1. Tournament organizer starts a round
+2. Players navigate to court selection screen
+3. Each player selects their court
+4. Pre-match confirmation screen shows algorithm's pairing
+5. Players can drag-and-drop to swap partners
+6. Click "Start Match" to confirm and proceed to scoring
+
+### Technical Details
+
+- New database columns track shuffle history:
+  - `teams_shuffled`: boolean flag
+  - `original_player1_id` through `original_player4_id`: original pairing
+- Court movement algorithm uses actual teams that played
+- Mobile-optimized drag-and-drop interface
+- Validation prevents invalid team configurations
+
+### Routes
+
+- `GET /tournament/<id>/round/<id>/courts` - Court selection
+- `GET /tournament/<id>/round/<id>/court/<n>/confirm` - Pre-match confirmation
+- `POST /tournament/<id>/round/<id>/court/<n>/confirm` - Save teams
+
 ## Project Structure
 
 ```
