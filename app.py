@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, g
 import os
-import random
 import sqlite3
 from config import Config
 from database import get_db, init_db
@@ -24,7 +23,7 @@ def get_db_connection():
     return g.db
 
 @app.teardown_appcontext
-def close_db(error):
+def close_db(_error):
     """Close database connection at end of request"""
     db = g.pop('db', None)
     if db is not None:
@@ -789,7 +788,7 @@ def create_player():
         return redirect('/players')
 
     # Create new player
-    cursor = db.execute(
+    db.execute(
         "INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)",
         (first_name, last_name)
     )
