@@ -245,7 +245,19 @@ def start_round(tournament_id):
         (tournament_id,)
     ).fetchone()
 
-    return render_template('start_round.html', tournament=tournament, current_round=current_round)
+    # Check if there's any completed match data for leaderboard
+    completed_matches = db.execute(
+        '''SELECT COUNT(*) as count FROM matches m
+           JOIN rounds r ON m.round_id = r.id
+           WHERE r.tournament_id = ? AND m.completed = 1''',
+        (tournament_id,)
+    ).fetchone()
+    has_leaderboard_data = completed_matches['count'] > 0
+
+    return render_template('start_round.html',
+                         tournament=tournament,
+                         current_round=current_round,
+                         has_leaderboard_data=has_leaderboard_data)
 
 @app.route('/tournament/<int:tournament_id>/round/<int:round_id>/courts')
 def court_selection(tournament_id, round_id):

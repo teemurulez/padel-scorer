@@ -38,9 +38,15 @@
             </button>
         </form>
 
-        <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary">
-            View Leaderboard
-        </a>
+        {% if has_leaderboard_data %}
+            <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary">
+                View Leaderboard
+            </a>
+        {% else %}
+            <button class="btn-secondary" disabled style="opacity: 0.5; cursor: not-allowed;">
+                View Leaderboard (No data yet)
+            </button>
+        {% endif %}
     </div>
 </body>
 </html>
