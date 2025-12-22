@@ -203,9 +203,9 @@ def test_successful_team_shuffle_saves_original(client):
         follow_redirects=False
     )
 
-    # Should redirect to active tournament
+    # Should redirect to score entry for this match
     assert response.status_code == 302
-    assert f'/tournament/{tournament_id}' in response.location
+    assert f'/match/{match_id}/score' in response.location
 
     # Verify database updated correctly
     with app.app_context():
@@ -327,9 +327,9 @@ def test_complete_shuffle_workflow(client):
         follow_redirects=False
     )
 
-    # Should redirect to active tournament
+    # Should redirect to score entry for this match
     assert response.status_code == 302
-    assert f'/tournament/{tournament_id}' in response.location
+    assert f'/match/{match_id}/score' in response.location
 
     # Step 4: Verify shuffle was saved
     with app.app_context():

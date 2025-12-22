@@ -459,8 +459,8 @@ def confirm_match_teams(tournament_id, round_id, court_number):
             ))
             db.commit()
 
-        # Redirect to active tournament (score entry screen)
-        return redirect(url_for('active_tournament', tournament_id=tournament_id))
+        # Redirect to score entry screen for this match
+        return redirect(url_for('score_entry', match_id=match['id']))
 
     # Handle GET request (show confirmation screen)
     # Get tournament
