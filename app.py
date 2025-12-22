@@ -647,11 +647,6 @@ def score_entry(match_id):
                 'INSERT INTO scores (player_id, match_id, points) VALUES (?, ?, ?)',
                 (player_id, match_id, 1)
             )
-            # Update player's total points
-            db.execute(
-                'UPDATE players SET total_points = total_points + 1 WHERE id = ?',
-                (player_id,)
-            )
 
         # Mark match as completed
         db.execute(
