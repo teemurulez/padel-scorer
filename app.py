@@ -604,19 +604,9 @@ def score_entry(match_id):
     db = get_db_connection()
 
     match = db.execute(
-        '''SELECT
-            m.*,
-            r.tournament_id,
-            p1.name as player1_name,
-            p2.name as player2_name,
-            p3.name as player3_name,
-            p4.name as player4_name
+        '''SELECT m.*, r.tournament_id
            FROM matches m
            JOIN rounds r ON m.round_id = r.id
-           JOIN players p1 ON m.player1_id = p1.id
-           JOIN players p2 ON m.player2_id = p2.id
-           JOIN players p3 ON m.player3_id = p3.id
-           JOIN players p4 ON m.player4_id = p4.id
            WHERE m.id = ?''',
         (match_id,)
     ).fetchone()
@@ -624,6 +614,17 @@ def score_entry(match_id):
     if not match:
         flash('Match not found')
         return redirect(url_for('index'))
+
+    # Get player details using helper function (Phase 3 compatible)
+    match = dict(match)
+    player1 = get_player(match['player1_id'])
+    player2 = get_player(match['player2_id'])
+    player3 = get_player(match['player3_id'])
+    player4 = get_player(match['player4_id'])
+    match['player1_name'] = f"{player1['first_name']} {player1['last_name']}"
+    match['player2_name'] = f"{player2['first_name']} {player2['last_name']}"
+    match['player3_name'] = f"{player3['first_name']} {player3['last_name']}"
+    match['player4_name'] = f"{player4['first_name']} {player4['last_name']}"
 
     if match['completed']:
         flash('This match has already been scored')
