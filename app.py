@@ -237,7 +237,8 @@ def start_round(tournament_id):
         )
         db.commit()
 
-        return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
+        flash(f"Round {round_number} created! Players, go to your courts to confirm teams.")
+        return redirect(url_for('court_selection', tournament_id=tournament_id, round_id=round_id))
 
     # Get current round if exists
     current_round = db.execute(
