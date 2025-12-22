@@ -180,15 +180,15 @@ def start_round(tournament_id):
                     SELECT
                         p.id,
                         COALESCE(ps.seed_points, 0) as seed_points
-                    FROM players p
+                    FROM player_registry p
                     LEFT JOIN player_seeding ps ON p.id = ps.id
                     ORDER BY seed_points DESC
                 """).fetchall()
             except:
-                # Fallback if player_seeding view doesn't exist (Phase 2)
+                # Fallback if player_seeding view doesn't exist
                 players_with_seeds = db.execute("""
                     SELECT id, 0 as seed_points
-                    FROM players
+                    FROM player_registry
                 """).fetchall()
 
             players_with_seeds = [dict(p) for p in players_with_seeds]
