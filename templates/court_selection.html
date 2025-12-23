@@ -129,8 +129,9 @@
 
         <div class="actions">
             {% if all_completed %}
-            <a href="{{ url_for('start_round', tournament_id=tournament.id) }}"
-               class="btn btn-primary">Start Next Round</a>
+            <form action="{{ url_for('start_round', tournament_id=tournament.id) }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-primary">Start Next Round</button>
+            </form>
             {% endif %}
             <a href="/" class="btn btn-secondary">Back to Home</a>
         </div>
