@@ -21,6 +21,25 @@
             border-radius: 8px;
             padding: 20px;
             border: 2px solid #ddd;
+            position: relative;
+        }
+        .court-card.completed {
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+        .completed-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            color: #22c55e;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .winner-text {
+            font-weight: bold;
+            color: #22c55e;
+            margin: 10px 0;
+            text-align: center;
         }
         .court-card h3 {
             margin-top: 0;
@@ -74,7 +93,10 @@
 
         <div class="court-grid">
             {% for match in matches %}
-            <div class="court-card">
+            <div class="court-card {% if match.completed %}completed{% endif %}">
+                {% if match.completed %}
+                <span class="completed-badge">✓</span>
+                {% endif %}
                 <h3>Court {{ match.court_number }}</h3>
                 <div class="players-preview">
                     <div class="team">
@@ -89,10 +111,18 @@
                         <p>{{ match.player4['first_name'] }} {{ match.player4['last_name'] }}</p>
                     </div>
                 </div>
+                {% if match.completed %}
+                <p class="winner-text">Winner: Team {{ match.winning_team }}</p>
+                <a href="{{ url_for('score_entry', match_id=match.id) }}"
+                   class="btn btn-secondary">
+                    Edit Score
+                </a>
+                {% else %}
                 <a href="{{ url_for('confirm_match_teams', tournament_id=tournament.id, round_id=round.id, court_number=match.court_number) }}"
                    class="btn btn-primary">
                     Go to Court {{ match.court_number }}
                 </a>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

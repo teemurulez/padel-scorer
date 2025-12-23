@@ -657,7 +657,7 @@ def score_entry(match_id):
         db.commit()
         flash('Score recorded successfully!')
 
-        return redirect(url_for('active_round',
+        return redirect(url_for('court_selection',
                                tournament_id=match['tournament_id'],
                                round_id=match['round_id']))
 
