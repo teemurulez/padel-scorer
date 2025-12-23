@@ -630,27 +630,35 @@ def score_entry(match_id):
     match['player3_name'] = f"{player3['first_name']} {player3['last_name']}"
     match['player4_name'] = f"{player4['first_name']} {player4['last_name']}"
 
-    if match['completed']:
-        flash('This match has already been scored')
-        return redirect(url_for('active_round',
-                               tournament_id=match['tournament_id'],
-                               round_id=match['round_id']))
-
     if request.method == 'POST':
         winning_team = int(request.form.get('winning_team'))
 
         # Determine winners
         if winning_team == 1:
             winner_ids = [match['player1_id'], match['player2_id']]
+            loser_ids = [match['player3_id'], match['player4_id']]
         else:
             winner_ids = [match['player3_id'], match['player4_id']]
+            loser_ids = [match['player1_id'], match['player2_id']]
 
-        # Record scores (1 point for winners)
-        for player_id in winner_ids:
-            db.execute(
-                'INSERT INTO scores (player_id, match_id, points) VALUES (?, ?, ?)',
-                (player_id, match_id, 1)
-            )
+        if match['completed']:
+            # Update existing scores
+            # Delete old scores and insert new ones
+            db.execute('DELETE FROM scores WHERE match_id = ?', (match_id,))
+            for player_id in winner_ids:
+                db.execute(
+                    'INSERT INTO scores (player_id, match_id, points) VALUES (?, ?, ?)',
+                    (player_id, match_id, 1)
+                )
+            flash('Score updated successfully!')
+        else:
+            # Record new scores (1 point for winners)
+            for player_id in winner_ids:
+                db.execute(
+                    'INSERT INTO scores (player_id, match_id, points) VALUES (?, ?, ?)',
+                    (player_id, match_id, 1)
+                )
+            flash('Score recorded successfully!')
 
         # Mark match as completed
         db.execute(
@@ -659,7 +667,6 @@ def score_entry(match_id):
         )
 
         db.commit()
-        flash('Score recorded successfully!')
 
         return redirect(url_for('court_selection',
                                tournament_id=match['tournament_id'],

@@ -9,7 +9,7 @@
 <body>
     <div class="container score-entry">
         <h1>Court {{ match['court_number'] }}</h1>
-        <h2>Select Winning Team</h2>
+        <h2>{% if match['completed'] %}Edit Score{% else %}Select Winning Team{% endif %}</h2>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -24,7 +24,7 @@
         <form method="POST">
             <div class="team-selection">
                 <label class="team-option">
-                    <input type="radio" name="winning_team" value="1" required>
+                    <input type="radio" name="winning_team" value="1" {% if match['completed'] and match['winning_team'] == 1 %}checked{% endif %} required>
                     <div class="team-box">
                         <strong>Team 1</strong>
                         <p>{{ match['player1_name'] }}</p>
@@ -33,7 +33,7 @@
                 </label>
 
                 <label class="team-option">
-                    <input type="radio" name="winning_team" value="2" required>
+                    <input type="radio" name="winning_team" value="2" {% if match['completed'] and match['winning_team'] == 2 %}checked{% endif %} required>
                     <div class="team-box">
                         <strong>Team 2</strong>
                         <p>{{ match['player3_name'] }}</p>
@@ -43,10 +43,10 @@
             </div>
 
             <button type="submit" class="btn-primary btn-large">
-                Confirm Winner
+                {% if match['completed'] %}Update Winner{% else %}Confirm Winner{% endif %}
             </button>
 
-            <a href="{{ url_for('active_round', tournament_id=match['tournament_id'], round_id=match['round_id']) }}"
+            <a href="{{ url_for('court_selection', tournament_id=match['tournament_id'], round_id=match['round_id']) }}"
                class="btn-secondary">Cancel</a>
         </form>
     </div>
