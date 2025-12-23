@@ -65,8 +65,15 @@
                class="btn-secondary">View Leaderboard</a>
 
             {% if all_completed %}
-            <a href="{{ url_for('start_round', tournament_id=tournament_id) }}"
-               class="btn-primary">Start Next Round</a>
+            <form action="{{ url_for('start_round', tournament_id=tournament_id) }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-primary">Start Next Round</button>
+            </form>
+            <form action="{{ url_for('end_tournament', tournament_id=tournament_id) }}"
+                  method="POST"
+                  onsubmit="return confirm('Are you sure you want to end this tournament? You can still view and edit results after ending.')"
+                  style="display: inline;">
+                <button type="submit" class="btn btn-warning">End Tournament</button>
+            </form>
             {% endif %}
         </div>
     </div>

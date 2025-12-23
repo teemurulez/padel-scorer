@@ -3,13 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaderboard</title>
+    <title>Leaderboard - {{ tournament['name'] }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .tournament-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .tournament-header h1 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .status-badge.active {
+            background-color: #22c55e;
+            color: white;
+        }
+        .status-badge.completed {
+            background-color: #6b7280;
+            color: white;
+        }
+        .tournament-meta {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .tournament-meta span {
+            margin: 0 15px;
+        }
+        .leaderboard {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .leaderboard th {
+            background: #2196F3;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+        .leaderboard td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        .leaderboard tr:hover {
+            background: #f5f5f5;
+        }
+        .rank {
+            font-weight: bold;
+            color: #2196F3;
+            width: 60px;
+            text-align: center;
+        }
+        .player-name {
+            font-weight: 500;
+        }
+        .wins, .matches, .win-rate {
+            text-align: center;
+            width: 100px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Leaderboard</h1>
-        <h2>{{ tournament['name'] }}</h2>
+        <div class="tournament-header">
+            <h1>{{ tournament['name'] }}</h1>
+            <span class="status-badge {% if tournament['status'] == 'completed' %}completed{% else %}active{% endif %}">
+                {{ tournament['status']|capitalize }}
+            </span>
+            <div class="tournament-meta">
+                <span>📅 {{ tournament['created_at'][:10] }}</span>
+                <span>🎾 {{ tournament_stats['total_rounds'] }} Round{{ 's' if tournament_stats['total_rounds'] != 1 else '' }}</span>
+                <span>🏟️ {{ tournament['num_courts'] }} Court{{ 's' if tournament['num_courts'] != 1 else '' }}</span>
+            </div>
+        </div>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -21,22 +106,23 @@
             {% endif %}
         {% endwith %}
 
+        {% if players %}
         <table class="leaderboard">
             <thead>
                 <tr>
-                    <th>Rank</th>
+                    <th class="rank">Rank</th>
                     <th>Player</th>
-                    <th>Points</th>
-                    <th>Matches</th>
-                    <th>Win %</th>
+                    <th class="wins">Wins</th>
+                    <th class="matches">Matches</th>
+                    <th class="win-rate">Win %</th>
                 </tr>
             </thead>
             <tbody>
                 {% for player in players %}
                 <tr>
                     <td class="rank">{{ loop.index }}</td>
-                    <td class="player-name">{{ player['name'] }}</td>
-                    <td class="points">{{ player['total_points'] }}</td>
+                    <td class="player-name">{{ player['first_name'] }} {{ player['last_name'] }}</td>
+                    <td class="wins">{{ player['wins'] }}</td>
                     <td class="matches">{{ player['matches_played'] }}</td>
                     <td class="win-rate">
                         {% if player['win_rate'] %}
@@ -49,10 +135,18 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No matches played yet.</p>
+        </div>
+        {% endif %}
 
         <div class="actions">
+            {% if tournament['status'] != 'completed' %}
             <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}"
-               class="btn-secondary">Back to Matches</a>
+               class="btn btn-primary">Back to Tournament</a>
+            {% endif %}
+            <a href="/" class="btn btn-secondary">Back to Home</a>
         </div>
     </div>
 </body>

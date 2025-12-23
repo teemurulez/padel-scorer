@@ -674,6 +674,30 @@ def score_entry(match_id):
 
     return render_template('score_entry.html', match=match)
 
+@app.route('/tournament/<int:tournament_id>/end', methods=['POST'])
+def end_tournament(tournament_id):
+    """End tournament and mark as completed"""
+    db = get_db_connection()
+
+    tournament = db.execute(
+        'SELECT * FROM tournaments WHERE id = ?',
+        (tournament_id,)
+    ).fetchone()
+
+    if not tournament:
+        flash('Tournament not found')
+        return redirect(url_for('index'))
+
+    # Update status to completed
+    db.execute(
+        'UPDATE tournaments SET status = ? WHERE id = ?',
+        ('completed', tournament_id)
+    )
+    db.commit()
+
+    flash('Tournament ended successfully!')
+    return redirect(url_for('leaderboard', tournament_id=tournament_id))
+
 @app.route('/tournament/<int:tournament_id>/leaderboard')
 def leaderboard(tournament_id):
     """Show current standings"""
@@ -687,27 +711,41 @@ def leaderboard(tournament_id):
         flash('Tournament not found')
         return redirect(url_for('index'))
 
-    # Get all players with their match statistics
+    # Get tournament metadata (total rounds)
+    tournament_stats = db.execute(
+        '''SELECT
+            COUNT(DISTINCT r.id) as total_rounds
+           FROM rounds r
+           WHERE r.tournament_id = ?''',
+        (tournament_id,)
+    ).fetchone()
+
+    # Get all players with their match statistics (Phase 3)
     players = db.execute(
         '''SELECT
-            p.id,
-            p.name,
-            p.total_points,
+            pr.id,
+            pr.first_name,
+            pr.last_name,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN s.match_id END) as wins,
             COUNT(DISTINCT s.match_id) as matches_played,
-            ROUND(CAST(p.total_points AS FLOAT) /
-                  NULLIF(COUNT(DISTINCT s.match_id), 0) * 100, 1) as win_rate
-           FROM players p
-           LEFT JOIN scores s ON p.id = s.player_id
+            ROUND(
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN s.match_id END) AS FLOAT) /
+                NULLIF(COUNT(DISTINCT s.match_id), 0) * 100,
+                1
+            ) as win_rate
+           FROM player_registry pr
+           LEFT JOIN scores s ON pr.id = s.player_id
            LEFT JOIN matches m ON s.match_id = m.id
            LEFT JOIN rounds r ON m.round_id = r.id
            WHERE r.tournament_id = ?
-           GROUP BY p.id, p.name, p.total_points
-           ORDER BY p.total_points DESC, p.name ASC''',
+           GROUP BY pr.id, pr.first_name, pr.last_name
+           ORDER BY wins DESC, win_rate DESC, pr.last_name ASC''',
         (tournament_id,)
     ).fetchall()
 
     return render_template('leaderboard.html',
                           tournament=tournament,
+                          tournament_stats=tournament_stats,
                           players=players)
 
 @app.route('/tournament/<int:tournament_id>/complete', methods=['POST'])
