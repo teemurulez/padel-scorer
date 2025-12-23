@@ -343,11 +343,15 @@ def court_selection(tournament_id, round_id):
         match_dict['player4'] = get_player(match['player4_id'])
         matches_with_players.append(match_dict)
 
+    # Check if all matches are completed
+    all_completed = all(match['completed'] for match in matches)
+
     return render_template(
         'court_selection.html',
         tournament=tournament,
         round=round_obj,
-        matches=matches_with_players
+        matches=matches_with_players,
+        all_completed=all_completed
     )
 
 @app.route('/tournament/<int:tournament_id>/round/<int:round_id>/court/<int:court_number>/confirm', methods=['GET', 'POST'])

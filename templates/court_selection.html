@@ -128,6 +128,10 @@
         </div>
 
         <div class="actions">
+            {% if all_completed %}
+            <a href="{{ url_for('start_round', tournament_id=tournament.id) }}"
+               class="btn btn-primary">Start Next Round</a>
+            {% endif %}
             <a href="/" class="btn btn-secondary">Back to Home</a>
         </div>
     </div>
