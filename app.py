@@ -726,18 +726,23 @@ def leaderboard(tournament_id):
             pr.id,
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points > 0 THEN s.match_id END) as wins,
-            COUNT(DISTINCT s.match_id) as matches_played,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
+            COUNT(DISTINCT m.id) as matches_played,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN s.match_id END) AS FLOAT) /
-                NULLIF(COUNT(DISTINCT s.match_id), 0) * 100,
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate
            FROM player_registry pr
-           LEFT JOIN scores s ON pr.id = s.player_id
-           LEFT JOIN matches m ON s.match_id = m.id
+           LEFT JOIN matches m ON (
+               pr.id = m.player1_id OR
+               pr.id = m.player2_id OR
+               pr.id = m.player3_id OR
+               pr.id = m.player4_id
+           )
            LEFT JOIN rounds r ON m.round_id = r.id
-           WHERE r.tournament_id = ?
+           LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+           WHERE r.tournament_id = ? AND m.completed = 1
            GROUP BY pr.id, pr.first_name, pr.last_name
            ORDER BY wins DESC, win_rate DESC, pr.last_name ASC''',
         (tournament_id,)
