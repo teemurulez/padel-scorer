@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Season History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .season-section {
+            margin-bottom: 60px;
+            padding-bottom: 40px;
+            border-bottom: 3px solid #ddd;
+        }
+        .season-section:last-child {
+            border-bottom: none;
+        }
+        .season-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        .season-header h2 {
+            color: #666;
+            margin: 0 0 10px 0;
+        }
+        .season-meta {
+            color: #888;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .tournaments-section {
+            margin-top: 40px;
+        }
+        .tournament-card {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        .tournament-header {
+            padding: 15px;
+            background: #f8f9fa;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .tournament-header:hover {
+            background: #e9ecef;
+        }
+        .toggle-icon {
+            font-size: 14px;
+            transition: transform 0.2s;
+            min-width: 15px;
+        }
+        .toggle-icon.expanded {
+            transform: rotate(90deg);
+        }
+        .tournament-details {
+            padding: 15px;
+            display: none;
+        }
+        .tournament-details.show {
+            display: block;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: auto;
+        }
+        .badge.active {
+            background: #22c55e;
+            color: white;
+        }
+        .badge.completed {
+            background: #6b7280;
+            color: white;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1>Previous Seasons</h1>
+            <p class="info-text">Historical tournament data from past years</p>
+        </div>
+
+        {% if seasons %}
+            {% for season in seasons %}
+            <div class="season-section">
+                <div class="season-header">
+                    <h2>Season {{ season['year'] }}</h2>
+                    <div class="season-meta">Jan 1 - Dec 31, {{ season['year'] }}</div>
+                    <div class="season-meta">{{ season['tournament_count'] }} Tournament{{ 's' if season['tournament_count'] != 1 else '' }}</div>
+                </div>
+
+                <!-- Season-Wide Standings -->
+                <h2>Season Standings</h2>
+                {% if season['season_stats'] %}
+                <table class="leaderboard">
+                    <thead>
+                        <tr>
+                            <th class="rank">Rank</th>
+                            <th>Player</th>
+                            <th class="wins">Total Wins</th>
+                            <th class="matches">Total Matches</th>
+                            <th class="win-rate">Win %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in season['season_stats'] %}
+                        <tr>
+                            <td class="rank">{{ loop.index }}</td>
+                            <td class="player-name">{{ player['first_name'] }} {{ player['last_name'] }}</td>
+                            <td class="wins">{{ player['total_wins'] }}</td>
+                            <td class="matches">{{ player['total_matches'] }}</td>
+                            <td class="win-rate">
+                                {% if player['win_rate'] %}
+                                    {{ player['win_rate'] }}%
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <p>No completed matches in this season.</p>
+                </div>
+                {% endif %}
+
+                <!-- Individual Tournaments -->
+                {% if season['tournaments'] %}
+                <div class="tournaments-section">
+                    <h2>Individual Tournaments</h2>
+                    {% for item in season['tournaments'] %}
+                    {% set tournament = item['tournament'] %}
+                    {% set stats = item['stats'] %}
+                    <div class="tournament-card">
+                        <div class="tournament-header" onclick="toggleTournament('{{ season['year'] }}', {{ tournament['id'] }})">
+                            <span class="toggle-icon" id="icon-{{ season['year'] }}-{{ tournament['id'] }}">▶</span>
+                            <span><strong>{{ tournament['name'] }}</strong></span>
+                            <span>{{ tournament['created_at'][:10] }}</span>
+                            <span>{{ stats['rounds'] }} Round{{ 's' if stats['rounds'] != 1 else '' }}</span>
+                            <span>{{ tournament['num_courts'] }} Court{{ 's' if tournament['num_courts'] != 1 else '' }}</span>
+                            <span class="badge {{ 'active' if tournament['status'] == 'active' else 'completed' }}">
+                                {{ tournament['status']|capitalize }}
+                            </span>
+                        </div>
+                        <div id="tournament-{{ season['year'] }}-{{ tournament['id'] }}" class="tournament-details">
+                            {% if stats['players'] %}
+                            <table class="leaderboard">
+                                <thead>
+                                    <tr>
+                                        <th class="rank">Rank</th>
+                                        <th>Player</th>
+                                        <th class="wins">Wins</th>
+                                        <th class="matches">Matches</th>
+                                        <th class="win-rate">Win %</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for player in stats['players'] %}
+                                    <tr>
+                                        <td class="rank">{{ loop.index }}</td>
+                                        <td class="player-name">{{ player['first_name'] }} {{ player['last_name'] }}</td>
+                                        <td class="wins">{{ player['wins'] }}</td>
+                                        <td class="matches">{{ player['matches_played'] }}</td>
+                                        <td class="win-rate">
+                                            {% if player['win_rate'] %}
+                                                {{ player['win_rate'] }}%
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <div class="empty-state">No completed matches in this tournament.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <p>No previous seasons found. Historical data will appear here once you have tournaments from past years.</p>
+        </div>
+        {% endif %}
+
+        <div class="actions">
+            <a href="{{ url_for('season_leaderboard') }}" class="btn btn-secondary">Back to Current Season</a>
+            <a href="/" class="btn btn-secondary">Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        function toggleTournament(year, tournamentId) {
+            const details = document.getElementById('tournament-' + year + '-' + tournamentId);
+            const icon = document.getElementById('icon-' + year + '-' + tournamentId);
+
+            if (details.classList.contains('show')) {
+                details.classList.remove('show');
+                icon.classList.remove('expanded');
+                icon.textContent = '▶';
+            } else {
+                details.classList.add('show');
+                icon.classList.add('expanded');
+                icon.textContent = '▼';
+            }
+        }
+    </script>
+</body>
+</html>

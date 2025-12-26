@@ -878,11 +878,101 @@ def season_leaderboard():
 
     tournament_count = len(tournaments)
 
+    # Check if there are any previous seasons (years before current year)
+    has_previous_seasons = db.execute(
+        '''SELECT COUNT(DISTINCT strftime('%Y', created_at)) as year_count
+           FROM tournaments
+           WHERE strftime('%Y', created_at) < ?''',
+        (str(current_year),)
+    ).fetchone()['year_count'] > 0
+
     return render_template('season_leaderboard.html',
                           current_year=current_year,
                           season_stats=season_stats,
                           tournaments=tournaments_with_stats,
-                          tournament_count=tournament_count)
+                          tournament_count=tournament_count,
+                          has_previous_seasons=has_previous_seasons)
+
+@app.route('/leaderboard/history')
+def season_history():
+    """Show all previous seasons in one long view"""
+    from datetime import datetime
+    db = get_db_connection()
+
+    # Get current year
+    current_year = datetime.now().year
+
+    # Get all distinct years before current year, newest first
+    years = db.execute(
+        '''SELECT DISTINCT strftime('%Y', created_at) as year
+           FROM tournaments
+           WHERE strftime('%Y', created_at) < ?
+           ORDER BY year DESC''',
+        (str(current_year),)
+    ).fetchall()
+
+    # For each year, get season stats and tournaments
+    seasons = []
+    for year_row in years:
+        year = year_row['year']
+
+        # Get season-wide player statistics for this year
+        season_stats = db.execute(
+            '''SELECT
+                pr.id,
+                pr.first_name,
+                pr.last_name,
+                COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
+                COUNT(DISTINCT m.id) as total_matches,
+                ROUND(
+                    CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                    NULLIF(COUNT(DISTINCT m.id), 0) * 100,
+                    1
+                ) as win_rate
+               FROM player_registry pr
+               LEFT JOIN matches m ON (
+                   pr.id = m.player1_id OR
+                   pr.id = m.player2_id OR
+                   pr.id = m.player3_id OR
+                   pr.id = m.player4_id
+               )
+               LEFT JOIN rounds r ON m.round_id = r.id
+               LEFT JOIN tournaments t ON r.tournament_id = t.id
+               LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+               WHERE strftime('%Y', t.created_at) = ?
+                 AND m.completed = 1
+               GROUP BY pr.id, pr.first_name, pr.last_name
+               HAVING total_matches > 0
+               ORDER BY total_wins DESC, win_rate DESC, pr.last_name ASC''',
+            (year,)
+        ).fetchall()
+
+        # Get all tournaments in this year
+        tournaments = db.execute(
+            '''SELECT * FROM tournaments
+               WHERE strftime('%Y', created_at) = ?
+               ORDER BY created_at DESC''',
+            (year,)
+        ).fetchall()
+
+        # For each tournament, get its leaderboard
+        tournaments_with_stats = []
+        for tournament in tournaments:
+            tournament_stats = get_tournament_leaderboard(tournament['id'])
+            tournaments_with_stats.append({
+                'tournament': tournament,
+                'stats': tournament_stats
+            })
+
+        seasons.append({
+            'year': year,
+            'season_stats': season_stats,
+            'tournaments': tournaments_with_stats,
+            'tournament_count': len(tournaments)
+        })
+
+    return render_template('season_history.html',
+                          seasons=seasons)
 
 @app.route('/leaderboard/clear-all', methods=['POST'])
 def clear_all_data():

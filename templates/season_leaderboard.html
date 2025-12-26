@@ -217,6 +217,9 @@
         {% endif %}
 
         <div class="actions">
+            {% if has_previous_seasons %}
+            <a href="{{ url_for('season_history') }}" class="btn btn-secondary">View Previous Seasons</a>
+            {% endif %}
             <a href="/" class="btn btn-secondary">Back to Home</a>
         </div>
     </div>
