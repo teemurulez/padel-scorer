@@ -67,6 +67,52 @@ def get_player(player_id):
         'last_name': f'Player {player_id}]'
     }
 
+def get_tournament_leaderboard(tournament_id):
+    """Get player standings for a specific tournament"""
+    db = get_db_connection()
+
+    players = db.execute(
+        '''SELECT
+            pr.id,
+            pr.first_name,
+            pr.last_name,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
+            COUNT(DISTINCT m.id) as matches_played,
+            ROUND(
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                NULLIF(COUNT(DISTINCT m.id), 0) * 100,
+                1
+            ) as win_rate
+           FROM player_registry pr
+           LEFT JOIN matches m ON (
+               pr.id = m.player1_id OR
+               pr.id = m.player2_id OR
+               pr.id = m.player3_id OR
+               pr.id = m.player4_id
+           )
+           LEFT JOIN rounds r ON m.round_id = r.id
+           LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+           WHERE r.tournament_id = ? AND m.completed = 1
+           GROUP BY pr.id, pr.first_name, pr.last_name
+           HAVING matches_played > 0
+           ORDER BY wins DESC, win_rate DESC, pr.last_name ASC''',
+        (tournament_id,)
+    ).fetchall()
+
+    # Get tournament metadata
+    tournament_info = db.execute(
+        '''SELECT
+            COUNT(DISTINCT r.id) as total_rounds
+           FROM rounds r
+           WHERE r.tournament_id = ?''',
+        (tournament_id,)
+    ).fetchone()
+
+    return {
+        'players': players,
+        'rounds': tournament_info['total_rounds']
+    }
+
 # Routes
 
 @app.route('/')
@@ -80,7 +126,12 @@ def index():
     if tournament:
         return redirect(url_for('active_tournament', tournament_id=tournament['id']))
 
-    return render_template('index.html')
+    # Check if any tournaments exist
+    has_tournaments = db.execute(
+        'SELECT COUNT(*) as count FROM tournaments'
+    ).fetchone()['count'] > 0
+
+    return render_template('index.html', has_tournaments=has_tournaments)
 
 @app.route('/setup', methods=['GET', 'POST'])
 def setup_tournament():
@@ -752,6 +803,92 @@ def leaderboard(tournament_id):
                           tournament=tournament,
                           tournament_stats=tournament_stats,
                           players=players)
+
+@app.route('/leaderboard/season')
+def season_leaderboard():
+    """Show season-wide leaderboard plus individual tournaments"""
+    from datetime import datetime
+    db = get_db_connection()
+
+    # Get current year
+    current_year = datetime.now().year
+
+    # Get season-wide player statistics
+    season_stats = db.execute(
+        '''SELECT
+            pr.id,
+            pr.first_name,
+            pr.last_name,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
+            COUNT(DISTINCT m.id) as total_matches,
+            ROUND(
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                NULLIF(COUNT(DISTINCT m.id), 0) * 100,
+                1
+            ) as win_rate
+           FROM player_registry pr
+           LEFT JOIN matches m ON (
+               pr.id = m.player1_id OR
+               pr.id = m.player2_id OR
+               pr.id = m.player3_id OR
+               pr.id = m.player4_id
+           )
+           LEFT JOIN rounds r ON m.round_id = r.id
+           LEFT JOIN tournaments t ON r.tournament_id = t.id
+           LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+           WHERE strftime('%Y', t.created_at) = ?
+             AND m.completed = 1
+           GROUP BY pr.id, pr.first_name, pr.last_name
+           HAVING total_matches > 0
+           ORDER BY total_wins DESC, win_rate DESC, pr.last_name ASC''',
+        (str(current_year),)
+    ).fetchall()
+
+    # Get all tournaments in current year
+    tournaments = db.execute(
+        '''SELECT * FROM tournaments
+           WHERE strftime('%Y', created_at) = ?
+           ORDER BY created_at DESC''',
+        (str(current_year),)
+    ).fetchall()
+
+    # For each tournament, get its leaderboard
+    tournaments_with_stats = []
+    for tournament in tournaments:
+        tournament_stats = get_tournament_leaderboard(tournament['id'])
+        tournaments_with_stats.append({
+            'tournament': tournament,
+            'stats': tournament_stats
+        })
+
+    tournament_count = len(tournaments)
+
+    return render_template('season_leaderboard.html',
+                          current_year=current_year,
+                          season_stats=season_stats,
+                          tournaments=tournaments_with_stats,
+                          tournament_count=tournament_count)
+
+@app.route('/leaderboard/clear-all', methods=['POST'])
+def clear_all_data():
+    """Clear all tournament and player data - complete reset"""
+    db = get_db_connection()
+
+    # Delete in correct order (foreign key constraints)
+    db.execute('DELETE FROM scores')
+    db.execute('DELETE FROM matches')
+    db.execute('DELETE FROM rounds')
+    db.execute('DELETE FROM tournaments')
+    db.execute('DELETE FROM player_registry')
+
+    # Reset auto-increment counters
+    db.execute('''DELETE FROM sqlite_sequence
+                  WHERE name IN ('tournaments', 'rounds', 'matches', 'scores', 'player_registry')''')
+
+    db.commit()
+
+    flash('All data cleared successfully! Starting fresh season.')
+    return redirect(url_for('index'))
 
 @app.route('/tournament/<int:tournament_id>/complete', methods=['POST'])
 def complete_tournament(tournament_id):
