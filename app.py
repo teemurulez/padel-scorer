@@ -4,6 +4,7 @@ import sqlite3
 from config import Config
 from database import get_db, init_db
 from court_movement import generate_next_round_pairings
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -1130,7 +1131,7 @@ def players_list():
 # ADMIN ROUTES
 # ============================================================
 
-@app.route('/admin/setup', methods=['GET'])
+@app.route('/admin/setup', methods=['GET', 'POST'])
 def admin_setup():
     """First-run admin setup page"""
     db = get_db()
@@ -1138,6 +1139,30 @@ def admin_setup():
     # Check if admin already exists
     admin = db.execute('SELECT id FROM admin_users LIMIT 1').fetchone()
     if admin:
+        return redirect('/admin/login')
+
+    if request.method == 'POST':
+        password = request.form.get('password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+
+        # Validation
+        if len(password) < 8:
+            flash('Password must be at least 8 characters long')
+            return render_template('admin_setup.html')
+
+        if password != confirm_password:
+            flash('Passwords do not match')
+            return render_template('admin_setup.html')
+
+        # Create admin user
+        password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (password_hash,)
+        )
+        db.commit()
+
+        flash('Admin account created successfully! Please log in.')
         return redirect('/admin/login')
 
     return render_template('admin_setup.html')
