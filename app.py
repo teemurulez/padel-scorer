@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, g, session
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from config import Config
 from database import get_db, init_db
 from court_movement import generate_next_round_pairings
@@ -30,6 +30,27 @@ def close_db(_error):
     db = g.pop('db', None)
     if db is not None:
         db.close()
+
+@app.before_request
+def check_admin_session():
+    """Check admin authentication and session timeout before each request"""
+    # Only check for admin routes (except login and setup)
+    if request.path.startswith('/admin') and request.path not in ['/admin/login', '/admin/setup']:
+        # Check if logged in
+        if not session.get('logged_in_as_admin'):
+            return redirect('/admin/login')
+
+        # Check 30-minute timeout
+        last_activity_str = session.get('last_activity')
+        if last_activity_str:
+            last_activity = datetime.fromisoformat(last_activity_str)
+            if datetime.now() - last_activity > timedelta(minutes=30):
+                session.clear()
+                flash('Session expired. Please log in again.')
+                return redirect('/admin/login')
+
+        # Update last activity
+        session['last_activity'] = datetime.now().isoformat()
 
 def get_player(player_id):
     """
@@ -1196,6 +1217,13 @@ def admin_login():
             return render_template('admin_login.html')
 
     return render_template('admin_login.html')
+
+
+@app.route('/admin')
+def admin_dashboard():
+    """Admin dashboard main page"""
+    # This will be expanded in next task
+    return "Admin Dashboard (placeholder)"
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')

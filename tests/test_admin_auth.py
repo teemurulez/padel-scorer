@@ -226,3 +226,115 @@ def test_admin_login_post_failure(client):
     # Check session was NOT set
     with client.session_transaction() as sess:
         assert sess.get('logged_in_as_admin') is not True
+
+
+def test_admin_dashboard_requires_login(client):
+    """Test that /admin requires authentication"""
+    response = client.get('/admin', follow_redirects=False)
+    assert response.status_code == 302
+    assert '/admin/login' in response.location
+
+
+def test_admin_dashboard_accessible_when_logged_in(client):
+    """Test that /admin is accessible when logged in"""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+
+    # Create admin and login
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    # Login
+    client.post('/admin/login', data={'password': 'testpass123'})
+
+    # Access admin dashboard
+    response = client.get('/admin')
+    assert response.status_code == 200
+
+
+def test_session_timeout_after_30_minutes(client):
+    """Test that session expires after 30 minutes of inactivity"""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+    from datetime import datetime, timedelta
+
+    # Create admin and login
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    # Login
+    client.post('/admin/login', data={'password': 'testpass123'})
+
+    # Manually set last_activity to 31 minutes ago
+    with client.session_transaction() as sess:
+        old_time = datetime.now() - timedelta(minutes=31)
+        sess['last_activity'] = old_time.isoformat()
+
+    # Try to access admin page
+    response = client.get('/admin', follow_redirects=True)
+    assert b'Session expired' in response.data or b'Admin Login' in response.data
+
+
+def test_session_updates_last_activity(client):
+    """Test that accessing admin pages updates last_activity"""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+    from datetime import datetime, timedelta
+
+    # Create admin and login
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    # Login
+    client.post('/admin/login', data={'password': 'testpass123'})
+
+    # Get initial last_activity
+    with client.session_transaction() as sess:
+        initial_time = datetime.fromisoformat(sess['last_activity'])
+
+    # Wait a moment and access admin page
+    import time
+    time.sleep(0.1)
+
+    client.get('/admin')
+
+    # Check last_activity was updated
+    with client.session_transaction() as sess:
+        updated_time = datetime.fromisoformat(sess['last_activity'])
+        assert updated_time > initial_time
+
+
+def test_login_and_setup_routes_bypass_auth_check(client):
+    """Test that /admin/login and /admin/setup don't require auth"""
+    # These should be accessible without authentication
+    response = client.get('/admin/setup')
+    assert response.status_code in [200, 302]  # 200 if no admin, 302 if admin exists
+
+    # Create admin so login page works
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('test', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    response = client.get('/admin/login')
+    assert response.status_code == 200
