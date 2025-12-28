@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Tennis Scorer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="admin-header">
+        <div class="admin-logo">
+            ADMIN DASHBOARD
+        </div>
+        <div class="admin-header-right">
+            <a href="/admin/logout" class="logout-btn">Logout</a>
+        </div>
+    </header>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="seasons">Seasons</button>
+        <button class="tab-btn" data-tab="points">Points</button>
+        <button class="tab-btn" data-tab="players">Players</button>
+        <button class="tab-btn" data-tab="data">Data</button>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="admin-container">
+        <!-- Seasons Tab -->
+        <div id="seasons" class="tab-content active">
+            <div class="tab-panel">
+                <h2>Season Management</h2>
+                <div class="placeholder-content">
+                    <div class="icon">🏆</div>
+                    <h3>Coming in Phase 2</h3>
+                    <p>Season creation, archiving, and management will be available here.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Points Tab -->
+        <div id="points" class="tab-content">
+            <div class="tab-panel">
+                <h2>Points System Configuration</h2>
+                <div class="placeholder-content">
+                    <div class="icon">📊</div>
+                    <h3>Coming in Phase 2</h3>
+                    <p>Configure point values for wins, losses, and tournament placements.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Players Tab -->
+        <div id="players" class="tab-content">
+            <div class="tab-panel">
+                <h2>Player Registry Management</h2>
+                <div class="placeholder-content">
+                    <div class="icon">👥</div>
+                    <h3>Coming in Phase 2</h3>
+                    <p>Add, edit, merge, and archive players from the registry.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Tab -->
+        <div id="data" class="tab-content">
+            <div class="tab-panel">
+                <h2>Data Management</h2>
+                <div class="placeholder-content">
+                    <div class="icon">💾</div>
+                    <h3>Coming in Phase 3</h3>
+                    <p>Backup, restore, and reset database operations.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Tab Switching JavaScript -->
+    <script>
+        // Tab switching functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetTab = this.getAttribute('data-tab');
+
+                    // Remove active class from all buttons and contents
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+
+                    // Add active class to clicked button and corresponding content
+                    this.classList.add('active');
+                    document.getElementById(targetTab).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -338,3 +338,59 @@ def test_login_and_setup_routes_bypass_auth_check(client):
 
     response = client.get('/admin/login')
     assert response.status_code == 200
+
+
+def test_admin_dashboard_shows_tabs(client):
+    """Test that admin dashboard displays all 4 tabs and logout button"""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+
+    # Create admin and login
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    # Login
+    client.post('/admin/login', data={'password': 'testpass123'})
+
+    # Access admin dashboard
+    response = client.get('/admin')
+    assert response.status_code == 200
+
+    # Check for all 4 tab names
+    assert b'Seasons' in response.data
+    assert b'Points' in response.data
+    assert b'Players' in response.data
+    assert b'Data' in response.data
+
+    # Check for logout button
+    assert b'Logout' in response.data or b'logout' in response.data
+
+
+def test_admin_dashboard_has_logo_placeholder(client):
+    """Test that admin dashboard has logo or title placeholder"""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+
+    # Create admin and login
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    # Login
+    client.post('/admin/login', data={'password': 'testpass123'})
+
+    # Access admin dashboard
+    response = client.get('/admin')
+    assert response.status_code == 200
+
+    # Check for logo placeholder or admin title
+    assert b'ADMIN DASHBOARD' in response.data or b'[LOGO]' in response.data

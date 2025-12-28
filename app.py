@@ -1222,8 +1222,7 @@ def admin_login():
 @app.route('/admin')
 def admin_dashboard():
     """Admin dashboard main page"""
-    # This will be expanded in next task
-    return "Admin Dashboard (placeholder)"
+    return render_template('admin_dashboard.html')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')
