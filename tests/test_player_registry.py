@@ -47,6 +47,7 @@ def init_test_db():
             id INTEGER PRIMARY KEY,
             name TEXT,
             status TEXT DEFAULT 'setup',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             completed_at TIMESTAMP
         );
 
