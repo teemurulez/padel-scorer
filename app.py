@@ -1126,5 +1126,21 @@ def players_list():
 
     return render_template('players_list.html', players=players)
 
+# ============================================================
+# ADMIN ROUTES
+# ============================================================
+
+@app.route('/admin/setup', methods=['GET'])
+def admin_setup():
+    """First-run admin setup page"""
+    db = get_db()
+
+    # Check if admin already exists
+    admin = db.execute('SELECT id FROM admin_users LIMIT 1').fetchone()
+    if admin:
+        return redirect('/admin/login')
+
+    return render_template('admin_setup.html')
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')
