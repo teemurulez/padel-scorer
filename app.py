@@ -1224,5 +1224,13 @@ def admin_dashboard():
     """Admin dashboard main page"""
     return render_template('admin_dashboard.html')
 
+
+@app.route('/admin/logout', methods=['POST'])
+def admin_logout():
+    """Logout and clear admin session"""
+    session.clear()
+    flash('You have been logged out successfully.')
+    return redirect('/admin/login')
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')

@@ -394,3 +394,44 @@ def test_admin_dashboard_has_logo_placeholder(client):
 
     # Check for logo placeholder or admin title
     assert b'ADMIN DASHBOARD' in response.data or b'[LOGO]' in response.data
+
+
+def test_admin_logout_clears_session(client):
+    """Test that logout clears session and redirects to login"""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+
+    # Create admin and login
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    client.post('/admin/login', data={'password': 'testpass123'})
+
+    # Verify logged in
+    with client.session_transaction() as sess:
+        assert sess.get('logged_in_as_admin') is True
+
+    # Logout
+    response = client.post('/admin/logout', follow_redirects=False)
+
+    # Should redirect to login
+    assert response.status_code == 302
+    assert '/admin/login' in response.location
+
+    # Session should be cleared
+    with client.session_transaction() as sess:
+        assert sess.get('logged_in_as_admin') is not True
+        assert 'login_time' not in sess
+        assert 'last_activity' not in sess
+
+
+def test_admin_logout_requires_post(client):
+    """Test that logout only accepts POST requests"""
+    response = client.get('/admin/logout', follow_redirects=False)
+    # Should be method not allowed or redirect
+    assert response.status_code in [302, 405]
