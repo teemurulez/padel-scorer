@@ -144,3 +144,30 @@ def test_admin_setup_post_rejects_when_admin_exists(client):
     # Should redirect to login
     assert response.status_code == 302
     assert '/admin/login' in response.location
+
+
+def test_admin_login_page_loads(client):
+    """Test that /admin/login loads"""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+
+    # Create admin user first
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    response = client.get('/admin/login')
+    assert response.status_code == 200
+    assert b'Admin Login' in response.data
+    assert b'password' in response.data.lower()
+
+
+def test_admin_login_redirects_to_setup_when_no_admin(client):
+    """Test that /admin/login redirects to setup when no admin exists"""
+    response = client.get('/admin/login')
+    assert response.status_code == 302
+    assert '/admin/setup' in response.location

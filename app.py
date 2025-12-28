@@ -1167,5 +1167,18 @@ def admin_setup():
 
     return render_template('admin_setup.html')
 
+
+@app.route('/admin/login', methods=['GET'])
+def admin_login():
+    """Admin login page"""
+    db = get_db()
+
+    # Check if admin exists, redirect to setup if not
+    admin = db.execute('SELECT id FROM admin_users LIMIT 1').fetchone()
+    if not admin:
+        return redirect('/admin/setup')
+
+    return render_template('admin_login.html')
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')
