@@ -171,3 +171,58 @@ def test_admin_login_redirects_to_setup_when_no_admin(client):
     response = client.get('/admin/login')
     assert response.status_code == 302
     assert '/admin/setup' in response.location
+
+
+def test_admin_login_post_success(client):
+    """Test successful admin login"""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+
+    # Create admin user
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    response = client.post('/admin/login', data={
+        'password': 'testpass123'
+    }, follow_redirects=False)
+
+    # Should redirect to admin dashboard
+    assert response.status_code == 302
+    assert '/admin' in response.location
+
+    # Check session was set
+    with client.session_transaction() as sess:
+        assert sess.get('logged_in_as_admin') is True
+        assert 'login_time' in sess
+        assert 'last_activity' in sess
+
+
+def test_admin_login_post_failure(client):
+    """Test failed admin login with wrong password"""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+
+    # Create admin user
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.commit()
+
+    response = client.post('/admin/login', data={
+        'password': 'wrongpassword'
+    }, follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b'Invalid password' in response.data
+
+    # Check session was NOT set
+    with client.session_transaction() as sess:
+        assert sess.get('logged_in_as_admin') is not True

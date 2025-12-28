@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, g
+from flask import Flask, render_template, request, redirect, url_for, flash, g, session
 import os
 import sqlite3
+from datetime import datetime
 from config import Config
 from database import get_db, init_db
 from court_movement import generate_next_round_pairings
@@ -1168,7 +1169,7 @@ def admin_setup():
     return render_template('admin_setup.html')
 
 
-@app.route('/admin/login', methods=['GET'])
+@app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     """Admin login page"""
     db = get_db()
@@ -1177,6 +1178,22 @@ def admin_login():
     admin = db.execute('SELECT id FROM admin_users LIMIT 1').fetchone()
     if not admin:
         return redirect('/admin/setup')
+
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+
+        # Get admin password hash
+        admin = db.execute('SELECT password_hash FROM admin_users LIMIT 1').fetchone()
+
+        if admin and check_password_hash(admin['password_hash'], password):
+            # Set session
+            session['logged_in_as_admin'] = True
+            session['login_time'] = datetime.now().isoformat()
+            session['last_activity'] = datetime.now().isoformat()
+            return redirect('/admin')
+        else:
+            flash('Invalid password')
+            return render_template('admin_login.html')
 
     return render_template('admin_login.html')
 
