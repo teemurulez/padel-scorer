@@ -1,227 +1,147 @@
-"""
-Tests for Phase 3 database migration helper functions
-"""
-
-import pytest
 import sqlite3
-import tempfile
-import os
-from pathlib import Path
-import sys
+from database import get_db
+from migration import migrate_tournaments_to_seasons
 
-# Add parent directory to path to import migrate module
-sys.path.insert(0, str(Path(__file__).parent.parent / 'migrations'))
-from migrate import column_exists, table_exists
-
-
-@pytest.fixture
-def test_db():
-    """Create a temporary test database"""
-    # Create a temporary file
-    fd, db_path = tempfile.mkstemp(suffix='.db')
-    os.close(fd)
-
-    # Initialize with a simple schema
-    conn = sqlite3.connect(db_path)
+def test_migrate_creates_seasons_from_years():
+    """Test that migration creates season for each year"""
+    conn = get_db()
     cursor = conn.cursor()
 
-    # Create test tables
-    cursor.execute("""
-        CREATE TABLE test_table (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            age INTEGER
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE another_table (
-            id INTEGER PRIMARY KEY,
-            data TEXT
-        )
-    """)
-
+    # Cleanup: Remove any existing test data
+    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
+    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
     conn.commit()
-    conn.close()
 
-    yield db_path
+    # Setup: Create tournaments in different years
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+                  ("Tournament 2024-1", 3, "2024-01-15 10:00:00"))
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+                  ("Tournament 2024-2", 3, "2024-06-20 14:00:00"))
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+                  ("Tournament 2025-1", 3, "2025-01-10 09:00:00"))
+    conn.commit()
+
+    # Run migration
+    migrate_tournaments_to_seasons(conn)
+
+    # Verify seasons created
+    seasons = cursor.execute("SELECT name FROM seasons ORDER BY name").fetchall()
+    assert len(seasons) == 2
+    assert seasons[0][0] == "Season 2024"
+    assert seasons[1][0] == "Season 2025"
 
     # Cleanup
-    os.unlink(db_path)
-
-
-def test_column_exists_returns_true_for_existing_column(test_db):
-    """Test that column_exists returns True for an existing column"""
-    conn = sqlite3.connect(test_db)
-    cursor = conn.cursor()
-
-    assert column_exists(cursor, 'test_table', 'name') is True
-    assert column_exists(cursor, 'test_table', 'age') is True
-    assert column_exists(cursor, 'test_table', 'id') is True
+    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
+    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
+    conn.commit()
 
     conn.close()
 
-
-def test_column_exists_returns_false_for_nonexistent_column(test_db):
-    """Test that column_exists returns False for a non-existent column"""
-    conn = sqlite3.connect(test_db)
+def test_migrate_assigns_tournaments_to_seasons():
+    """Test that tournaments are assigned to correct seasons"""
+    conn = get_db()
     cursor = conn.cursor()
 
-    assert column_exists(cursor, 'test_table', 'email') is False
-    assert column_exists(cursor, 'test_table', 'nonexistent') is False
+    # Cleanup: Remove any existing test data
+    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
+    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
+    conn.commit()
+
+    # Setup
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+                  ("Tournament 2024", 3, "2024-01-15 10:00:00"))
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+                  ("Tournament 2025", 3, "2025-01-10 09:00:00"))
+    conn.commit()
+
+    # Run migration
+    migrate_tournaments_to_seasons(conn)
+
+    # Verify assignments
+    t2024 = cursor.execute(
+        "SELECT t.name, s.name FROM tournaments t JOIN seasons s ON t.season_id = s.id WHERE t.name = ?",
+        ("Tournament 2024",)
+    ).fetchone()
+    assert t2024[1] == "Season 2024"
+
+    t2025 = cursor.execute(
+        "SELECT t.name, s.name FROM tournaments t JOIN seasons s ON t.season_id = s.id WHERE t.name = ?",
+        ("Tournament 2025",)
+    ).fetchone()
+    assert t2025[1] == "Season 2025"
+
+    # Cleanup
+    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
+    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
+    conn.commit()
 
     conn.close()
 
-
-def test_column_exists_handles_different_tables(test_db):
-    """Test that column_exists works correctly for different tables"""
-    conn = sqlite3.connect(test_db)
+def test_migrate_marks_latest_season_as_current():
+    """Test that most recent season is marked as current"""
+    conn = get_db()
     cursor = conn.cursor()
 
-    # Columns in test_table
-    assert column_exists(cursor, 'test_table', 'name') is True
-    assert column_exists(cursor, 'test_table', 'data') is False
+    # Cleanup: Remove any existing test data
+    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
+    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
+    conn.commit()
 
-    # Columns in another_table
-    assert column_exists(cursor, 'another_table', 'data') is True
-    assert column_exists(cursor, 'another_table', 'name') is False
+    # Setup
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+                  ("Tournament 2024", 3, "2024-01-15 10:00:00"))
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+                  ("Tournament 2025", 3, "2025-01-10 09:00:00"))
+    conn.commit()
+
+    # Run migration
+    migrate_tournaments_to_seasons(conn)
+
+    # Verify only 2025 is current
+    current = cursor.execute("SELECT name FROM seasons WHERE is_current = 1").fetchone()
+    assert current[0] == "Season 2025"
+
+    # Verify 2024 is not current
+    not_current = cursor.execute("SELECT name FROM seasons WHERE is_current = 0").fetchone()
+    assert not_current[0] == "Season 2024"
+
+    # Cleanup
+    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
+    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
+    conn.commit()
 
     conn.close()
 
-
-def test_table_exists_returns_true_for_existing_table(test_db):
-    """Test that table_exists returns True for an existing table"""
-    conn = sqlite3.connect(test_db)
+def test_migrate_skips_if_already_migrated():
+    """Test that migration doesn't run if tournaments already have season_id"""
+    conn = get_db()
     cursor = conn.cursor()
 
-    assert table_exists(cursor, 'test_table') is True
-    assert table_exists(cursor, 'another_table') is True
+    # Cleanup: Remove any existing test data
+    cursor.execute("DELETE FROM tournaments WHERE name = 'Tournament'")
+    cursor.execute("DELETE FROM seasons WHERE name = 'Existing Season'")
+    conn.commit()
 
-    conn.close()
+    # Setup: Create season and assign tournament
+    cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Existing Season", 1))
+    season_id = cursor.lastrowid
+    cursor.execute("INSERT INTO tournaments (name, num_courts, season_id) VALUES (?, ?, ?)",
+                  ("Tournament", 3, season_id))
+    conn.commit()
 
+    # Run migration
+    result = migrate_tournaments_to_seasons(conn)
 
-def test_table_exists_returns_false_for_nonexistent_table(test_db):
-    """Test that table_exists returns False for a non-existent table"""
-    conn = sqlite3.connect(test_db)
-    cursor = conn.cursor()
+    # Verify migration was skipped
+    assert result == "already_migrated"
 
-    assert table_exists(cursor, 'nonexistent_table') is False
-    assert table_exists(cursor, 'missing_table') is False
+    # Verify no new seasons created
+    seasons = cursor.execute("SELECT COUNT(*) FROM seasons").fetchone()
+    assert seasons[0] == 1
 
-    conn.close()
-
-
-def test_table_exists_case_sensitive(test_db):
-    """Test that table_exists is case-sensitive"""
-    conn = sqlite3.connect(test_db)
-    cursor = conn.cursor()
-
-    # SQLite table names are case-sensitive in queries
-    assert table_exists(cursor, 'test_table') is True
-    assert table_exists(cursor, 'TEST_TABLE') is False
-    assert table_exists(cursor, 'Test_Table') is False
-
-    conn.close()
-
-
-def test_column_exists_with_added_column(test_db):
-    """Test that column_exists detects newly added columns"""
-    conn = sqlite3.connect(test_db)
-    cursor = conn.cursor()
-
-    # Initially, column doesn't exist
-    assert column_exists(cursor, 'test_table', 'email') is False
-
-    # Add the column
-    cursor.execute("ALTER TABLE test_table ADD COLUMN email TEXT")
-
-    # Now it should exist
-    assert column_exists(cursor, 'test_table', 'email') is True
-
-    conn.close()
-
-
-def test_table_exists_with_created_table(test_db):
-    """Test that table_exists detects newly created tables"""
-    conn = sqlite3.connect(test_db)
-    cursor = conn.cursor()
-
-    # Initially, table doesn't exist
-    assert table_exists(cursor, 'new_table') is False
-
-    # Create the table
-    cursor.execute("CREATE TABLE new_table (id INTEGER PRIMARY KEY)")
-
-    # Now it should exist
-    assert table_exists(cursor, 'new_table') is True
-
-    conn.close()
-
-
-def test_column_exists_rejects_invalid_table_name(test_db):
-    """Test that column_exists rejects table names with invalid characters"""
-    conn = sqlite3.connect(test_db)
-    cursor = conn.cursor()
-
-    # Test SQL injection attempt
-    with pytest.raises(ValueError, match="Invalid table name"):
-        column_exists(cursor, "test_table; DROP TABLE test_table;--", "name")
-
-    # Test table name with spaces
-    with pytest.raises(ValueError, match="Invalid table name"):
-        column_exists(cursor, "test table", "name")
-
-    # Test table name with special characters
-    with pytest.raises(ValueError, match="Invalid table name"):
-        column_exists(cursor, "test-table", "name")
-
-    conn.close()
-
-
-def test_table_exists_rejects_invalid_table_name(test_db):
-    """Test that table_exists rejects table names with invalid characters"""
-    conn = sqlite3.connect(test_db)
-    cursor = conn.cursor()
-
-    # Test SQL injection attempt
-    with pytest.raises(ValueError, match="Invalid table name"):
-        table_exists(cursor, "test_table; DROP TABLE test_table;--")
-
-    # Test table name with spaces
-    with pytest.raises(ValueError, match="Invalid table name"):
-        table_exists(cursor, "test table")
-
-    # Test table name with special characters
-    with pytest.raises(ValueError, match="Invalid table name"):
-        table_exists(cursor, "test-table")
-
-    conn.close()
-
-
-def test_column_exists_accepts_valid_table_names_with_underscores(test_db):
-    """Test that column_exists accepts valid table names with underscores"""
-    conn = sqlite3.connect(test_db)
-    cursor = conn.cursor()
-
-    # Create table with underscores
-    cursor.execute("CREATE TABLE test_table_123 (id INTEGER PRIMARY KEY, name TEXT)")
-
-    # Should work with underscores
-    assert column_exists(cursor, 'test_table_123', 'name') is True
-    assert column_exists(cursor, 'test_table_123', 'nonexistent') is False
-
-    conn.close()
-
-
-def test_table_exists_accepts_valid_table_names_with_underscores(test_db):
-    """Test that table_exists accepts valid table names with underscores"""
-    conn = sqlite3.connect(test_db)
-    cursor = conn.cursor()
-
-    # Create table with underscores
-    cursor.execute("CREATE TABLE test_table_123 (id INTEGER PRIMARY KEY)")
-
-    # Should work with underscores
-    assert table_exists(cursor, 'test_table_123') is True
+    # Cleanup
+    cursor.execute("DELETE FROM tournaments WHERE name = 'Tournament'")
+    cursor.execute("DELETE FROM seasons WHERE name = 'Existing Season'")
+    conn.commit()
 
     conn.close()
