@@ -113,17 +113,11 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS player_registry (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name TEXT NOT NULL,
-            last_name TEXT NOT NULL,
+            first_name TEXT NOT NULL CHECK(length(trim(first_name)) > 0 AND length(first_name) <= 100),
+            last_name TEXT NOT NULL CHECK(length(trim(last_name)) > 0 AND length(last_name) <= 100),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(first_name, last_name)
         )
-    ''')
-
-    # Create index for player name lookups
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_player_registry_name
-        ON player_registry(last_name, first_name)
     ''')
 
     # Create seasons table

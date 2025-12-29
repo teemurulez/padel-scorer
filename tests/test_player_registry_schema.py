@@ -67,7 +67,88 @@ def test_player_registry_indexes_exist():
     """)
     indexes = [row[0] for row in cursor.fetchall()]
 
-    # Should have index on name columns
-    assert any('player_registry' in idx.lower() for idx in indexes)
+    # Should have the auto-generated index from UNIQUE constraint
+    # SQLite names it as 'sqlite_autoindex_player_registry_1'
+    assert any('sqlite_autoindex_player_registry' in idx for idx in indexes)
+
+    conn.close()
+
+
+def test_player_registry_not_null_constraints():
+    """Test that NOT NULL constraints are enforced"""
+    conn = sqlite3.connect('instance/padel.db')
+    cursor = conn.cursor()
+
+    # Test NULL first_name
+    with pytest.raises(sqlite3.IntegrityError):
+        cursor.execute("""
+            INSERT INTO player_registry (first_name, last_name)
+            VALUES (?, ?)
+        """, (None, "TestLast"))
+        conn.commit()
+
+    # Test NULL last_name
+    with pytest.raises(sqlite3.IntegrityError):
+        cursor.execute("""
+            INSERT INTO player_registry (first_name, last_name)
+            VALUES (?, ?)
+        """, ("TestFirst", None))
+        conn.commit()
+
+    conn.close()
+
+
+def test_player_registry_check_constraints():
+    """Test that CHECK constraints prevent empty strings and enforce length limits"""
+    conn = sqlite3.connect('instance/padel.db')
+    cursor = conn.cursor()
+
+    # Test empty first_name
+    with pytest.raises(sqlite3.IntegrityError):
+        cursor.execute("""
+            INSERT INTO player_registry (first_name, last_name)
+            VALUES (?, ?)
+        """, ("", "TestLast"))
+        conn.commit()
+
+    # Test empty last_name
+    with pytest.raises(sqlite3.IntegrityError):
+        cursor.execute("""
+            INSERT INTO player_registry (first_name, last_name)
+            VALUES (?, ?)
+        """, ("TestFirst", ""))
+        conn.commit()
+
+    # Test whitespace-only first_name
+    with pytest.raises(sqlite3.IntegrityError):
+        cursor.execute("""
+            INSERT INTO player_registry (first_name, last_name)
+            VALUES (?, ?)
+        """, ("   ", "TestLast"))
+        conn.commit()
+
+    # Test whitespace-only last_name
+    with pytest.raises(sqlite3.IntegrityError):
+        cursor.execute("""
+            INSERT INTO player_registry (first_name, last_name)
+            VALUES (?, ?)
+        """, ("TestFirst", "   "))
+        conn.commit()
+
+    # Test first_name exceeding max length (100 chars)
+    with pytest.raises(sqlite3.IntegrityError):
+        cursor.execute("""
+            INSERT INTO player_registry (first_name, last_name)
+            VALUES (?, ?)
+        """, ("A" * 101, "TestLast"))
+        conn.commit()
+
+    # Test last_name exceeding max length (100 chars)
+    with pytest.raises(sqlite3.IntegrityError):
+        cursor.execute("""
+            INSERT INTO player_registry (first_name, last_name)
+            VALUES (?, ?)
+        """, ("TestFirst", "B" * 101))
+        conn.commit()
 
     conn.close()
