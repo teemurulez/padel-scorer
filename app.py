@@ -946,30 +946,27 @@ def season_leaderboard():
 
 @app.route('/leaderboard/history')
 def season_history():
-    """Show all previous seasons in one long view"""
-    from datetime import datetime
+    """Display historical season data for archived seasons"""
     db = get_db_connection()
 
-    # Get current year
-    current_year = datetime.now().year
+    # Get all archived seasons (not current)
+    archived_seasons = db.execute("""
+        SELECT * FROM seasons
+        WHERE is_current = 0
+        ORDER BY ended_at DESC, created_at DESC
+    """).fetchall()
 
-    # Get all distinct years before current year, newest first
-    years = db.execute(
-        '''SELECT DISTINCT strftime('%Y', created_at) as year
-           FROM tournaments
-           WHERE strftime('%Y', created_at) < ?
-           ORDER BY year DESC''',
-        (str(current_year),)
-    ).fetchall()
+    # For each season, get tournaments and leaderboard
+    seasons_data = []
+    for season in archived_seasons:
+        tournaments = db.execute("""
+            SELECT * FROM tournaments
+            WHERE season_id = ?
+            ORDER BY created_at ASC
+        """, (season['id'],)).fetchall()
 
-    # For each year, get season stats and tournaments
-    seasons = []
-    for year_row in years:
-        year = year_row['year']
-
-        # Get season-wide player statistics for this year
-        season_stats = db.execute(
-            '''SELECT
+        season_stats = db.execute("""
+            SELECT
                 pr.id,
                 pr.first_name,
                 pr.last_name,
@@ -980,31 +977,22 @@ def season_history():
                     NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                     1
                 ) as win_rate
-               FROM player_registry pr
-               LEFT JOIN matches m ON (
-                   pr.id = m.player1_id OR
-                   pr.id = m.player2_id OR
-                   pr.id = m.player3_id OR
-                   pr.id = m.player4_id
-               )
-               LEFT JOIN rounds r ON m.round_id = r.id
-               LEFT JOIN tournaments t ON r.tournament_id = t.id
-               LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
-               WHERE strftime('%Y', t.created_at) = ?
-                 AND m.completed = 1
-               GROUP BY pr.id, pr.first_name, pr.last_name
-               HAVING total_matches > 0
-               ORDER BY total_wins DESC, win_rate DESC, pr.last_name ASC''',
-            (year,)
-        ).fetchall()
-
-        # Get all tournaments in this year
-        tournaments = db.execute(
-            '''SELECT * FROM tournaments
-               WHERE strftime('%Y', created_at) = ?
-               ORDER BY created_at DESC''',
-            (year,)
-        ).fetchall()
+            FROM player_registry pr
+            LEFT JOIN matches m ON (
+                pr.id = m.player1_id OR
+                pr.id = m.player2_id OR
+                pr.id = m.player3_id OR
+                pr.id = m.player4_id
+            )
+            LEFT JOIN rounds r ON m.round_id = r.id
+            LEFT JOIN tournaments t ON r.tournament_id = t.id
+            LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+            WHERE t.season_id = ?
+              AND m.completed = 1
+            GROUP BY pr.id, pr.first_name, pr.last_name
+            HAVING total_matches > 0
+            ORDER BY total_wins DESC, win_rate DESC, pr.last_name ASC
+        """, (season['id'],)).fetchall()
 
         # For each tournament, get its leaderboard
         tournaments_with_stats = []
@@ -1015,15 +1003,16 @@ def season_history():
                 'stats': tournament_stats
             })
 
-        seasons.append({
-            'year': year,
+        seasons_data.append({
+            'season': season,
             'season_stats': season_stats,
             'tournaments': tournaments_with_stats,
             'tournament_count': len(tournaments)
         })
 
     return render_template('season_history.html',
-                          seasons=seasons)
+                         seasons_data=seasons_data,
+                         has_previous_seasons=len(archived_seasons) > 0)
 
 @app.route('/leaderboard/clear-all', methods=['POST'])
 def clear_all_data():

@@ -97,18 +97,17 @@
             <p class="info-text">Historical tournament data from past years</p>
         </div>
 
-        {% if seasons %}
-            {% for season in seasons %}
+        {% if seasons_data %}
+            {% for season_data in seasons_data %}
             <div class="season-section">
                 <div class="season-header">
-                    <h2>Season {{ season['year'] }}</h2>
-                    <div class="season-meta">Jan 1 - Dec 31, {{ season['year'] }}</div>
-                    <div class="season-meta">{{ season['tournament_count'] }} Tournament{{ 's' if season['tournament_count'] != 1 else '' }}</div>
+                    <h2>{{ season_data.season.name }}</h2>
+                    <div class="season-meta">{{ season_data.tournament_count }} Tournament{{ 's' if season_data.tournament_count != 1 else '' }}</div>
                 </div>
 
                 <!-- Season-Wide Standings -->
                 <h2>Season Standings</h2>
-                {% if season['season_stats'] %}
+                {% if season_data.season_stats %}
                 <table class="leaderboard">
                     <thead>
                         <tr>
@@ -120,7 +119,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for player in season['season_stats'] %}
+                        {% for player in season_data.season_stats %}
                         <tr>
                             <td class="rank">{{ loop.index }}</td>
                             <td class="player-name">{{ player['first_name'] }} {{ player['last_name'] }}</td>
@@ -144,15 +143,15 @@
                 {% endif %}
 
                 <!-- Individual Tournaments -->
-                {% if season['tournaments'] %}
+                {% if season_data.tournaments %}
                 <div class="tournaments-section">
                     <h2>Individual Tournaments</h2>
-                    {% for item in season['tournaments'] %}
+                    {% for item in season_data.tournaments %}
                     {% set tournament = item['tournament'] %}
                     {% set stats = item['stats'] %}
                     <div class="tournament-card">
-                        <div class="tournament-header" onclick="toggleTournament('{{ season['year'] }}', {{ tournament['id'] }})">
-                            <span class="toggle-icon" id="icon-{{ season['year'] }}-{{ tournament['id'] }}">▶</span>
+                        <div class="tournament-header" onclick="toggleTournament({{ season_data.season.id }}, {{ tournament['id'] }})">
+                            <span class="toggle-icon" id="icon-{{ season_data.season.id }}-{{ tournament['id'] }}">▶</span>
                             <span><strong>{{ tournament['name'] }}</strong></span>
                             <span>{{ tournament['created_at'][:10] }}</span>
                             <span>{{ stats['rounds'] }} Round{{ 's' if stats['rounds'] != 1 else '' }}</span>
@@ -161,7 +160,7 @@
                                 {{ tournament['status']|capitalize }}
                             </span>
                         </div>
-                        <div id="tournament-{{ season['year'] }}-{{ tournament['id'] }}" class="tournament-details">
+                        <div id="tournament-{{ season_data.season.id }}-{{ tournament['id'] }}" class="tournament-details">
                             {% if stats['players'] %}
                             <table class="leaderboard">
                                 <thead>
@@ -214,9 +213,9 @@
     </div>
 
     <script>
-        function toggleTournament(year, tournamentId) {
-            const details = document.getElementById('tournament-' + year + '-' + tournamentId);
-            const icon = document.getElementById('icon-' + year + '-' + tournamentId);
+        function toggleTournament(seasonId, tournamentId) {
+            const details = document.getElementById('tournament-' + seasonId + '-' + tournamentId);
+            const icon = document.getElementById('icon-' + seasonId + '-' + tournamentId);
 
             if (details.classList.contains('show')) {
                 details.classList.remove('show');
