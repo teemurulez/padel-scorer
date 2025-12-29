@@ -417,3 +417,22 @@ h2 {
     color: #007bff;
     font-weight: bold;
 }
+
+/* Footer links */
+.footer-links {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+}
+
+.admin-link {
+    color: #666;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.admin-link:hover {
+    color: #000;
+    text-decoration: underline;
+}
