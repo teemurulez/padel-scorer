@@ -1372,5 +1372,14 @@ def admin_logout():
     flash('You have been logged out successfully.')
     return redirect('/admin/login')
 
+# Run migration on startup if needed
+with app.app_context():
+    from migration import run_migration_if_needed
+    result = run_migration_if_needed()
+    if result == "migrated":
+        print("✅ Data migration completed: Tournaments assigned to seasons")
+    elif result == "already_migrated":
+        print("✅ Data already migrated")
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')
