@@ -120,6 +120,12 @@ def init_db():
         )
     ''')
 
+    # Create index for player name lookups
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_player_registry_name
+        ON player_registry(last_name, first_name)
+    ''')
+
     # Create seasons table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS seasons (
