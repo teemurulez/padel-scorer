@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Season Management - Tennis Scorer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Season Management</h1>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="flash-message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Current Season Card -->
+        {% if current_season %}
+        <div class="season-card current">
+            <h2>🏆 Current Season: {{ current_season.name }}</h2>
+            <p>Created: {{ current_season.created_at[:10] }}</p>
+            <p>Tournaments: {{ current_tournament_count }}</p>
+
+            <form method="POST" action="/seasons/end-current" onsubmit="return confirm('End {{ current_season.name }}? You can reactivate it or create a new season later.');">
+                <button type="submit" class="btn-warning">End Current Season</button>
+            </form>
+        </div>
+        {% else %}
+        <div class="season-card no-season">
+            <h2>⚠️ No Active Season</h2>
+            <p>Create a new season or reactivate an archived season below.</p>
+        </div>
+        {% endif %}
+
+        <!-- Create New Season Form -->
+        <div class="create-season-form">
+            <h3>Create New Season</h3>
+            <form method="POST" action="/seasons/create">
+                <input type="text" name="season_name" placeholder="Season name (e.g., Winter 2025)" maxlength="100" required>
+                <button type="submit" class="btn-primary">Create Season</button>
+            </form>
+        </div>
+
+        <!-- Archived Seasons Table -->
+        {% if archived_seasons %}
+        <div class="archived-seasons">
+            <h3>Archived Seasons</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Season Name</th>
+                        <th>Created</th>
+                        <th>Ended</th>
+                        <th>Tournaments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for season in archived_seasons %}
+                    <tr>
+                        <td>{{ season.name }}</td>
+                        <td>{{ season.created_at[:10] }}</td>
+                        <td>{{ season.ended_at[:10] if season.ended_at else '-' }}</td>
+                        <td>{{ season.tournament_count }}</td>
+                        <td>
+                            <form method="POST" action="/seasons/{{ season.id }}/activate" style="display:inline;" onsubmit="return confirm('Make {{ season.name }} the current season?');">
+                                <button type="submit" class="btn-secondary">Set as Current</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <div class="footer-links">
+            <a href="/">← Back to Home</a>
+        </div>
+    </div>
+</body>
+</html>

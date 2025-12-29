@@ -1169,6 +1169,118 @@ def players_list():
     return render_template('players_list.html', players=players)
 
 # ============================================================
+# SEASON MANAGEMENT ROUTES
+# ============================================================
+
+@app.route('/seasons')
+def seasons_management():
+    """Display season management admin page"""
+    db = get_db()
+
+    current_season = get_current_season(db)
+
+    # Get archived seasons with tournament counts
+    archived_seasons = db.execute("""
+        SELECT
+            s.*,
+            COUNT(t.id) as tournament_count
+        FROM seasons s
+        LEFT JOIN tournaments t ON s.id = t.season_id
+        WHERE s.is_current = 0
+        GROUP BY s.id
+        ORDER BY s.ended_at DESC, s.created_at DESC
+    """).fetchall()
+
+    # Get tournament count for current season
+    if current_season:
+        current_tournament_count = db.execute(
+            "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
+            (current_season['id'],)
+        ).fetchone()['count']
+    else:
+        current_tournament_count = 0
+
+    return render_template('seasons_management.html',
+                          current_season=current_season,
+                          current_tournament_count=current_tournament_count,
+                          archived_seasons=archived_seasons)
+
+@app.route('/seasons/end-current', methods=['POST'])
+def end_current_season():
+    """End the current season without creating a new one"""
+    db = get_db()
+
+    current_season = get_current_season(db)
+    if not current_season:
+        flash('No current season to end')
+        return redirect(url_for('seasons_management'))
+
+    from datetime import datetime
+    db.execute(
+        "UPDATE seasons SET is_current = 0, ended_at = ? WHERE id = ?",
+        (datetime.now(), current_season['id'])
+    )
+    db.commit()
+
+    flash(f"Season '{current_season['name']}' has been ended")
+    return redirect(url_for('seasons_management'))
+
+@app.route('/seasons/create', methods=['POST'])
+def create_season():
+    """Create a new season and make it current"""
+    db = get_db()
+    season_name = request.form.get('season_name', '').strip()
+
+    # Validation
+    if not season_name:
+        flash('Season name is required')
+        return redirect(url_for('seasons_management'))
+
+    if len(season_name) > 100:
+        flash('Season name must be 100 characters or less')
+        return redirect(url_for('seasons_management'))
+
+    # Check for duplicate
+    existing = db.execute(
+        "SELECT id FROM seasons WHERE name = ?", (season_name,)
+    ).fetchone()
+
+    if existing:
+        flash('Season name already exists. Please choose a different name.')
+        return redirect(url_for('seasons_management'))
+
+    # Archive current season if exists
+    db.execute("UPDATE seasons SET is_current = 0 WHERE is_current = 1")
+
+    # Create new season
+    db.execute(
+        "INSERT INTO seasons (name, is_current) VALUES (?, 1)",
+        (season_name,)
+    )
+    db.commit()
+
+    flash(f"Season '{season_name}' created successfully!")
+    return redirect(url_for('seasons_management'))
+
+@app.route('/seasons/<int:season_id>/activate', methods=['POST'])
+def activate_season(season_id):
+    """Reactivate an archived season as the current season"""
+    db = get_db()
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE id = ?", (season_id,)
+    ).fetchone()
+
+    if not season:
+        flash('Season not found')
+        return redirect(url_for('seasons_management'))
+
+    set_current_season(db, season_id)
+
+    flash(f"Season '{season['name']}' is now active")
+    return redirect(url_for('seasons_management'))
+
+# ============================================================
 # ADMIN ROUTES
 # ============================================================
 
