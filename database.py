@@ -109,6 +109,28 @@ def init_db():
         )
     ''')
 
+    # Create seasons table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS seasons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            is_current BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ended_at TIMESTAMP NULL
+        )
+    ''')
+
+    # Add season_id column to tournaments table
+    # Check if column exists first (for migration safety)
+    cursor.execute("PRAGMA table_info(tournaments)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'season_id' not in columns:
+        cursor.execute('ALTER TABLE tournaments ADD COLUMN season_id INTEGER REFERENCES seasons(id)')
+
+    # Create indexes for performance
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_tournaments_season_id ON tournaments(season_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_seasons_is_current ON seasons(is_current)')
+
     conn.commit()
     conn.close()
     print("Database initialized successfully!")
