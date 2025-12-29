@@ -109,6 +109,17 @@ def init_db():
         )
     ''')
 
+    # Create player_registry table (Phase 3)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS player_registry (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(first_name, last_name)
+        )
+    ''')
+
     # Create seasons table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS seasons (

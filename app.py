@@ -194,6 +194,14 @@ def index():
 def setup_tournament():
     """Setup new tournament and add players"""
     if request.method == 'POST':
+        db = get_db_connection()
+
+        # Check for current season
+        current_season = get_current_season(db)
+        if not current_season:
+            flash('No active season. Please create or activate a season first.')
+            return redirect(url_for('seasons_management'))
+
         tournament_name = request.form.get('tournament_name')
         num_courts = int(request.form.get('num_courts'))
         player_names = request.form.get('players').strip().split('\n')
@@ -207,12 +215,10 @@ def setup_tournament():
             flash(f'Need at least {required_players} players for {num_courts} courts. You provided {len(player_names)}.')
             return render_template('setup_tournament.html')
 
-        db = get_db_connection()
-
-        # Create tournament
+        # Create tournament with season_id
         cursor = db.execute(
-            'INSERT INTO tournaments (name, num_courts, status) VALUES (?, ?, ?)',
-            (tournament_name, num_courts, 'setup')
+            'INSERT INTO tournaments (name, num_courts, status, season_id) VALUES (?, ?, ?, ?)',
+            (tournament_name, num_courts, 'setup', current_season['id'])
         )
         tournament_id = cursor.lastrowid
 
