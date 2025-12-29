@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Season {{ current_year }} Leaderboard</title>
+    <title>{{ season_name }} Leaderboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .season-header {
@@ -98,9 +98,10 @@
 <body>
     <div class="container">
         <div class="season-header">
-            <h1>Season {{ current_year }} Leaderboard</h1>
-            <div class="season-meta">Jan 1 - Dec 31, {{ current_year }}</div>
+            <h1>{{ season_name }} Leaderboard</h1>
+            {% if not no_season %}
             <div class="season-meta">{{ tournament_count }} Tournament{{ 's' if tournament_count != 1 else '' }}</div>
+            {% endif %}
 
             {% if tournament_count > 0 %}
             <form method="POST"
@@ -121,6 +122,12 @@
                 </div>
             {% endif %}
         {% endwith %}
+
+        {% if no_season %}
+        <div class="no-season-message">
+            <p>No current season. <a href="{{ url_for('seasons_management') }}">Visit Season Management</a> to create or activate one.</p>
+        </div>
+        {% else %}
 
         <!-- Season-Wide Standings -->
         <h2>Season Standings</h2>
@@ -222,6 +229,7 @@
             {% endif %}
             <a href="/" class="btn btn-secondary">Back to Home</a>
         </div>
+        {% endif %}
     </div>
 
     <script>

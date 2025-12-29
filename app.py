@@ -869,16 +869,30 @@ def leaderboard(tournament_id):
 
 @app.route('/leaderboard/season')
 def season_leaderboard():
-    """Show season-wide leaderboard plus individual tournaments"""
-    from datetime import datetime
+    """Display season leaderboard for current season"""
     db = get_db_connection()
 
-    # Get current year
-    current_year = datetime.now().year
+    # Get current season
+    current_season = get_current_season(db)
+    if not current_season:
+        return render_template('season_leaderboard.html',
+                             season_name='No Current Season',
+                             no_season=True,
+                             tournaments=[],
+                             leaderboard=[],
+                             tournament_count=0,
+                             has_previous_seasons=False)
 
-    # Get season-wide player statistics
-    season_stats = db.execute(
-        '''SELECT
+    # Get tournaments from current season only
+    tournaments = db.execute("""
+        SELECT * FROM tournaments
+        WHERE season_id = ?
+        ORDER BY created_at DESC
+    """, (current_season['id'],)).fetchall()
+
+    # Get leaderboard (existing logic, but filter by current season)
+    season_stats = db.execute("""
+        SELECT
             pr.id,
             pr.first_name,
             pr.last_name,
@@ -889,31 +903,22 @@ def season_leaderboard():
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate
-           FROM player_registry pr
-           LEFT JOIN matches m ON (
-               pr.id = m.player1_id OR
-               pr.id = m.player2_id OR
-               pr.id = m.player3_id OR
-               pr.id = m.player4_id
-           )
-           LEFT JOIN rounds r ON m.round_id = r.id
-           LEFT JOIN tournaments t ON r.tournament_id = t.id
-           LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
-           WHERE strftime('%Y', t.created_at) = ?
-             AND m.completed = 1
-           GROUP BY pr.id, pr.first_name, pr.last_name
-           HAVING total_matches > 0
-           ORDER BY total_wins DESC, win_rate DESC, pr.last_name ASC''',
-        (str(current_year),)
-    ).fetchall()
-
-    # Get all tournaments in current year
-    tournaments = db.execute(
-        '''SELECT * FROM tournaments
-           WHERE strftime('%Y', created_at) = ?
-           ORDER BY created_at DESC''',
-        (str(current_year),)
-    ).fetchall()
+        FROM player_registry pr
+        LEFT JOIN matches m ON (
+            pr.id = m.player1_id OR
+            pr.id = m.player2_id OR
+            pr.id = m.player3_id OR
+            pr.id = m.player4_id
+        )
+        LEFT JOIN rounds r ON m.round_id = r.id
+        LEFT JOIN tournaments t ON r.tournament_id = t.id
+        LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+        WHERE t.season_id = ?
+          AND m.completed = 1
+        GROUP BY pr.id, pr.first_name, pr.last_name
+        HAVING total_matches > 0
+        ORDER BY total_wins DESC, win_rate DESC, pr.last_name ASC
+    """, (current_season['id'],)).fetchall()
 
     # For each tournament, get its leaderboard
     tournaments_with_stats = []
@@ -926,16 +931,14 @@ def season_leaderboard():
 
     tournament_count = len(tournaments)
 
-    # Check if there are any previous seasons (years before current year)
+    # Check if there are any previous seasons (archived seasons)
     has_previous_seasons = db.execute(
-        '''SELECT COUNT(DISTINCT strftime('%Y', created_at)) as year_count
-           FROM tournaments
-           WHERE strftime('%Y', created_at) < ?''',
-        (str(current_year),)
-    ).fetchone()['year_count'] > 0
+        "SELECT COUNT(*) as count FROM seasons WHERE is_current = 0"
+    ).fetchone()['count'] > 0
 
     return render_template('season_leaderboard.html',
-                          current_year=current_year,
+                          season_name=current_season['name'],
+                          no_season=False,
                           season_stats=season_stats,
                           tournaments=tournaments_with_stats,
                           tournament_count=tournament_count,
