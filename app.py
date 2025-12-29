@@ -7,6 +7,25 @@ from database import get_db, init_db
 from court_movement import generate_next_round_pairings
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Season Management Helpers
+def get_current_season(db):
+    """Get the current active season, or None if no active season"""
+    return db.execute(
+        "SELECT * FROM seasons WHERE is_current = 1"
+    ).fetchone()
+
+def set_current_season(db, season_id):
+    """Set a season as current, archiving any other current season"""
+    # Archive all current seasons
+    db.execute("UPDATE seasons SET is_current = 0 WHERE is_current = 1")
+
+    # Set specified season as current and clear ended_at
+    db.execute(
+        "UPDATE seasons SET is_current = 1, ended_at = NULL WHERE id = ?",
+        (season_id,)
+    )
+    db.commit()
+
 app = Flask(__name__)
 app.config.from_object(Config)
 
