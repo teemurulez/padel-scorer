@@ -349,12 +349,13 @@ def start_round(tournament_id):
 
         db.commit()
 
-        # Update tournament status
-        db.execute(
-            'UPDATE tournaments SET status = "active" WHERE id = ?',
-            (tournament_id,)
-        )
-        db.commit()
+        # Update tournament status to 'active' when starting Round 1
+        if round_number == 1:
+            db.execute(
+                'UPDATE tournaments SET status = "active" WHERE id = ?',
+                (tournament_id,)
+            )
+            db.commit()
 
         flash(f"Round {round_number} created! Players, go to your courts to confirm teams.")
         return redirect(url_for('court_selection', tournament_id=tournament_id, round_id=round_id))
