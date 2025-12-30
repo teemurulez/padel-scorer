@@ -31,9 +31,8 @@ def test_complete_tournament_success():
         status = cursor.fetchone()[0]
         assert status == 'completed', f"Expected status 'completed', got '{status}'"
 
-        # Verify redirect (should redirect to tournament_results which doesn't exist yet)
-        # For now, we expect either redirect to tournament_results or a 404
-        assert response.status_code in [302, 404], f"Expected redirect (302) or not found (404), got {response.status_code}"
+        # Verify redirect (temporarily redirects to active_tournament until tournament_results is implemented in Task 8)
+        assert response.status_code == 302, f"Expected redirect (302), got {response.status_code}"
 
     finally:
         # Cleanup
@@ -198,6 +197,96 @@ def test_complete_tournament_rejects_non_active():
     finally:
         # Cleanup
         cursor.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
+        cursor.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
+        conn.commit()
+        conn.close()
+
+
+def test_complete_tournament_handles_ties():
+    """Test that tied players get the same rank"""
+    conn = sqlite3.connect('instance/padel.db')
+    cursor = conn.cursor()
+
+    try:
+        # Create season
+        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season", 1))
+        season_id = cursor.lastrowid
+
+        # Create 3 players in registry
+        cursor.execute("INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)", ("Alice", "Smith"))
+        player1_id = cursor.lastrowid
+
+        cursor.execute("INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)", ("Bob", "Jones"))
+        player2_id = cursor.lastrowid
+
+        cursor.execute("INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)", ("Charlie", "Brown"))
+        player3_id = cursor.lastrowid
+
+        # Create tournament with status='active'
+        cursor.execute("""
+            INSERT INTO tournaments (name, num_courts, season_id, status)
+            VALUES (?, ?, ?, ?)
+        """, ("Test Tournament", 1, season_id, "active"))
+        tournament_id = cursor.lastrowid
+
+        # Create round
+        cursor.execute("INSERT INTO rounds (tournament_id, round_number) VALUES (?, ?)", (tournament_id, 1))
+        round_id = cursor.lastrowid
+
+        # Create matches:
+        # Match 1: Alice (team 1) wins - Alice gets 1 point
+        cursor.execute("""
+            INSERT INTO matches (round_id, court_number, player1_id, player2_id, player3_id, player4_id, winning_team, completed)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (round_id, 1, player1_id, player1_id, player2_id, player3_id, 1, 1))
+
+        # Match 2: Bob (team 1) wins - Bob gets 1 point (ties with Alice)
+        cursor.execute("""
+            INSERT INTO matches (round_id, court_number, player1_id, player2_id, player3_id, player4_id, winning_team, completed)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (round_id, 2, player2_id, player2_id, player3_id, player3_id, 1, 1))
+
+        # Match 3: Charlie (team 2) loses - Charlie gets 0 points
+        # (already counted in matches above)
+
+        conn.commit()
+
+        # Complete tournament
+        from app import app
+        client = app.test_client()
+        response = client.post(f'/tournament/{tournament_id}/complete')
+
+        # Query tournament_players table
+        cursor.execute("""
+            SELECT player_id, total_points, final_rank
+            FROM tournament_players
+            WHERE tournament_id = ?
+            ORDER BY final_rank, player_id
+        """, (tournament_id,))
+        results = cursor.fetchall()
+
+        # Verify: Alice and Bob both have rank 1, Charlie has rank 3
+        alice_stats = [r for r in results if r[0] == player1_id][0]
+        bob_stats = [r for r in results if r[0] == player2_id][0]
+        charlie_stats = [r for r in results if r[0] == player3_id][0]
+
+        # Alice and Bob both have 1 point and should both get rank 1
+        assert alice_stats[1] == 1, f"Expected Alice to have 1 point, got {alice_stats[1]}"
+        assert bob_stats[1] == 1, f"Expected Bob to have 1 point, got {bob_stats[1]}"
+        assert alice_stats[2] == 1, f"Expected Alice to have rank 1, got {alice_stats[2]}"
+        assert bob_stats[2] == 1, f"Expected Bob to have rank 1 (tied), got {bob_stats[2]}"
+
+        # Charlie has 0 points and should get rank 3 (not rank 2, since 2 players tied for rank 1)
+        assert charlie_stats[1] == 0, f"Expected Charlie to have 0 points, got {charlie_stats[1]}"
+        assert charlie_stats[2] == 3, f"Expected Charlie to have rank 3, got {charlie_stats[2]}"
+
+    finally:
+        # Cleanup
+        cursor.execute("DELETE FROM tournament_players WHERE tournament_id = ?", (tournament_id,))
+        cursor.execute("DELETE FROM matches WHERE round_id = ?", (round_id,))
+        cursor.execute("DELETE FROM rounds WHERE id = ?", (round_id,))
+        cursor.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
+        cursor.execute("DELETE FROM player_registry WHERE id IN (?, ?, ?)", (player1_id, player2_id, player3_id))
         cursor.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
         conn.commit()
         conn.close()

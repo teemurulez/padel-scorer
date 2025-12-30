@@ -1038,8 +1038,8 @@ def clear_all_data():
 @app.route('/tournament/<int:tournament_id>/complete', methods=['POST'])
 def complete_tournament(tournament_id):
     """Complete a tournament - calculate final stats and set status to completed"""
-    conn = get_db()
-    cursor = conn.cursor()
+    db = get_db_connection()
+    cursor = db.cursor()
 
     try:
         # Verify tournament exists and is active
@@ -1117,13 +1117,20 @@ def complete_tournament(tournament_id):
 
         ranked_players = cursor.fetchall()
         current_rank = 1
+        previous_points = None
+
         for idx, player_row in enumerate(ranked_players):
+            # If points changed from previous player, update rank
+            if previous_points is not None and player_row['total_points'] != previous_points:
+                current_rank = idx + 1
+
             cursor.execute('''
                 UPDATE tournament_players
                 SET final_rank = ?
                 WHERE tournament_id = ? AND player_id = ?
             ''', (current_rank, tournament_id, player_row['player_id']))
-            current_rank += 1
+
+            previous_points = player_row['total_points']
 
         # Update tournament status to completed
         cursor.execute('''
@@ -1132,16 +1139,16 @@ def complete_tournament(tournament_id):
             WHERE id = ?
         ''', (tournament_id,))
 
-        conn.commit()
+        db.commit()
         flash('Tournament completed successfully!', 'success')
-        return redirect(url_for('tournament_results', tournament_id=tournament_id))
+        return redirect(url_for('active_tournament', tournament_id=tournament_id))
 
     except Exception as e:
-        conn.rollback()
+        db.rollback()
         flash(f'Error completing tournament: {e}', 'error')
         return redirect(url_for('active_tournament', tournament_id=tournament_id))
     finally:
-        conn.close()
+        db.close()
 
 @app.route('/tournament/<int:tournament_id>/archive', methods=['POST'])
 def archive_tournament(tournament_id):
