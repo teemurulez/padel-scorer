@@ -120,6 +120,22 @@ def init_db():
         )
     ''')
 
+    # Link legacy players table to registry (Phase 3)
+    cursor.execute("PRAGMA table_info(players)")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    if 'registry_id' not in columns:
+        cursor.execute('''
+            ALTER TABLE players ADD COLUMN registry_id INTEGER
+            REFERENCES player_registry(id)
+        ''')
+
+    # Create index for registry lookups
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_players_registry
+        ON players(registry_id)
+    ''')
+
     # Create seasons table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS seasons (
