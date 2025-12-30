@@ -1275,7 +1275,7 @@ def players_list():
             ps.recent_tournaments
         FROM player_registry pr
         LEFT JOIN player_seeding ps ON pr.id = ps.player_id
-        ORDER BY pr.last_name, pr.first_name
+        ORDER BY ps.seed_points DESC, pr.last_name ASC, pr.first_name ASC
     """).fetchall()
 
     return render_template('players_list.html', players=players)
