@@ -298,7 +298,7 @@ def start_round(tournament_id):
                     LEFT JOIN player_seeding ps ON p.id = ps.player_id
                     ORDER BY seed_points DESC
                 """).fetchall()
-            except:
+            except (sqlite3.OperationalError, AttributeError):
                 # Fallback if player_seeding view doesn't exist
                 players_with_seeds = db.execute("""
                     SELECT id, 0 as seed_points
