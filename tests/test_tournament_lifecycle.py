@@ -196,3 +196,121 @@ def test_complete_tournament_not_found(client):
     """Test completing non-existent tournament returns error"""
     response = client.post('/tournament/999/complete')
     assert response.status_code in [302, 404]  # Redirect or not found
+
+
+def test_full_tournament_lifecycle(tmp_path):
+    """Integration test - complete tournament lifecycle from setup to archived"""
+
+    # Setup test client with temporary database
+    import os
+    db_path = tmp_path / "test_full_lifecycle.db"
+    app.config['TESTING'] = True
+    app.config['DATABASE'] = str(db_path)
+
+    # Initialize database
+    with app.app_context():
+        from database import init_db
+        init_db()
+
+    client = app.test_client()
+
+    tournament_id = None
+    try:
+        # Setup: Ensure there's an active season
+        with app.app_context():
+            from database import get_db
+            db = get_db()
+            db.execute("DELETE FROM seasons WHERE name = 'Test Season 9999'")
+            db.execute(
+                "INSERT INTO seasons (name, is_current) VALUES ('Test Season 9999', 1)"
+            )
+            db.commit()
+
+        # PHASE 1: SETUP (status='setup')
+        # Create tournament with required players (2 courts * 4 players = 8 minimum)
+        player_names = '\n'.join([f'Player {i}' for i in range(1, 9)])
+        response = client.post('/setup', data={
+            'tournament_name': 'Lifecycle Test Tournament',
+            'num_courts': 2,
+            'players': player_names
+        }, follow_redirects=True)
+        assert response.status_code == 200
+
+        # Verify tournament created with status='setup'
+        with app.app_context():
+            db = get_db()
+            tournament = db.execute(
+                "SELECT id, status FROM tournaments WHERE name = 'Lifecycle Test Tournament'"
+            ).fetchone()
+            assert tournament is not None
+            tournament_id = tournament['id']
+            assert tournament['status'] == 'setup'
+
+        # PHASE 2: ACTIVE (status='active')
+        # Start Round 1
+        response = client.post(f'/tournament/{tournament_id}/start_round',
+                             follow_redirects=True)
+        assert response.status_code == 200
+
+        # Verify status changed to 'active'
+        with app.app_context():
+            db = get_db()
+            result = db.execute(
+                "SELECT status FROM tournaments WHERE id = ?", (tournament_id,)
+            ).fetchone()
+            assert result['status'] == 'active'
+
+        # PHASE 3: COMPLETED (status='completed')
+        # Complete tournament
+        response = client.post(f'/tournament/{tournament_id}/complete',
+                             follow_redirects=True)
+        assert response.status_code == 200
+
+        # Verify status changed to 'completed' and timestamp set
+        with app.app_context():
+            db = get_db()
+            result = db.execute(
+                "SELECT status, completed_at FROM tournaments WHERE id = ?",
+                (tournament_id,)
+            ).fetchone()
+            assert result['status'] == 'completed'
+            assert result['completed_at'] is not None
+
+            # Verify tournament_players data exists
+            players_count = db.execute(
+                '''
+                SELECT COUNT(*) as count FROM tournament_players
+                WHERE tournament_id = ?
+                ''', (tournament_id,)
+            ).fetchone()['count']
+            assert players_count > 0
+
+        # PHASE 4: ARCHIVED (status='archived')
+        # Archive tournament
+        response = client.post(f'/tournament/{tournament_id}/archive',
+                             follow_redirects=True)
+        assert response.status_code == 200
+
+        # Verify status changed to 'archived' and timestamp set
+        with app.app_context():
+            db = get_db()
+            result = db.execute(
+                "SELECT status, archived_at FROM tournaments WHERE id = ?",
+                (tournament_id,)
+            ).fetchone()
+            assert result['status'] == 'archived'
+            assert result['archived_at'] is not None
+
+    finally:
+        # Cleanup
+        with app.app_context():
+            db = get_db()
+            if tournament_id:
+                db.execute("DELETE FROM tournament_players WHERE tournament_id = ?",
+                         (tournament_id,))
+                db.execute("DELETE FROM rounds WHERE tournament_id = ?",
+                         (tournament_id,))
+                db.execute("DELETE FROM tournaments WHERE id = ?",
+                         (tournament_id,))
+            db.execute("DELETE FROM seasons WHERE name = 'Test Season 9999'")
+            db.commit()
