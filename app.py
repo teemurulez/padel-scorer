@@ -1037,55 +1037,111 @@ def clear_all_data():
 
 @app.route('/tournament/<int:tournament_id>/complete', methods=['POST'])
 def complete_tournament(tournament_id):
-    """Complete a tournament and calculate final rankings"""
-    db = get_db()
+    """Complete a tournament - calculate final stats and set status to completed"""
+    conn = get_db()
+    cursor = conn.cursor()
 
-    tournament = db.execute(
-        "SELECT * FROM tournaments WHERE id = ?",
-        (tournament_id,)
-    ).fetchone()
+    try:
+        # Verify tournament exists and is active
+        cursor.execute('''
+            SELECT status FROM tournaments WHERE id = ?
+        ''', (tournament_id,))
+        result = cursor.fetchone()
 
-    if not tournament:
-        flash("Tournament not found")
-        return redirect('/'), 404
+        if not result:
+            flash('Tournament not found', 'error')
+            return redirect(url_for('index'))
 
-    # Calculate final rankings based on total_points
-    players_ranked = db.execute("""
-        SELECT
-            tp.player_id,
-            tp.total_points,
-            pr.first_name,
-            pr.last_name
-        FROM tournament_players tp
-        JOIN player_registry pr ON tp.player_id = pr.id
-        WHERE tp.tournament_id = ?
-        ORDER BY tp.total_points DESC, pr.last_name ASC
-    """, (tournament_id,)).fetchall()
+        if result['status'] != 'active':
+            flash(f'Cannot complete tournament with status: {result["status"]}', 'error')
+            return redirect(url_for('active_tournament', tournament_id=tournament_id))
 
-    # Update final_rank for each player
-    for rank, player in enumerate(players_ranked, start=1):
-        db.execute("""
-            UPDATE tournament_players
-            SET final_rank = ?
-            WHERE tournament_id = ? AND player_id = ?
-        """, (rank, tournament_id, player['player_id']))
+        # Calculate final statistics for each player
+        # Get all players who participated in this tournament
+        cursor.execute('''
+            SELECT DISTINCT pr.id as registry_id
+            FROM player_registry pr
+            JOIN matches m ON (pr.id = m.player1_id OR pr.id = m.player2_id
+                              OR pr.id = m.player3_id OR pr.id = m.player4_id)
+            JOIN rounds r ON m.round_id = r.id
+            WHERE r.tournament_id = ?
+        ''', (tournament_id,))
+        tournament_players_list = cursor.fetchall()
 
-    # Update tournament status
-    db.execute("""
-        UPDATE tournaments
-        SET status = 'completed', completed_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    """, (tournament_id,))
+        for player in tournament_players_list:
+            registry_id = player['registry_id']
 
-    db.commit()
+            # Count wins and losses
+            cursor.execute('''
+                SELECT
+                    COUNT(*) as total_matches,
+                    SUM(CASE
+                        WHEN (m.player1_id = ? OR m.player2_id = ?) AND m.winning_team = 1 THEN 1
+                        WHEN (m.player3_id = ? OR m.player4_id = ?) AND m.winning_team = 2 THEN 1
+                        ELSE 0
+                    END) as wins
+                FROM matches m
+                JOIN rounds r ON m.round_id = r.id
+                WHERE r.tournament_id = ?
+                  AND (m.player1_id = ? OR m.player2_id = ?
+                       OR m.player3_id = ? OR m.player4_id = ?)
+                  AND m.winning_team IS NOT NULL
+            ''', (registry_id, registry_id, registry_id, registry_id, tournament_id,
+                  registry_id, registry_id, registry_id, registry_id))
 
-    winner = players_ranked[0] if players_ranked else None
-    if winner:
-        flash(f"Tournament completed! Winner: {winner['first_name']} {winner['last_name']}")
-    else:
-        flash("Tournament completed!")
+            stats = cursor.fetchone()
+            match_wins = stats['wins'] or 0
+            total_matches = stats['total_matches'] or 0
+            match_losses = total_matches - match_wins
+            total_points = match_wins  # Simple scoring: 1 point per win
 
-    return redirect('/')
+            # Insert or update tournament_players record
+            cursor.execute('''
+                INSERT INTO tournament_players
+                (tournament_id, player_id, total_points, match_wins, match_losses)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(tournament_id, player_id)
+                DO UPDATE SET
+                    total_points = excluded.total_points,
+                    match_wins = excluded.match_wins,
+                    match_losses = excluded.match_losses
+            ''', (tournament_id, registry_id, total_points, match_wins, match_losses))
+
+        # Calculate rankings based on total_points (wins)
+        cursor.execute('''
+            SELECT player_id, total_points
+            FROM tournament_players
+            WHERE tournament_id = ?
+            ORDER BY total_points DESC, player_id ASC
+        ''', (tournament_id,))
+
+        ranked_players = cursor.fetchall()
+        current_rank = 1
+        for idx, player_row in enumerate(ranked_players):
+            cursor.execute('''
+                UPDATE tournament_players
+                SET final_rank = ?
+                WHERE tournament_id = ? AND player_id = ?
+            ''', (current_rank, tournament_id, player_row['player_id']))
+            current_rank += 1
+
+        # Update tournament status to completed
+        cursor.execute('''
+            UPDATE tournaments
+            SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (tournament_id,))
+
+        conn.commit()
+        flash('Tournament completed successfully!', 'success')
+        return redirect(url_for('tournament_results', tournament_id=tournament_id))
+
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error completing tournament: {e}', 'error')
+        return redirect(url_for('active_tournament', tournament_id=tournament_id))
+    finally:
+        conn.close()
 
 @app.route('/tournament/<int:tournament_id>/archive', methods=['POST'])
 def archive_tournament(tournament_id):
@@ -1369,6 +1425,5 @@ with app.app_context():
         print("✅ Data migration completed: Tournaments assigned to seasons")
     elif result == "already_migrated":
         print("✅ Data already migrated")
-
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')
