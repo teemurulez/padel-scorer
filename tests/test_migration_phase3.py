@@ -18,3 +18,12 @@ def test_parse_player_name_multiple_words():
     first, last = parse_player_name("Juan Carlos De La Rosa")
     assert first == "Juan"
     assert last == "Carlos De La Rosa"
+
+
+def test_parse_player_name_single_word():
+    """Test parsing single-word names (edge case)"""
+    from migration_phase3 import parse_player_name
+
+    first, last = parse_player_name("Madonna")
+    assert first == "Madonna"
+    assert last == "Player"
