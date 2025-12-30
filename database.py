@@ -138,9 +138,23 @@ def init_db():
     if 'season_id' not in columns:
         cursor.execute('ALTER TABLE tournaments ADD COLUMN season_id INTEGER REFERENCES seasons(id)')
 
+    # Check and add status column if it doesn't exist
+    cursor.execute("PRAGMA table_info(tournaments)")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    if 'status' not in columns:
+        cursor.execute("ALTER TABLE tournaments ADD COLUMN status TEXT DEFAULT 'setup'")
+
+    if 'completed_at' not in columns:
+        cursor.execute("ALTER TABLE tournaments ADD COLUMN completed_at TIMESTAMP NULL")
+
+    if 'archived_at' not in columns:
+        cursor.execute("ALTER TABLE tournaments ADD COLUMN archived_at TIMESTAMP NULL")
+
     # Create indexes for performance
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_tournaments_season_id ON tournaments(season_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_seasons_is_current ON seasons(is_current)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_tournaments_status ON tournaments(status)')
 
     # Tournament Players junction table (Phase 3)
     cursor.execute('''
