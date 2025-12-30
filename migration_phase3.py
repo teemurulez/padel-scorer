@@ -50,3 +50,28 @@ def migrate_players_to_registry(conn):
 
     conn.commit()
     return migrated_count
+
+
+def run_migration_if_needed():
+    """Run Phase 3 migration if needed (idempotent)"""
+    conn = get_db()
+    try:
+        cursor = conn.cursor()
+
+        # Check if migration needed
+        cursor.execute("SELECT COUNT(*) FROM players WHERE registry_id IS NULL")
+        unmigrated_count = cursor.fetchone()[0]
+
+        if unmigrated_count > 0:
+            migrated = migrate_players_to_registry(conn)
+            print(f"Migrated {migrated} player records to registry")
+            return migrated
+        else:
+            print("No migration needed - all players already linked to registry")
+            return 0
+    finally:
+        conn.close()
+
+
+if __name__ == '__main__':
+    run_migration_if_needed()
