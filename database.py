@@ -197,6 +197,25 @@ def init_db():
         ON tournament_players(player_id)
     ''')
 
+    # Create player_seeding view (calculates seed points from last 6 months)
+    cursor.execute('''
+        CREATE VIEW IF NOT EXISTS player_seeding AS
+        SELECT
+            pr.id as player_id,
+            pr.first_name,
+            pr.last_name,
+            COALESCE(SUM(tp.total_points), 0) as seed_points,
+            COUNT(tp.tournament_id) as recent_tournaments
+        FROM player_registry pr
+        LEFT JOIN tournament_players tp ON pr.id = tp.player_id
+        LEFT JOIN tournaments t ON tp.tournament_id = t.id
+        WHERE (t.status IN ('completed', 'archived')
+               AND t.completed_at >= date('now', '-6 months'))
+            OR t.id IS NULL
+        GROUP BY pr.id, pr.first_name, pr.last_name
+        ORDER BY seed_points DESC
+    ''')
+
     conn.commit()
     conn.close()
     print("Database initialized successfully!")
