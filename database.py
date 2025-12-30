@@ -142,6 +142,31 @@ def init_db():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_tournaments_season_id ON tournaments(season_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_seasons_is_current ON seasons(is_current)')
 
+    # Tournament Players junction table (Phase 3)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tournament_players (
+            tournament_id INTEGER NOT NULL,
+            player_id INTEGER NOT NULL,
+            final_rank INTEGER,
+            total_points INTEGER DEFAULT 0,
+            match_wins INTEGER DEFAULT 0,
+            match_losses INTEGER DEFAULT 0,
+            PRIMARY KEY (tournament_id, player_id),
+            FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+            FOREIGN KEY (player_id) REFERENCES player_registry(id) ON DELETE RESTRICT
+        )
+    ''')
+
+    # Create indexes for performance
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tournament_players_tournament
+        ON tournament_players(tournament_id)
+    ''')
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tournament_players_player
+        ON tournament_players(player_id)
+    ''')
+
     conn.commit()
     conn.close()
     print("Database initialized successfully!")
