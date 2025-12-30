@@ -69,3 +69,52 @@ def test_migrate_creates_registry_entries():
         cursor.execute("DELETE FROM player_registry WHERE first_name = 'Test' AND last_name LIKE 'Player%'")
         conn.commit()
         conn.close()
+
+
+def test_migrate_handles_duplicates():
+    """Test that migration is idempotent and handles already-migrated players"""
+    from migration_phase3 import migrate_players_to_registry
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        # Cleanup
+        cursor.execute("DELETE FROM players WHERE name = 'Idempotent Test'")
+        cursor.execute("DELETE FROM player_registry WHERE first_name = 'Idempotent' AND last_name = 'Test'")
+        conn.commit()
+
+        # Setup: Create legacy player
+        cursor.execute("INSERT INTO players (name, total_points) VALUES (?, ?)", ("Idempotent Test", 10))
+        player_id = cursor.lastrowid
+        conn.commit()
+
+        # Run migration first time
+        migrated1 = migrate_players_to_registry(conn)
+        assert migrated1 == 1
+
+        # Verify player is migrated
+        cursor.execute("SELECT registry_id FROM players WHERE id = ?", (player_id,))
+        registry_id_first = cursor.fetchone()[0]
+        assert registry_id_first is not None
+
+        # Run migration second time (should be idempotent)
+        migrated2 = migrate_players_to_registry(conn)
+        assert migrated2 == 0  # No additional migrations
+
+        # Verify registry_id unchanged
+        cursor.execute("SELECT registry_id FROM players WHERE id = ?", (player_id,))
+        registry_id_second = cursor.fetchone()[0]
+        assert registry_id_second == registry_id_first
+
+        # Verify still only one registry entry
+        cursor.execute("SELECT COUNT(*) FROM player_registry WHERE first_name = 'Idempotent' AND last_name = 'Test'")
+        registry_count = cursor.fetchone()[0]
+        assert registry_count == 1
+
+    finally:
+        # Cleanup
+        cursor.execute("DELETE FROM players WHERE name = 'Idempotent Test'")
+        cursor.execute("DELETE FROM player_registry WHERE first_name = 'Idempotent' AND last_name = 'Test'")
+        conn.commit()
+        conn.close()
