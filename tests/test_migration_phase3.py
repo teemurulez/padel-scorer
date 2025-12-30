@@ -118,3 +118,27 @@ def test_migrate_handles_duplicates():
         cursor.execute("DELETE FROM player_registry WHERE first_name = 'Idempotent' AND last_name = 'Test'")
         conn.commit()
         conn.close()
+
+
+def test_parse_player_name_long_names():
+    """Test that very long names are truncated to 100 chars"""
+    from migration_phase3 import parse_player_name
+
+    long_first = "A" * 150
+    long_last = "B" * 150
+    full_name = f"{long_first} {long_last}"
+
+    first, last = parse_player_name(full_name)
+
+    assert len(first) <= 100
+    assert len(last) <= 100
+    assert first == "A" * 100
+    assert last == "B" * 100
+
+
+def test_parse_player_name_empty():
+    """Test that empty/whitespace names get defaults"""
+    from migration_phase3 import parse_player_name
+
+    assert parse_player_name("") == ("Unknown", "Player")
+    assert parse_player_name("   ") == ("Unknown", "Player")
