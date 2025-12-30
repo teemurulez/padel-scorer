@@ -23,8 +23,8 @@ def client(tmp_path):
 
 def init_test_db():
     """Initialize test database with Phase 3 schema"""
-    from database import get_db
-    db = get_db()
+    from app import get_db_connection
+    db = get_db_connection()
 
     # Drop existing tables to ensure clean slate
     db.executescript("""
@@ -77,8 +77,7 @@ def init_test_db():
         CREATE TABLE players (
             id INTEGER PRIMARY KEY,
             name TEXT,
-            total_points INTEGER DEFAULT 0,
-            tournament_id INTEGER
+            total_points INTEGER DEFAULT 0
         );
 
         CREATE TABLE rounds (
@@ -123,13 +122,13 @@ def test_complete_tournament_marks_status_completed(client):
     """Test that completing tournament changes status to completed"""
     response = client.post('/tournament/1/complete')
 
-    # Should redirect
-    assert response.status_code in [200, 302]
+    # Should redirect to active_tournament page
+    assert response.status_code == 302
 
     # Verify status changed
-    from database import get_db
+    from app import get_db_connection
     with app.app_context():
-        db = get_db()
+        db = get_db_connection()
         tournament = db.execute(
             "SELECT status, completed_at FROM tournaments WHERE id = 1"
         ).fetchone()
@@ -142,9 +141,9 @@ def test_complete_tournament_calculates_final_ranks(client):
     response = client.post('/tournament/1/complete')
 
     # Verify final_rank was set based on points (player 1 has 100 pts, player 2 has 80 pts)
-    from database import get_db
+    from app import get_db_connection
     with app.app_context():
-        db = get_db()
+        db = get_db_connection()
 
         # Player 1 should be rank 1 (higher points)
         player1 = db.execute(
@@ -164,9 +163,9 @@ def test_archive_tournament_requires_completed_status(client):
     # Try to archive an active tournament (should fail)
     response = client.post('/tournament/1/archive', follow_redirects=True)
 
-    from database import get_db
+    from app import get_db_connection
     with app.app_context():
-        db = get_db()
+        db = get_db_connection()
         tournament = db.execute(
             "SELECT status FROM tournaments WHERE id = 1"
         ).fetchone()
@@ -182,9 +181,9 @@ def test_archive_tournament_after_completion(client):
     # Then archive it
     response = client.post('/tournament/1/archive')
 
-    from database import get_db
+    from app import get_db_connection
     with app.app_context():
-        db = get_db()
+        db = get_db_connection()
         tournament = db.execute(
             "SELECT status, archived_at FROM tournaments WHERE id = 1"
         ).fetchone()
@@ -195,7 +194,8 @@ def test_archive_tournament_after_completion(client):
 def test_complete_tournament_not_found(client):
     """Test completing non-existent tournament returns error"""
     response = client.post('/tournament/999/complete')
-    assert response.status_code in [302, 404]  # Redirect or not found
+    # Should redirect to index when tournament not found
+    assert response.status_code == 302
 
 
 def test_full_tournament_lifecycle(tmp_path):
@@ -218,8 +218,8 @@ def test_full_tournament_lifecycle(tmp_path):
     try:
         # Setup: Ensure there's an active season
         with app.app_context():
-            from database import get_db
-            db = get_db()
+            from app import get_db_connection
+            db = get_db_connection()
             db.execute("DELETE FROM seasons WHERE name = 'Test Season 9999'")
             db.execute(
                 "INSERT INTO seasons (name, is_current) VALUES ('Test Season 9999', 1)"
@@ -238,7 +238,7 @@ def test_full_tournament_lifecycle(tmp_path):
 
         # Verify tournament created with status='setup'
         with app.app_context():
-            db = get_db()
+            db = get_db_connection()
             tournament = db.execute(
                 "SELECT id, status FROM tournaments WHERE name = 'Lifecycle Test Tournament'"
             ).fetchone()
@@ -254,7 +254,7 @@ def test_full_tournament_lifecycle(tmp_path):
 
         # Verify status changed to 'active'
         with app.app_context():
-            db = get_db()
+            db = get_db_connection()
             result = db.execute(
                 "SELECT status FROM tournaments WHERE id = ?", (tournament_id,)
             ).fetchone()
@@ -268,7 +268,7 @@ def test_full_tournament_lifecycle(tmp_path):
 
         # Verify status changed to 'completed' and timestamp set
         with app.app_context():
-            db = get_db()
+            db = get_db_connection()
             result = db.execute(
                 "SELECT status, completed_at FROM tournaments WHERE id = ?",
                 (tournament_id,)
@@ -293,7 +293,7 @@ def test_full_tournament_lifecycle(tmp_path):
 
         # Verify status changed to 'archived' and timestamp set
         with app.app_context():
-            db = get_db()
+            db = get_db_connection()
             result = db.execute(
                 "SELECT status, archived_at FROM tournaments WHERE id = ?",
                 (tournament_id,)
@@ -304,7 +304,7 @@ def test_full_tournament_lifecycle(tmp_path):
     finally:
         # Cleanup
         with app.app_context():
-            db = get_db()
+            db = get_db_connection()
             if tournament_id:
                 db.execute("DELETE FROM tournament_players WHERE tournament_id = ?",
                          (tournament_id,))
