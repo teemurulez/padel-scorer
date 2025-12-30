@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .tournament-info {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .tournament-info p {
+            margin: 5px 0;
+        }
+        .standings-table {
+            width: 100%;
+            margin: 20px 0;
+            border-collapse: collapse;
+        }
+        .standings-table th,
+        .standings-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .standings-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .standings-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .actions {
+            margin-top: 30px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-right: 10px;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-warning {
+            background-color: #ff9800;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tournament Results: {{ tournament.name }}</h1>
+
+        <div class="tournament-info">
+            <p><strong>Date:</strong> {{ tournament.created_at }}</p>
+            <p><strong>Status:</strong> {{ tournament.status }}</p>
+            {% if tournament.completed_at %}
+            <p><strong>Completed:</strong> {{ tournament.completed_at }}</p>
+            {% endif %}
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <h2>Final Standings</h2>
+
+        {% if standings %}
+        <table class="standings-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Player</th>
+                    <th>Points</th>
+                    <th>Wins</th>
+                    <th>Losses</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in standings %}
+                <tr>
+                    <td>{{ player.final_rank or '-' }}</td>
+                    <td>{{ player.first_name }} {{ player.last_name }}</td>
+                    <td>{{ player.total_points }}</td>
+                    <td>{{ player.match_wins }}</td>
+                    <td>{{ player.match_losses }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No standings data available.</p>
+        {% endif %}
+
+        <div class="actions">
+            {% if tournament.status == 'completed' %}
+            <form action="{{ url_for('archive_tournament', tournament_id=tournament.id) }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-warning">Archive Tournament</button>
+            </form>
+            {% endif %}
+
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+        </div>
+    </div>
+</body>
+</html>

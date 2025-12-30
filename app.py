@@ -1189,6 +1189,45 @@ def archive_tournament(tournament_id):
     finally:
         db.close()
 
+@app.route('/tournament/<int:tournament_id>/results')
+def tournament_results(tournament_id):
+    """Display tournament results and final standings"""
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    try:
+        # Get tournament info
+        cursor.execute('''
+            SELECT * FROM tournaments WHERE id = ?
+        ''', (tournament_id,))
+        tournament = cursor.fetchone()
+
+        if not tournament:
+            flash('Tournament not found', 'error')
+            return redirect(url_for('index'))
+
+        # Get final standings from tournament_players
+        cursor.execute('''
+            SELECT
+                tp.final_rank,
+                pr.first_name,
+                pr.last_name,
+                tp.total_points,
+                tp.match_wins,
+                tp.match_losses
+            FROM tournament_players tp
+            JOIN player_registry pr ON tp.player_id = pr.id
+            WHERE tp.tournament_id = ?
+            ORDER BY tp.final_rank ASC NULLS LAST, tp.total_points DESC
+        ''', (tournament_id,))
+        standings = cursor.fetchall()
+
+        return render_template('tournament_results.html',
+                             tournament=tournament,
+                             standings=standings)
+    finally:
+        db.close()
+
 @app.route('/player/create', methods=['POST'])
 def create_player():
     """Create a new player in the registry"""
