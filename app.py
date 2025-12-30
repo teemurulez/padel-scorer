@@ -1152,31 +1152,42 @@ def complete_tournament(tournament_id):
 
 @app.route('/tournament/<int:tournament_id>/archive', methods=['POST'])
 def archive_tournament(tournament_id):
-    """Archive a completed tournament (read-only)"""
-    db = get_db()
+    """Archive a completed tournament - set status to archived"""
+    db = get_db_connection()
+    cursor = db.cursor()
 
-    tournament = db.execute(
-        "SELECT status FROM tournaments WHERE id = ?",
-        (tournament_id,)
-    ).fetchone()
+    try:
+        # Verify tournament exists and is completed
+        cursor.execute('''
+            SELECT status FROM tournaments WHERE id = ?
+        ''', (tournament_id,))
+        result = cursor.fetchone()
 
-    if not tournament:
-        flash("Tournament not found")
-        return redirect('/'), 404
+        if not result:
+            flash('Tournament not found', 'error')
+            return redirect(url_for('index'))
 
-    if tournament['status'] != 'completed':
-        flash("Can only archive completed tournaments")
-        return redirect('/')
+        if result['status'] != 'completed':
+            flash(f'Cannot archive tournament with status: {result["status"]}', 'error')
+            return redirect(url_for('active_tournament', tournament_id=tournament_id))
 
-    db.execute("""
-        UPDATE tournaments
-        SET status = 'archived', archived_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    """, (tournament_id,))
-    db.commit()
+        # Update tournament status to archived
+        cursor.execute('''
+            UPDATE tournaments
+            SET status = 'archived', archived_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (tournament_id,))
 
-    flash("Tournament archived")
-    return redirect('/')
+        db.commit()
+        flash('Tournament archived successfully!', 'success')
+        return redirect(url_for('index'))
+
+    except Exception as e:
+        db.rollback()
+        flash(f'Error archiving tournament: {e}', 'error')
+        return redirect(url_for('active_tournament', tournament_id=tournament_id))
+    finally:
+        db.close()
 
 @app.route('/player/create', methods=['POST'])
 def create_player():
