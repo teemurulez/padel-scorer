@@ -26,14 +26,20 @@ def generate_seeded_round1_pairings(players_with_seeds, num_courts):
     )
 
     players_per_court = 4
+
+    # Validate we have enough players for the requested courts
+    total_players_needed = num_courts * players_per_court
+    if len(sorted_players) < total_players_needed:
+        raise ValueError(
+            f"Not enough players for {num_courts} courts. "
+            f"Need {total_players_needed} players, have {len(sorted_players)}."
+        )
+
     court_assignments = []
 
     for court_idx in range(num_courts):
         start = court_idx * players_per_court
         end = start + players_per_court
-
-        if end > len(sorted_players):
-            break
 
         # Get 4 players for this court (sorted by seed)
         court_players = sorted_players[start:end]

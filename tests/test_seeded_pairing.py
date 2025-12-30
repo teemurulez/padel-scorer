@@ -69,7 +69,7 @@ def test_seeded_pairing_balances_teams():
 
 
 def test_seeded_pairing_handles_partial_court():
-    """Test that partial courts are not created"""
+    """Test that partial courts raise ValueError"""
     players_with_seeds = [
         {'id': 1, 'seed_points': 850},
         {'id': 2, 'seed_points': 820},
@@ -80,8 +80,6 @@ def test_seeded_pairing_handles_partial_court():
         # Only 6 players, not enough for 2 full courts
     ]
 
-    pairings = generate_seeded_round1_pairings(players_with_seeds, num_courts=2)
-
-    # Should only create 1 court (4 players)
-    assert len(pairings) == 1
-    assert set(pairings[0]) == {1, 2, 3, 4}
+    # Should raise ValueError when not enough players
+    with pytest.raises(ValueError, match="Not enough players for 2 courts"):
+        generate_seeded_round1_pairings(players_with_seeds, num_courts=2)
