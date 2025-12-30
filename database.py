@@ -213,7 +213,7 @@ def init_db():
                AND t.completed_at >= date('now', '-6 months'))
             OR t.id IS NULL
         GROUP BY pr.id, pr.first_name, pr.last_name
-        ORDER BY seed_points DESC
+        ORDER BY seed_points DESC, last_name ASC, first_name ASC
     ''')
 
     conn.commit()
