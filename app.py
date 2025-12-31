@@ -1036,6 +1036,113 @@ def clear_all_data():
     flash('All data cleared successfully! Starting fresh season.')
     return redirect(url_for('index'))
 
+@app.route('/player/<int:player_id>/profile')
+def player_profile(player_id):
+    """Display player profile with current season statistics"""
+    db = get_db_connection()
+
+    # Get player from registry
+    player = db.execute(
+        'SELECT * FROM player_registry WHERE id = ?',
+        (player_id,)
+    ).fetchone()
+
+    if not player:
+        flash('Player not found')
+        return redirect(url_for('index'))
+
+    # Get current season
+    current_season = get_current_season(db)
+    if not current_season:
+        # No current season - show player with no data
+        return render_template(
+            'player_profile.html',
+            player=player,
+            season_stats=None,
+            season_name='No Current Season',
+            rank=None
+        )
+
+    current_year = datetime.now().year
+
+    # Get season stats for this player
+    # Using same query logic as season_leaderboard route
+    season_stats = db.execute("""
+        SELECT
+            pr.id,
+            pr.first_name,
+            pr.last_name,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
+            COUNT(DISTINCT m.id) as total_matches,
+            ROUND(
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                NULLIF(COUNT(DISTINCT m.id), 0) * 100,
+                1
+            ) as win_rate,
+            SUM(s.points) as total_points,
+            COUNT(DISTINCT t.id) as tournaments_played
+        FROM player_registry pr
+        LEFT JOIN matches m ON (
+            pr.id = m.player1_id OR
+            pr.id = m.player2_id OR
+            pr.id = m.player3_id OR
+            pr.id = m.player4_id
+        )
+        LEFT JOIN rounds r ON m.round_id = r.id
+        LEFT JOIN tournaments t ON r.tournament_id = t.id
+        LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+        WHERE pr.id = ?
+          AND t.season_id = ?
+          AND m.completed = 1
+        GROUP BY pr.id, pr.first_name, pr.last_name
+    """, (player_id, current_season['id'])).fetchone()
+
+    # Calculate wins per tournament
+    wins_per_tournament = None
+    if season_stats and season_stats['total_wins'] and season_stats['tournaments_played']:
+        wins_per_tournament = round(
+            season_stats['total_wins'] / season_stats['tournaments_played'], 2
+        )
+
+    # Calculate rank (get all players in order and find position)
+    rank = None
+    if season_stats and season_stats['total_wins'] > 0:
+        all_standings = db.execute("""
+            SELECT
+                pr.id,
+                COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins
+            FROM player_registry pr
+            LEFT JOIN matches m ON (
+                pr.id = m.player1_id OR
+                pr.id = m.player2_id OR
+                pr.id = m.player3_id OR
+                pr.id = m.player4_id
+            )
+            LEFT JOIN rounds r ON m.round_id = r.id
+            LEFT JOIN tournaments t ON r.tournament_id = t.id
+            LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+            WHERE t.season_id = ?
+              AND m.completed = 1
+            GROUP BY pr.id
+            HAVING COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) > 0
+            ORDER BY total_wins DESC
+        """, (current_season['id'],)).fetchall()
+
+        for idx, row in enumerate(all_standings, start=1):
+            if row['id'] == player_id:
+                rank = idx
+                break
+
+    return render_template(
+        'player_profile.html',
+        player=player,
+        season_stats=season_stats,
+        season_name=current_season['name'],
+        current_year=current_year,
+        rank=rank,
+        wins_per_tournament=wins_per_tournament
+    )
+
 @app.route('/tournament/<int:tournament_id>/complete', methods=['POST'])
 def complete_tournament(tournament_id):
     """Complete a tournament - calculate final stats and set status to completed"""

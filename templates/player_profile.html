@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ player.first_name }} {{ player.last_name }} - Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .player-profile {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .profile-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .profile-header h1 {
+            margin-bottom: 0.5rem;
+        }
+        .season-label {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: #f5f5f5;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card.primary {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+        }
+        .stat-card.rank {
+            background: #d4edda;
+            border: 2px solid #28a745;
+        }
+        .stat-card .label {
+            display: block;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+        .stat-card .value {
+            display: block;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+        }
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        .no-data p {
+            font-size: 1.2rem;
+            color: #666;
+        }
+        .profile-actions {
+            text-align: center;
+            margin-top: 2rem;
+        }
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+            .stat-card {
+                padding: 1rem;
+            }
+            .stat-card .value {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="player-profile">
+            <!-- Header -->
+            <div class="profile-header">
+                <h1>{{ player.first_name }} {{ player.last_name }}</h1>
+                <p class="season-label">{{ season_name }}</p>
+            </div>
+
+            {% if season_stats and season_stats.total_wins > 0 %}
+                <!-- Season Statistics -->
+                <div class="stats-grid">
+                    {% if rank %}
+                    <div class="stat-card rank">
+                        <span class="label">Season Rank</span>
+                        <span class="value">#{{ rank }}</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="stat-card primary">
+                        <span class="label">Match Wins</span>
+                        <span class="value">{{ season_stats.total_wins }}</span>
+                    </div>
+
+                    <div class="stat-card">
+                        <span class="label">Tournaments</span>
+                        <span class="value">{{ season_stats.tournaments_played }}</span>
+                    </div>
+
+                    {% if wins_per_tournament %}
+                    <div class="stat-card">
+                        <span class="label">Wins/Tournament</span>
+                        <span class="value">{{ wins_per_tournament }}</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="stat-card">
+                        <span class="label">Total Points</span>
+                        <span class="value">{{ season_stats.total_points or 0 }}</span>
+                    </div>
+
+                    {% if season_stats.win_rate %}
+                    <div class="stat-card">
+                        <span class="label">Win Rate</span>
+                        <span class="value">{{ season_stats.win_rate }}%</span>
+                    </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <!-- No Data Message -->
+                <div class="no-data">
+                    <p>No tournaments played this season yet.</p>
+                </div>
+            {% endif %}
+
+            <!-- Navigation -->
+            <div class="profile-actions">
+                <a href="{{ url_for('season_leaderboard') }}" class="btn btn-secondary">← Back to Season Leaderboard</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
