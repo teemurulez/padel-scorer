@@ -1844,6 +1844,11 @@ def test_selection():
     ]
     return render_template('tournament_selection.html', tournaments=tournaments)
 
+@app.route('/test/noactive')
+def test_noactive():
+    season = {'name': 'Winter 2025', 'tournament_count': 5}
+    return render_template('no_active_tournament.html', season=season)
+
 # Run migration on startup if needed
 with app.app_context():
     from migration import run_migration_if_needed
