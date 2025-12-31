@@ -139,3 +139,80 @@ def test_player_profile_not_found(client):
     # Assert: Redirects to home
     assert response.status_code == 302
     assert b'/player/99999/profile' not in response.data
+
+
+def test_season_leaderboard_has_clickable_names(client):
+    """Test that player names in season leaderboard are clickable links to profiles"""
+    # Setup test data within app context
+    with app.app_context():
+        from app import get_db_connection
+        db = get_db_connection()
+
+        # Create current season
+        current_year = datetime.now().year
+        db.execute(
+            'INSERT INTO seasons (name, is_current) VALUES (?, 1)',
+            (f'Season {current_year}',)
+        )
+        season_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Create two players
+        db.execute(
+            'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+            ('Alice', 'Johnson')
+        )
+        player1_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        db.execute(
+            'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+            ('Bob', 'Smith')
+        )
+        player2_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Create two more players for 4-player match
+        for i in range(2):
+            db.execute(
+                'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+                (f'Player{i}', 'Opponent')
+            )
+
+        # Create tournament
+        db.execute(
+            'INSERT INTO tournaments (name, num_courts, season_id, status) VALUES (?, ?, ?, ?)',
+            ('Test Tournament', 2, season_id, 'completed')
+        )
+        tournament_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Create round
+        db.execute(
+            'INSERT INTO rounds (tournament_id, round_number) VALUES (?, ?)',
+            (tournament_id, 1)
+        )
+        round_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Create completed match
+        db.execute(
+            '''INSERT INTO matches
+               (round_id, court_number, player1_id, player2_id, player3_id, player4_id, winning_team, completed)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (round_id, 1, player1_id, player2_id, player1_id+2, player1_id+3, 1, 1)
+        )
+        db.commit()
+
+    # Test: Visit season leaderboard
+    response = client.get('/leaderboard/season')
+
+    # Assert: Page loads
+    assert response.status_code == 200
+
+    # Assert: Player names are present
+    assert b'Alice Johnson' in response.data
+    assert b'Bob Smith' in response.data
+
+    # Assert: Links to player profiles exist
+    html = response.data.decode('utf-8')
+    assert f'/player/{player1_id}/profile' in html
+    assert f'/player/{player2_id}/profile' in html
+
+    # Assert: Links are in anchor tags
+    assert f'<a href="/player/{player1_id}/profile">' in html or f"<a href=\"/player/{player1_id}/profile\">" in html

@@ -93,6 +93,14 @@
                 text-align: center;
             }
         }
+        .player-name a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        .player-name a:hover {
+            text-decoration: underline;
+            color: #1d4ed8;
+        }
     </style>
 </head>
 <body>
@@ -146,7 +154,11 @@
                 {% for player in season_stats %}
                 <tr>
                     <td class="rank">{{ loop.index }}</td>
-                    <td class="player-name">{{ player['first_name'] }} {{ player['last_name'] }}</td>
+                    <td class="player-name">
+                        <a href="{{ url_for('player_profile', player_id=player['id']) }}">
+                            {{ player['first_name'] }} {{ player['last_name'] }}
+                        </a>
+                    </td>
                     <td class="wins">{{ player['total_wins'] }}</td>
                     <td class="matches">{{ player['total_matches'] }}</td>
                     <td class="win-rate">
@@ -200,7 +212,11 @@
                             {% for player in stats['players'] %}
                             <tr>
                                 <td class="rank">{{ loop.index }}</td>
-                                <td class="player-name">{{ player['first_name'] }} {{ player['last_name'] }}</td>
+                                <td class="player-name">
+                                    <a href="{{ url_for('player_profile', player_id=player['id']) }}">
+                                        {{ player['first_name'] }} {{ player['last_name'] }}
+                                    </a>
+                                </td>
                                 <td class="wins">{{ player['wins'] }}</td>
                                 <td class="matches">{{ player['matches_played'] }}</td>
                                 <td class="win-rate">
