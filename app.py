@@ -1812,8 +1812,36 @@ def admin_activate_season(season_id):
 
 @app.route('/admin')
 def admin_dashboard():
-    """Admin dashboard main page"""
-    return render_template('admin_dashboard.html')
+    """Admin dashboard main page with season management"""
+    db = get_db()
+
+    # Get current season
+    current_season = get_current_season(db)
+
+    # Get archived seasons with tournament counts
+    archived_seasons = db.execute("""
+        SELECT
+            s.*,
+            COUNT(t.id) as tournament_count
+        FROM seasons s
+        LEFT JOIN tournaments t ON s.id = t.season_id
+        WHERE s.is_current = 0
+        GROUP BY s.id
+        ORDER BY s.ended_at DESC, s.created_at DESC
+    """).fetchall()
+
+    # Get tournament count for current season
+    current_tournament_count = 0
+    if current_season:
+        current_tournament_count = db.execute(
+            "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
+            (current_season['id'],)
+        ).fetchone()['count']
+
+    return render_template('admin_dashboard.html',
+                          current_season=current_season,
+                          current_tournament_count=current_tournament_count,
+                          archived_seasons=archived_seasons)
 
 
 @app.route('/admin/logout', methods=['POST'])
