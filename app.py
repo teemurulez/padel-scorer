@@ -1755,14 +1755,29 @@ def admin_create_tournament():
         flash('No active season. Please create or activate a season first.')
         return redirect('/admin')
 
-    tournament_name = request.form.get('tournament_name')
-    num_courts = int(request.form.get('num_courts'))
-    player_names = request.form.get('players').strip().split('\n')
+    # Validate form inputs
+    tournament_name = request.form.get('tournament_name', '').strip()
+    if not tournament_name:
+        flash('Tournament name is required.')
+        return redirect('/admin')
+
+    try:
+        num_courts = int(request.form.get('num_courts'))
+    except (ValueError, TypeError):
+        flash('Invalid number of courts.')
+        return redirect('/admin')
+
+    player_names_raw = request.form.get('players', '')
+    if not player_names_raw:
+        flash('Player names are required.')
+        return redirect('/admin')
+
+    player_names = player_names_raw.strip().split('\n')
 
     # Clean up player names
     player_names = [name.strip() for name in player_names if name.strip()]
 
-    # Validate player count
+    # Validate player count (admin route requires exact count for proper pairing)
     required_players = num_courts * 4
     if len(player_names) != required_players:
         flash(f'Need exactly {required_players} players for {num_courts} courts. You entered {len(player_names)} players.')
@@ -1774,7 +1789,6 @@ def admin_create_tournament():
         (tournament_name, num_courts, 'setup', current_season['id'])
     )
     tournament_id = cursor.lastrowid
-    db.commit()
 
     # Add players to Phase 3 player_registry and link to tournament
     for name in player_names:
@@ -1804,7 +1818,8 @@ def admin_create_tournament():
                 (tournament_id, player_id)
             )
         except sqlite3.IntegrityError:
-            pass  # Player already linked
+            # Player already linked to this tournament
+            pass
 
     db.commit()
 
