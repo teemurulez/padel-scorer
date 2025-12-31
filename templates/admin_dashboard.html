@@ -66,6 +66,48 @@
                 </div>
                 {% endif %}
 
+                <!-- Current Season Tournaments -->
+                {% if current_season %}
+                <div class="current-season-tournaments">
+                    <h3>Tournaments in {{ current_season.name }}</h3>
+
+                    {% if current_season_tournaments %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tournament Name</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tournament in current_season_tournaments %}
+                            <tr>
+                                <td>{{ tournament['name'] }}</td>
+                                <td>{{ tournament['created_at'][:10] }}</td>
+                                <td>
+                                    {% if tournament['status'] == 'active' %}
+                                    <span class="status-badge active-badge">Active</span>
+                                    {% elif tournament['status'] == 'completed' %}
+                                    <span class="status-badge completed-badge">Completed</span>
+                                    {% else %}
+                                    <span class="status-badge setup-badge">Setup</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('court_selection', tournament_id=tournament['id']) }}" class="btn-secondary">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p style="color: #888; font-style: italic; margin-top: 1rem;">No tournaments yet. Create one below.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 <!-- Create New Season Form -->
                 <div class="create-season-form">
                     <h3>Create New Season</h3>
