@@ -98,3 +98,44 @@ def test_player_profile_with_season_data(client):
     assert str(current_year).encode() in response.data
     # Should show rank, wins, tournaments
     assert b'Season Rank' in response.data
+
+
+def test_player_profile_no_season_data(client):
+    """Test profile shows 'No data' message for player with no season participation"""
+    # Setup test data within app context
+    with app.app_context():
+        from app import get_db_connection
+        db = get_db_connection()
+
+        # Create current season
+        current_year = datetime.now().year
+        db.execute(
+            'INSERT INTO seasons (name, is_current) VALUES (?, 1)',
+            (f'Season {current_year}',)
+        )
+
+        # Create player but no tournament/match data
+        db.execute(
+            'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+            ('New', 'Player')
+        )
+        player_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+        db.commit()
+
+    # Test: Visit profile
+    response = client.get(f'/player/{player_id}/profile')
+
+    # Assert
+    assert response.status_code == 200
+    assert b'New Player' in response.data
+    assert b'No tournaments played this season yet' in response.data
+
+
+def test_player_profile_not_found(client):
+    """Test profile redirects for non-existent player"""
+    # Test: Try to visit non-existent player profile
+    response = client.get('/player/99999/profile')
+
+    # Assert: Redirects to home
+    assert response.status_code == 302
+    assert b'/player/99999/profile' not in response.data
