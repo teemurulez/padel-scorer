@@ -921,6 +921,7 @@ def season_leaderboard():
     """, (current_season['id'],)).fetchall()
 
     # Get leaderboard (existing logic, but filter by current season)
+    # Sort by total_points first, then win_rate for tiebreaker
     season_stats = db.execute("""
         SELECT
             pr.id,
@@ -932,7 +933,8 @@ def season_leaderboard():
                 CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
-            ) as win_rate
+            ) as win_rate,
+            COALESCE(SUM(s.points), 0) as total_points
         FROM player_registry pr
         LEFT JOIN matches m ON (
             pr.id = m.player1_id OR
@@ -947,7 +949,7 @@ def season_leaderboard():
           AND m.completed = 1
         GROUP BY pr.id, pr.first_name, pr.last_name
         HAVING total_matches > 0
-        ORDER BY total_wins DESC, win_rate DESC, pr.last_name ASC
+        ORDER BY total_points DESC, win_rate DESC, pr.last_name ASC
     """, (current_season['id'],)).fetchall()
 
     # For each tournament, get its leaderboard
@@ -1006,7 +1008,8 @@ def season_history():
                     CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                     NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                     1
-                ) as win_rate
+                ) as win_rate,
+                COALESCE(SUM(s.points), 0) as total_points
             FROM player_registry pr
             LEFT JOIN matches m ON (
                 pr.id = m.player1_id OR
@@ -1021,7 +1024,7 @@ def season_history():
               AND m.completed = 1
             GROUP BY pr.id, pr.first_name, pr.last_name
             HAVING total_matches > 0
-            ORDER BY total_wins DESC, win_rate DESC, pr.last_name ASC
+            ORDER BY total_points DESC, win_rate DESC, pr.last_name ASC
         """, (season['id'],)).fetchall()
 
         # For each tournament, get its leaderboard
@@ -1133,13 +1136,21 @@ def player_profile(player_id):
             season_stats['total_wins'] / season_stats['tournaments_played'], 2
         )
 
-    # Calculate rank (get all players in order and find position)
+    # Calculate rank with proper handling of ties and gaps
+    # Rules: 1) Sort by total_points DESC, then win_rate DESC
+    #        2) If both points and win_rate equal, players share rank
+    #        3) Next rank after tied players accounts for gap (e.g., 3 at rank 1 → next is rank 4)
     rank = None
-    if season_stats and season_stats['total_wins'] > 0:
+    if season_stats and season_stats['total_points'] > 0:
         all_standings = db.execute("""
             SELECT
                 pr.id,
-                COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins
+                COALESCE(SUM(s.points), 0) as total_points,
+                ROUND(
+                    CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                    NULLIF(COUNT(DISTINCT m.id), 0) * 100,
+                    1
+                ) as win_rate
             FROM player_registry pr
             LEFT JOIN matches m ON (
                 pr.id = m.player1_id OR
@@ -1153,13 +1164,21 @@ def player_profile(player_id):
             WHERE t.season_id = ?
               AND m.completed = 1
             GROUP BY pr.id
-            HAVING COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) > 0
-            ORDER BY total_wins DESC
+            HAVING COALESCE(SUM(s.points), 0) > 0
+            ORDER BY total_points DESC, win_rate DESC
         """, (current_season['id'],)).fetchall()
 
-        for idx, row in enumerate(all_standings, start=1):
+        # Calculate rank with proper tie handling
+        current_rank = 1
+        for idx, row in enumerate(all_standings):
+            # Update rank if this player's stats differ from previous
+            if idx > 0:
+                prev = all_standings[idx - 1]
+                if row['total_points'] != prev['total_points'] or row['win_rate'] != prev['win_rate']:
+                    current_rank = idx + 1  # Account for gap
+
             if row['id'] == player_id:
-                rank = idx
+                rank = current_rank
                 break
 
     return render_template(
