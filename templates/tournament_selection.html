@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Tournament - Padel King of the Court</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .selection-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .selection-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .tournament-cards {
+            display: grid;
+            gap: 1.5rem;
+        }
+        .tournament-card {
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        .tournament-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: #2980b9;
+        }
+        .tournament-card h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .tournament-info {
+            color: #666;
+            margin: 0.5rem 0;
+            font-size: 0.95rem;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        .status-active {
+            background-color: #22c55e;
+            color: white;
+        }
+        .status-setup {
+            background-color: #ff9800;
+            color: white;
+        }
+        .enter-btn {
+            margin-top: 1rem;
+        }
+        @media (max-width: 768px) {
+            .selection-container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="selection-container">
+        <div class="selection-header">
+            <h1>Select Active Tournament</h1>
+            <p>Multiple tournaments are running. Choose one to enter scores:</p>
+        </div>
+
+        <div class="tournament-cards">
+            {% for tournament in tournaments %}
+            <div class="tournament-card">
+                <h3>
+                    {{ tournament['name'] }}
+                    {% if tournament['status'] == 'active' %}
+                    <span class="status-badge status-active">Active</span>
+                    {% else %}
+                    <span class="status-badge status-setup">Setup</span>
+                    {% endif %}
+                </h3>
+                <p class="tournament-info">Created: {{ tournament['created_at'][:10] }}</p>
+                <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-primary enter-btn">
+                    Enter Scores
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
