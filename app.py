@@ -1744,6 +1744,76 @@ def admin_dashboard():
                           archived_seasons=archived_seasons)
 
 
+@app.route('/admin/tournaments/create', methods=['POST'])
+def admin_create_tournament():
+    """Create new tournament from admin dashboard (ADMIN)"""
+    db = get_db_connection()
+
+    # Check for current season
+    current_season = get_current_season(db)
+    if not current_season:
+        flash('No active season. Please create or activate a season first.')
+        return redirect('/admin')
+
+    tournament_name = request.form.get('tournament_name')
+    num_courts = int(request.form.get('num_courts'))
+    player_names = request.form.get('players').strip().split('\n')
+
+    # Clean up player names
+    player_names = [name.strip() for name in player_names if name.strip()]
+
+    # Validate player count
+    required_players = num_courts * 4
+    if len(player_names) != required_players:
+        flash(f'Need exactly {required_players} players for {num_courts} courts. You entered {len(player_names)} players.')
+        return redirect('/admin')
+
+    # Create tournament
+    cursor = db.execute(
+        'INSERT INTO tournaments (name, num_courts, status, season_id) VALUES (?, ?, ?, ?)',
+        (tournament_name, num_courts, 'setup', current_season['id'])
+    )
+    tournament_id = cursor.lastrowid
+    db.commit()
+
+    # Add players to Phase 3 player_registry and link to tournament
+    for name in player_names:
+        parts = name.strip().split(' ', 1)
+        first_name = parts[0] if len(parts) > 0 else ''
+        last_name = parts[1] if len(parts) > 1 else ''
+
+        # Check if player already exists
+        existing_player = db.execute(
+            'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
+            (first_name, last_name)
+        ).fetchone()
+
+        if existing_player:
+            player_id = existing_player['id']
+        else:
+            cursor = db.execute(
+                'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+                (first_name, last_name)
+            )
+            player_id = cursor.lastrowid
+
+        # Link player to tournament
+        try:
+            db.execute(
+                'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
+                (tournament_id, player_id)
+            )
+        except sqlite3.IntegrityError:
+            pass  # Player already linked
+
+    db.commit()
+
+    flash(f'Tournament "{tournament_name}" created successfully!')
+
+    # Redirect to start round to begin Round 1
+    return redirect(url_for('start_round', tournament_id=tournament_id))
+
+
 @app.route('/admin/logout', methods=['POST'])
 def admin_logout():
     """Logout and clear admin session"""
