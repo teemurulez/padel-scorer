@@ -174,37 +174,45 @@ def get_tournament_leaderboard(tournament_id):
 
 @app.route('/')
 def index():
-    """Landing page - shows active tournament or setup option"""
-    db = get_db_connection()
-    tournament = db.execute(
-        'SELECT * FROM tournaments WHERE status = "active" LIMIT 1'
-    ).fetchone()
+    """Home page - smart entry point for scorekeepers/players"""
+    db = get_db()
 
-    if tournament:
-        return redirect(url_for('active_tournament', tournament_id=tournament['id']))
+    # Query active tournaments (setup or active status)
+    active_tournaments = db.execute(
+        '''SELECT * FROM tournaments
+           WHERE status IN ('active', 'setup')
+           ORDER BY created_at DESC'''
+    ).fetchall()
 
-    # Check for active season
-    current_season = get_current_season(db)
+    active_count = len(active_tournaments)
 
-    # Get tournaments for current season only
-    tournaments = []
-    season_name = None
-    if current_season:
-        tournaments = db.execute(
-            '''SELECT * FROM tournaments
-               WHERE season_id = ?
-               ORDER BY created_at DESC''',
-            (current_season['id'],)
-        ).fetchall()
-        season_name = current_season['name']
+    # Case 1: Exactly 1 active tournament - auto-redirect
+    if active_count == 1:
+        tournament_id = active_tournaments[0]['id']
+        return redirect(url_for('active_tournament', tournament_id=tournament_id))
 
-    has_tournaments = len(tournaments) > 0
+    # Case 2: Multiple active tournaments - show selection
+    elif active_count > 1:
+        return render_template('tournament_selection.html', tournaments=active_tournaments)
 
-    return render_template('index.html',
-                          has_tournaments=has_tournaments,
-                          season_name=season_name,
-                          tournaments=tournaments,
-                          current_season=current_season)
+    # Case 3: No active tournaments - show message
+    else:
+        current_season = get_current_season(db)
+
+        # Get tournament count for season info
+        season_info = None
+        if current_season:
+            tournament_count = db.execute(
+                "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
+                (current_season['id'],)
+            ).fetchone()['count']
+
+            season_info = {
+                'name': current_season['name'],
+                'tournament_count': tournament_count
+            }
+
+        return render_template('no_active_tournament.html', season=season_info)
 
 @app.route('/setup', methods=['GET', 'POST'])
 def setup_tournament():
