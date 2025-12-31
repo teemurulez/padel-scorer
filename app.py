@@ -1836,6 +1836,14 @@ def admin_logout():
     flash('You have been logged out successfully.')
     return redirect('/admin/login')
 
+@app.route('/test/selection')
+def test_selection():
+    tournaments = [
+        {'id': 1, 'name': 'Tournament A', 'status': 'active', 'created_at': '2025-12-31'},
+        {'id': 2, 'name': 'Tournament B', 'status': 'setup', 'created_at': '2025-12-31'}
+    ]
+    return render_template('tournament_selection.html', tournaments=tournaments)
+
 # Run migration on startup if needed
 with app.app_context():
     from migration import run_migration_if_needed
