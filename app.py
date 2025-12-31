@@ -113,7 +113,7 @@ def get_tournament_leaderboard(tournament_id):
     """Get player standings for a specific tournament"""
     db = get_db_connection()
 
-    players = db.execute(
+    players_raw = db.execute(
         '''SELECT
             pr.id,
             pr.first_name,
@@ -140,6 +140,21 @@ def get_tournament_leaderboard(tournament_id):
            ORDER BY wins DESC, win_rate DESC, pr.last_name ASC''',
         (tournament_id,)
     ).fetchall()
+
+    # Calculate ranks with proper tie handling
+    players = []
+    current_rank = 1
+    for idx, player in enumerate(players_raw):
+        # Update rank if this player's stats differ from previous
+        if idx > 0:
+            prev = players_raw[idx - 1]
+            if player['wins'] != prev['wins'] or player['win_rate'] != prev['win_rate']:
+                current_rank = idx + 1  # Account for gap
+
+        # Convert row to dict and add rank
+        player_dict = dict(player)
+        player_dict['rank'] = current_rank
+        players.append(player_dict)
 
     # Get tournament metadata
     tournament_info = db.execute(
@@ -922,7 +937,7 @@ def season_leaderboard():
 
     # Get leaderboard (existing logic, but filter by current season)
     # Sort by total_points first, then win_rate for tiebreaker
-    season_stats = db.execute("""
+    season_stats_raw = db.execute("""
         SELECT
             pr.id,
             pr.first_name,
@@ -951,6 +966,21 @@ def season_leaderboard():
         HAVING total_matches > 0
         ORDER BY total_points DESC, win_rate DESC, pr.last_name ASC
     """, (current_season['id'],)).fetchall()
+
+    # Calculate ranks with proper tie handling
+    season_stats = []
+    current_rank = 1
+    for idx, player in enumerate(season_stats_raw):
+        # Update rank if this player's stats differ from previous
+        if idx > 0:
+            prev = season_stats_raw[idx - 1]
+            if player['total_points'] != prev['total_points'] or player['win_rate'] != prev['win_rate']:
+                current_rank = idx + 1  # Account for gap
+
+        # Convert row to dict and add rank
+        player_dict = dict(player)
+        player_dict['rank'] = current_rank
+        season_stats.append(player_dict)
 
     # For each tournament, get its leaderboard
     tournaments_with_stats = []

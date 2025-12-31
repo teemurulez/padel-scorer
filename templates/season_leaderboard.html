@@ -153,7 +153,7 @@
             <tbody>
                 {% for player in season_stats %}
                 <tr>
-                    <td class="rank">{{ loop.index }}</td>
+                    <td class="rank">#{{ player['rank'] }}</td>
                     <td class="player-name">
                         <a href="{{ url_for('player_profile', player_id=player['id']) }}">
                             {{ player['first_name'] }} {{ player['last_name'] }}
@@ -211,7 +211,7 @@
                         <tbody>
                             {% for player in stats['players'] %}
                             <tr>
-                                <td class="rank">{{ loop.index }}</td>
+                                <td class="rank">#{{ player['rank'] }}</td>
                                 <td class="player-name">
                                     <a href="{{ url_for('player_profile', player_id=player['id']) }}">
                                         {{ player['first_name'] }} {{ player['last_name'] }}
