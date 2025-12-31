@@ -13,7 +13,10 @@
             ADMIN DASHBOARD
         </div>
         <div class="admin-header-right">
-            <form method="POST" action="/admin/logout" style="margin: 0;">
+            <a href="{{ url_for('index') }}" style="margin-right: 15px; color: #fff; text-decoration: none; padding: 8px 16px; background: rgba(255,255,255,0.1); border-radius: 4px; display: inline-block;">
+                ← Back to Home
+            </a>
+            <form method="POST" action="/admin/logout" style="margin: 0; display: inline-block;">
                 <button type="submit" class="logout-btn">Logout</button>
             </form>
         </div>
@@ -44,10 +47,11 @@
         <div id="seasons" class="tab-content active">
             <div class="tab-panel">
                 <h2>Season Management</h2>
-                <div class="placeholder-content">
-                    <div class="icon">🏆</div>
-                    <h3>Coming in Phase 2</h3>
-                    <p>Season creation, archiving, and management will be available here.</p>
+                <div style="padding: 20px;">
+                    <p style="margin-bottom: 20px; color: #666;">Create, activate, archive, and manage tournament seasons.</p>
+                    <a href="{{ url_for('seasons_management') }}" class="btn-primary" style="display: inline-block; padding: 12px 24px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px; font-weight: 500;">
+                        Go to Season Management
+                    </a>
                 </div>
             </div>
         </div>
