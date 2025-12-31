@@ -1,5 +1,4 @@
 import pytest
-import sqlite3
 from app import app
 from datetime import datetime
 
@@ -50,10 +49,17 @@ def test_player_profile_with_season_data(client):
         )
         player_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
+        # Create additional players for matches (need 3 more for 4-player matches)
+        for i in range(1, 4):
+            db.execute(
+                'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+                (f'Player{i}', 'Opponent')
+            )
+
         # Create tournament
         db.execute(
             'INSERT INTO tournaments (name, num_courts, season_id, status) VALUES (?, ?, ?, ?)',
-            ('Test Tournament', 2, season_id, 'completed')
+            ('Test Tournament', 3, season_id, 'completed')
         )
         tournament_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
@@ -89,6 +95,6 @@ def test_player_profile_with_season_data(client):
     # Assert
     assert response.status_code == 200
     assert b'Erik Andersson' in response.data
-    assert b'2025 Season' in response.data or str(current_year).encode() in response.data
+    assert str(current_year).encode() in response.data
     # Should show rank, wins, tournaments
-    assert b'#1' in response.data or b'Season Rank' in response.data
+    assert b'Season Rank' in response.data
