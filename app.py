@@ -214,76 +214,75 @@ def index():
 
         return render_template('no_active_tournament.html', season=season_info)
 
-@app.route('/setup', methods=['GET', 'POST'])
+# OLD ROUTE - GET removed (tournament creation moved to admin)
+# POST kept temporarily for backward compatibility
+@app.route('/setup', methods=['POST'])
 def setup_tournament():
-    """Setup new tournament and add players"""
-    if request.method == 'POST':
-        db = get_db_connection()
+    """Setup new tournament and add players (DEPRECATED - use /admin/tournaments/create)"""
+    db = get_db_connection()
 
-        # Check for current season
-        current_season = get_current_season(db)
-        if not current_season:
-            flash('No active season. Please create or activate a season first.')
-            return redirect(url_for('admin_dashboard'))
+    # Check for current season
+    current_season = get_current_season(db)
+    if not current_season:
+        flash('No active season. Please create or activate a season first.')
+        return redirect(url_for('admin_dashboard'))
 
-        tournament_name = request.form.get('tournament_name')
-        num_courts = int(request.form.get('num_courts'))
-        player_names = request.form.get('players').strip().split('\n')
+    tournament_name = request.form.get('tournament_name')
+    num_courts = int(request.form.get('num_courts'))
+    player_names = request.form.get('players').strip().split('\n')
 
-        # Clean up player names
-        player_names = [name.strip() for name in player_names if name.strip()]
+    # Clean up player names
+    player_names = [name.strip() for name in player_names if name.strip()]
 
-        # Validate player count
-        required_players = num_courts * 4
-        if len(player_names) < required_players:
-            flash(f'Need at least {required_players} players for {num_courts} courts. You provided {len(player_names)}.')
-            return render_template('setup_tournament.html')
+    # Validate player count
+    required_players = num_courts * 4
+    if len(player_names) < required_players:
+        flash(f'Need at least {required_players} players for {num_courts} courts. You provided {len(player_names)}.')
+        return redirect(url_for('admin_dashboard'))  # Redirect to admin instead of showing form
 
-        # Create tournament with season_id
-        cursor = db.execute(
-            'INSERT INTO tournaments (name, num_courts, status, season_id) VALUES (?, ?, ?, ?)',
-            (tournament_name, num_courts, 'setup', current_season['id'])
-        )
-        tournament_id = cursor.lastrowid
+    # Create tournament with season_id
+    cursor = db.execute(
+        'INSERT INTO tournaments (name, num_courts, status, season_id) VALUES (?, ?, ?, ?)',
+        (tournament_name, num_courts, 'setup', current_season['id'])
+    )
+    tournament_id = cursor.lastrowid
 
-        # Add players to Phase 3 player_registry and link to tournament
-        for name in player_names:
-            # Split name into first and last (assume "First Last" format)
-            parts = name.strip().split(' ', 1)
-            first_name = parts[0] if len(parts) > 0 else ''
-            last_name = parts[1] if len(parts) > 1 else ''
+    # Add players to Phase 3 player_registry and link to tournament
+    for name in player_names:
+        # Split name into first and last (assume "First Last" format)
+        parts = name.strip().split(' ', 1)
+        first_name = parts[0] if len(parts) > 0 else ''
+        last_name = parts[1] if len(parts) > 1 else ''
 
-            # Check if player already exists
-            existing_player = db.execute(
-                'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
+        # Check if player already exists
+        existing_player = db.execute(
+            'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
+            (first_name, last_name)
+        ).fetchone()
+
+        if existing_player:
+            player_id = existing_player['id']
+        else:
+            # Create new player
+            cursor = db.execute(
+                'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
                 (first_name, last_name)
-            ).fetchone()
+            )
+            player_id = cursor.lastrowid
 
-            if existing_player:
-                player_id = existing_player['id']
-            else:
-                # Create new player
-                cursor = db.execute(
-                    'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
-                    (first_name, last_name)
-                )
-                player_id = cursor.lastrowid
+        # Link player to tournament
+        try:
+            db.execute(
+                'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
+                (tournament_id, player_id)
+            )
+        except sqlite3.IntegrityError:
+            # Player already linked to this tournament
+            pass
 
-            # Link player to tournament
-            try:
-                db.execute(
-                    'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
-                    (tournament_id, player_id)
-                )
-            except sqlite3.IntegrityError:
-                # Player already linked to this tournament
-                pass
-
-        db.commit()
-        flash('Tournament created successfully!')
-        return redirect(url_for('start_round', tournament_id=tournament_id))
-
-    return render_template('setup_tournament.html')
+    db.commit()
+    flash('Tournament created successfully!')
+    return redirect(url_for('start_round', tournament_id=tournament_id))
 
 @app.route('/tournament/<int:tournament_id>/start_round', methods=['GET', 'POST'])
 def start_round(tournament_id):
