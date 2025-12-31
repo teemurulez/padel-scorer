@@ -108,6 +108,62 @@
                 </div>
                 {% endif %}
 
+                <!-- Create Tournament Form -->
+                {% if current_season %}
+                <div class="create-tournament-form">
+                    <h3>Create New Tournament</h3>
+                    <form method="POST" action="/admin/tournaments/create">
+                        <div class="form-group">
+                            <label for="tournament_name">Tournament Name</label>
+                            <input type="text" id="tournament_name" name="tournament_name" placeholder="e.g., Friday Night Padel" maxlength="100" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num_courts">Number of Courts</label>
+                            <select id="num_courts" name="num_courts" required>
+                                <option value="">Select courts...</option>
+                                <option value="1">1 court (4 players)</option>
+                                <option value="2">2 courts (8 players)</option>
+                                <option value="3">3 courts (12 players)</option>
+                                <option value="4">4 courts (16 players)</option>
+                                <option value="5">5 courts (20 players)</option>
+                                <option value="6">6 courts (24 players)</option>
+                                <option value="7">7 courts (28 players)</option>
+                                <option value="8">8 courts (32 players)</option>
+                                <option value="9">9 courts (36 players)</option>
+                                <option value="10">10 courts (40 players)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="players">Player Names (one per line)</label>
+                            <textarea id="players" name="players" rows="12" placeholder="Enter player names, one per line&#10;Example:&#10;John Smith&#10;Jane Doe&#10;..." required></textarea>
+                            <p class="form-hint">Minimum <span id="min_players">12</span> players required for <span id="selected_courts">3</span> courts</p>
+                        </div>
+
+                        <button type="submit" class="btn-primary">Create Tournament</button>
+                    </form>
+                </div>
+                {% endif %}
+
+                <script>
+                // Update player count hint when courts selection changes
+                document.addEventListener('DOMContentLoaded', function() {
+                    const courtsSelect = document.getElementById('num_courts');
+                    const minPlayersSpan = document.getElementById('min_players');
+                    const selectedCourtsSpan = document.getElementById('selected_courts');
+
+                    if (courtsSelect) {
+                        courtsSelect.addEventListener('change', function() {
+                            const courts = parseInt(this.value) || 0;
+                            const minPlayers = courts * 4;
+                            minPlayersSpan.textContent = minPlayers;
+                            selectedCourtsSpan.textContent = courts;
+                        });
+                    }
+                });
+                </script>
+
                 <!-- Create New Season Form -->
                 <div class="create-season-form">
                     <h3>Create New Season</h3>

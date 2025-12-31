@@ -440,3 +440,62 @@ body {
     background-color: var(--warning-orange);
     color: white;
 }
+
+/* Create Tournament Form */
+.create-tournament-form {
+    margin-top: 3rem; /* 2 line spaces */
+    margin-bottom: 3rem;
+}
+
+.create-tournament-form h3 {
+    color: var(--yellow);
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+}
+
+.create-tournament-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.create-tournament-form label {
+    display: block;
+    color: var(--yellow);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.create-tournament-form input[type="text"],
+.create-tournament-form select,
+.create-tournament-form textarea {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+    background-color: var(--medium-gray);
+    border: 2px solid var(--light-gray);
+    border-radius: 4px;
+    color: var(--white);
+    min-height: 48px;
+    font-family: inherit;
+}
+
+.create-tournament-form textarea {
+    min-height: 200px;
+    resize: vertical;
+}
+
+.create-tournament-form input:focus,
+.create-tournament-form select:focus,
+.create-tournament-form textarea:focus {
+    outline: none;
+    border-color: var(--yellow);
+}
+
+.create-tournament-form .form-hint {
+    color: #888;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.create-tournament-form button[type="submit"] {
+    margin-top: 1rem;
+}
