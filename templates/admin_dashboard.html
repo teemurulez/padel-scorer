@@ -72,7 +72,7 @@
                     <h3>Tournaments in {{ current_season.name }}</h3>
 
                     {% if current_season_tournaments %}
-                    <table>
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>Tournament Name</th>
@@ -103,7 +103,7 @@
                         </tbody>
                     </table>
                     {% else %}
-                    <p style="color: #888; font-style: italic; margin-top: 1rem;">No tournaments yet. Create one below.</p>
+                    <p class="empty-state-message">No tournaments yet. Create one below.</p>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -121,7 +121,7 @@
                 {% if archived_seasons %}
                 <div class="archived-seasons">
                     <h3>Archived Seasons</h3>
-                    <table>
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>Season Name</th>

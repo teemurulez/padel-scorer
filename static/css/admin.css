@@ -10,6 +10,11 @@
     --yellow-dark: #CCAA00;
     --white: #ffffff;
     --text-light: #e0e0e0;
+    --success-green: #22c55e;
+    --warning-orange: #ff9800;
+    --warning-orange-dark: #f57c00;
+    --neutral-gray: #6b7280;
+    --empty-state-gray: #888888;
 }
 
 * {
@@ -248,11 +253,11 @@ body {
 }
 
 .season-card.current {
-    border-left-color: #22c55e;
+    border-left-color: var(--success-green);
 }
 
 .season-card.no-season {
-    border-left-color: #ff9800;
+    border-left-color: var(--warning-orange);
 }
 
 .season-card h3 {
@@ -302,12 +307,12 @@ body {
 }
 
 .btn-warning {
-    background-color: #ff9800;
+    background-color: var(--warning-orange);
     color: white;
 }
 
 .btn-warning:hover {
-    background-color: #f57c00;
+    background-color: var(--warning-orange-dark);
 }
 
 /* Create Season Form */
@@ -345,6 +350,43 @@ body {
     border-color: var(--yellow);
 }
 
+/* Shared Admin Table Styles */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--medium-gray);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.admin-table thead {
+    background-color: var(--light-gray);
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.admin-table th {
+    color: var(--yellow);
+    font-weight: 600;
+}
+
+.admin-table td {
+    color: var(--text-light);
+}
+
+.admin-table tbody tr:hover {
+    background-color: var(--light-gray);
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
 /* Archived Seasons Table */
 .archived-seasons {
     margin-top: 2rem;
@@ -354,42 +396,6 @@ body {
     color: var(--yellow);
     margin-bottom: 1rem;
     font-size: 1.3rem;
-}
-
-.archived-seasons table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: var(--medium-gray);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.archived-seasons thead {
-    background-color: var(--light-gray);
-}
-
-.archived-seasons th,
-.archived-seasons td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid var(--light-gray);
-}
-
-.archived-seasons th {
-    color: var(--yellow);
-    font-weight: 600;
-}
-
-.archived-seasons td {
-    color: var(--text-light);
-}
-
-.archived-seasons tbody tr:hover {
-    background-color: var(--light-gray);
-}
-
-.archived-seasons tbody tr:last-child td {
-    border-bottom: none;
 }
 
 /* Current Season Tournaments */
@@ -404,40 +410,11 @@ body {
     font-size: 1.3rem;
 }
 
-.current-season-tournaments table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: var(--medium-gray);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.current-season-tournaments thead {
-    background-color: var(--light-gray);
-}
-
-.current-season-tournaments th,
-.current-season-tournaments td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid var(--light-gray);
-}
-
-.current-season-tournaments th {
-    color: var(--yellow);
-    font-weight: 600;
-}
-
-.current-season-tournaments td {
-    color: var(--text-light);
-}
-
-.current-season-tournaments tbody tr:hover {
-    background-color: var(--light-gray);
-}
-
-.current-season-tournaments tbody tr:last-child td {
-    border-bottom: none;
+/* Empty State Message */
+.empty-state-message {
+    color: var(--empty-state-gray);
+    font-style: italic;
+    margin-top: 1rem;
 }
 
 /* Status badges */
@@ -450,16 +427,16 @@ body {
 }
 
 .active-badge {
-    background-color: #22c55e;
+    background-color: var(--success-green);
     color: white;
 }
 
 .completed-badge {
-    background-color: #6b7280;
+    background-color: var(--neutral-gray);
     color: white;
 }
 
 .setup-badge {
-    background-color: #ff9800;
+    background-color: var(--warning-orange);
     color: white;
 }
