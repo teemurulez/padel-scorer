@@ -1724,15 +1724,23 @@ def admin_dashboard():
 
     # Get tournament count for current season
     current_tournament_count = 0
+    current_season_tournaments = []
     if current_season:
         current_tournament_count = db.execute(
             "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
             (current_season['id'],)
         ).fetchone()['count']
 
+        # Fetch tournaments for current season
+        current_season_tournaments = db.execute(
+            "SELECT * FROM tournaments WHERE season_id = ? ORDER BY created_at DESC",
+            (current_season['id'],)
+        ).fetchall()
+
     return render_template('admin_dashboard.html',
                           current_season=current_season,
                           current_tournament_count=current_tournament_count,
+                          current_season_tournaments=current_season_tournaments,
                           archived_seasons=archived_seasons)
 
 
