@@ -58,8 +58,8 @@
 
         {% if tournaments %}
         <div class="season-info">
-            <h2>Season {{ current_year }}</h2>
-            <p><strong>Tournaments played this year:</strong></p>
+            <h2>{{ season_name }}</h2>
+            <p><strong>Tournaments played this season:</strong></p>
             <ul class="tournament-list">
                 {% for tournament in tournaments %}
                 <li>

@@ -160,7 +160,6 @@ def get_tournament_leaderboard(tournament_id):
 @app.route('/')
 def index():
     """Landing page - shows active tournament or setup option"""
-    from datetime import datetime
     db = get_db_connection()
     tournament = db.execute(
         'SELECT * FROM tournaments WHERE status = "active" LIMIT 1'
@@ -169,28 +168,26 @@ def index():
     if tournament:
         return redirect(url_for('active_tournament', tournament_id=tournament['id']))
 
-    # Get current year
-    current_year = datetime.now().year
-
     # Check for active season
     current_season = get_current_season(db)
 
-    # Check if any tournaments exist
-    has_tournaments = db.execute(
-        'SELECT COUNT(*) as count FROM tournaments'
-    ).fetchone()['count'] > 0
+    # Get tournaments for current season only
+    tournaments = []
+    season_name = None
+    if current_season:
+        tournaments = db.execute(
+            '''SELECT * FROM tournaments
+               WHERE season_id = ?
+               ORDER BY created_at DESC''',
+            (current_season['id'],)
+        ).fetchall()
+        season_name = current_season['name']
 
-    # Get tournaments from current year
-    tournaments = db.execute(
-        '''SELECT * FROM tournaments
-           WHERE strftime('%Y', created_at) = ?
-           ORDER BY created_at DESC''',
-        (str(current_year),)
-    ).fetchall()
+    has_tournaments = len(tournaments) > 0
 
     return render_template('index.html',
                           has_tournaments=has_tournaments,
-                          current_year=current_year,
+                          season_name=season_name,
                           tournaments=tournaments,
                           current_season=current_season)
 
