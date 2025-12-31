@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No Active Tournament - Padel King of the Court</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .message-container {
+            max-width: 600px;
+            margin: 4rem auto;
+            padding: 2rem;
+            text-align: center;
+        }
+        .message-box {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 3rem 2rem;
+        }
+        .message-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .message-title {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+        .message-text {
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        .season-info {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 2rem;
+            color: #555;
+        }
+        .footer-link {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e0e0e0;
+        }
+        .footer-link a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        .footer-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="message-container">
+        <div class="message-box">
+            <div class="message-icon">🎾</div>
+            <h1 class="message-title">No Active Tournament</h1>
+            <p class="message-text">
+                There are currently no tournaments running.
+            </p>
+
+            {% if season %}
+            <div class="season-info">
+                <strong>{{ season.name }}</strong><br>
+                {{ season.tournament_count }} tournament{{ 's' if season.tournament_count != 1 else '' }} played this season
+            </div>
+            {% endif %}
+
+            <a href="{{ url_for('season_leaderboard') }}" class="btn-primary">
+                View Season Leaderboard
+            </a>
+
+            <div class="footer-link">
+                <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
