@@ -120,7 +120,7 @@
             <tbody>
                 {% for player in players %}
                 <tr>
-                    <td class="rank">{{ loop.index }}</td>
+                    <td class="rank">#{{ player['rank'] }}</td>
                     <td class="player-name">{{ player['first_name'] }} {{ player['last_name'] }}</td>
                     <td class="wins">{{ player['wins'] }}</td>
                     <td class="matches">{{ player['matches_played'] }}</td>

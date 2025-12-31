@@ -880,7 +880,7 @@ def leaderboard(tournament_id):
     ).fetchone()
 
     # Get all players with their match statistics (Phase 3)
-    players = db.execute(
+    players_raw = db.execute(
         '''SELECT
             pr.id,
             pr.first_name,
@@ -906,6 +906,21 @@ def leaderboard(tournament_id):
            ORDER BY wins DESC, win_rate DESC, pr.last_name ASC''',
         (tournament_id,)
     ).fetchall()
+
+    # Calculate ranks with proper tie handling
+    players = []
+    current_rank = 1
+    for idx, player in enumerate(players_raw):
+        # Update rank if this player's stats differ from previous
+        if idx > 0:
+            prev = players_raw[idx - 1]
+            if player['wins'] != prev['wins'] or player['win_rate'] != prev['win_rate']:
+                current_rank = idx + 1  # Account for gap
+
+        # Convert row to dict and add rank
+        player_dict = dict(player)
+        player_dict['rank'] = current_rank
+        players.append(player_dict)
 
     return render_template('leaderboard.html',
                           tournament=tournament,
