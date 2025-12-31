@@ -77,9 +77,20 @@
         {% endif %}
 
         <div class="actions">
+            {% if current_season %}
             <a href="{{ url_for('setup_tournament') }}" class="btn-primary">
                 Start New Tournament
             </a>
+            {% else %}
+            <div style="padding: 20px; background: #fff3cd; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                <p style="margin: 0 0 10px 0; color: #856404;">
+                    <strong>No active season.</strong> Please create or activate a season before starting a tournament.
+                </p>
+                <a href="{{ url_for('seasons_management') }}" class="btn-primary">
+                    Go to Season Management
+                </a>
+            </div>
+            {% endif %}
 
             {% if has_tournaments %}
             <a href="{{ url_for('season_leaderboard') }}" class="btn-secondary">

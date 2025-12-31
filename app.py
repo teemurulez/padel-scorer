@@ -172,6 +172,9 @@ def index():
     # Get current year
     current_year = datetime.now().year
 
+    # Check for active season
+    current_season = get_current_season(db)
+
     # Check if any tournaments exist
     has_tournaments = db.execute(
         'SELECT COUNT(*) as count FROM tournaments'
@@ -188,7 +191,8 @@ def index():
     return render_template('index.html',
                           has_tournaments=has_tournaments,
                           current_year=current_year,
-                          tournaments=tournaments)
+                          tournaments=tournaments,
+                          current_season=current_season)
 
 @app.route('/setup', methods=['GET', 'POST'])
 def setup_tournament():
@@ -222,20 +226,38 @@ def setup_tournament():
         )
         tournament_id = cursor.lastrowid
 
-        # Add players to Phase 3 player_registry
+        # Add players to Phase 3 player_registry and link to tournament
         for name in player_names:
             # Split name into first and last (assume "First Last" format)
             parts = name.strip().split(' ', 1)
             first_name = parts[0] if len(parts) > 0 else ''
             last_name = parts[1] if len(parts) > 1 else ''
 
-            try:
-                db.execute(
+            # Check if player already exists
+            existing_player = db.execute(
+                'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
+                (first_name, last_name)
+            ).fetchone()
+
+            if existing_player:
+                player_id = existing_player['id']
+            else:
+                # Create new player
+                cursor = db.execute(
                     'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
                     (first_name, last_name)
                 )
+                player_id = cursor.lastrowid
+
+            # Link player to tournament
+            try:
+                db.execute(
+                    'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
+                    (tournament_id, player_id)
+                )
             except sqlite3.IntegrityError:
-                flash(f'Player {name} already exists, skipping')
+                # Player already linked to this tournament
+                pass
 
         db.commit()
         flash('Tournament created successfully!')
@@ -256,8 +278,15 @@ def start_round(tournament_id):
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        # Get all players from player_registry (Phase 3)
-        players = db.execute('SELECT id FROM player_registry ORDER BY RANDOM()').fetchall()
+        # Get players for this tournament only (Phase 3)
+        players = db.execute(
+            '''SELECT pr.id
+               FROM player_registry pr
+               JOIN tournament_players tp ON pr.id = tp.player_id
+               WHERE tp.tournament_id = ?
+               ORDER BY RANDOM()''',
+            (tournament_id,)
+        ).fetchall()
         num_players = len(players)
         num_courts = tournament['num_courts']
 
@@ -287,23 +316,26 @@ def start_round(tournament_id):
             from seeded_pairing import generate_seeded_round1_pairings
 
             # Get players with their seed points from player_seeding view
-            # For Phase 3, we use player_registry + player_seeding
-            # For backward compatibility with Phase 2, fall back to players table
+            # Only include players registered for this tournament
             try:
                 players_with_seeds = db.execute("""
                     SELECT
                         p.id,
                         COALESCE(ps.seed_points, 0) as seed_points
                     FROM player_registry p
+                    JOIN tournament_players tp ON p.id = tp.player_id
                     LEFT JOIN player_seeding ps ON p.id = ps.player_id
+                    WHERE tp.tournament_id = ?
                     ORDER BY seed_points DESC
-                """).fetchall()
+                """, (tournament_id,)).fetchall()
             except (sqlite3.OperationalError, AttributeError):
                 # Fallback if player_seeding view doesn't exist
                 players_with_seeds = db.execute("""
-                    SELECT id, 0 as seed_points
-                    FROM player_registry
-                """).fetchall()
+                    SELECT p.id, 0 as seed_points
+                    FROM player_registry p
+                    JOIN tournament_players tp ON p.id = tp.player_id
+                    WHERE tp.tournament_id = ?
+                """, (tournament_id,)).fetchall()
 
             players_with_seeds = [dict(p) for p in players_with_seeds]
             court_assignments = generate_seeded_round1_pairings(players_with_seeds, num_courts)
