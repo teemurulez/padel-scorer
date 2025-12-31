@@ -11,6 +11,19 @@
             margin: 0 auto;
             padding: 2rem;
         }
+        .season-badge {
+            display: inline-block;
+            background: #f8f9fa;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+        .season-badge strong {
+            color: #3498db;
+        }
         .selection-header {
             text-align: center;
             margin-bottom: 2rem;
@@ -59,6 +72,20 @@
         .enter-btn {
             margin-top: 1rem;
         }
+        .admin-footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        .admin-footer a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        .admin-footer a:hover {
+            text-decoration: underline;
+        }
         .flash-messages {
             max-width: 800px;
             margin: 1rem auto;
@@ -101,6 +128,11 @@
 
     <div class="selection-container">
         <div class="selection-header">
+            {% if season %}
+            <div class="season-badge">
+                <strong>{{ season.name }}</strong>
+            </div>
+            {% endif %}
             <h1>Select Active Tournament</h1>
             <p>Multiple tournaments are running. Choose one to enter scores:</p>
         </div>
@@ -122,6 +154,10 @@
                 </a>
             </div>
             {% endfor %}
+        </div>
+
+        <div class="admin-footer">
+            <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
         </div>
     </div>
 </body>

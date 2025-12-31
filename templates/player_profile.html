@@ -80,6 +80,20 @@
                 font-size: 1.5rem;
             }
         }
+        .admin-footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        .admin-footer a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        .admin-footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -142,6 +156,10 @@
                 <a href="{{ url_for('season_leaderboard') }}" class="btn btn-secondary">← Back to Season Leaderboard</a>
             </div>
         </div>
+    </div>
+
+    <div class="admin-footer">
+        <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
     </div>
 </body>
 </html>

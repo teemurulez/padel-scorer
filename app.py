@@ -193,7 +193,10 @@ def index():
 
     # Case 2: Multiple active tournaments - show selection
     elif active_count > 1:
-        return render_template('tournament_selection.html', tournaments=active_tournaments)
+        current_season = get_current_season(db)
+        return render_template('tournament_selection.html',
+                             tournaments=active_tournaments,
+                             season=current_season)
 
     # Case 3: No active tournaments - show message
     else:
@@ -1764,6 +1767,176 @@ def admin_create_tournament():
 
     # Redirect to start round to begin Round 1
     return redirect(url_for('start_round', tournament_id=tournament_id))
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/players')
+def admin_get_tournament_players(tournament_id):
+    """Get players for a tournament (ADMIN - API endpoint)"""
+    db = get_db_connection()
+
+    # Get player names for this tournament
+    players = db.execute(
+        '''SELECT pr.first_name, pr.last_name
+           FROM tournament_players tp
+           JOIN player_registry pr ON tp.player_id = pr.id
+           WHERE tp.tournament_id = ?
+           ORDER BY pr.first_name, pr.last_name''',
+        (tournament_id,)
+    ).fetchall()
+
+    # Format as "First Last" strings
+    player_names = [f"{p['first_name']} {p['last_name']}" for p in players]
+
+    return {'players': player_names}
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/edit', methods=['POST'])
+def admin_edit_tournament(tournament_id):
+    """Edit tournament in setup mode (ADMIN)"""
+    db = get_db_connection()
+
+    # Verify tournament exists and is in setup mode
+    tournament = db.execute(
+        'SELECT * FROM tournaments WHERE id = ? AND status = ?',
+        (tournament_id, 'setup')
+    ).fetchone()
+
+    if not tournament:
+        flash('Tournament not found or cannot be edited (not in setup mode).')
+        return redirect('/admin')
+
+    # Get form data
+    tournament_name = request.form.get('tournament_name', '').strip()
+    if not tournament_name:
+        flash('Tournament name is required.')
+        return redirect('/admin')
+
+    try:
+        num_courts = int(request.form.get('num_courts'))
+    except (ValueError, TypeError):
+        flash('Invalid number of courts.')
+        return redirect('/admin')
+
+    player_names_raw = request.form.get('players', '')
+    if not player_names_raw:
+        flash('Player names are required.')
+        return redirect('/admin')
+
+    player_names = player_names_raw.strip().split('\n')
+    player_names = [name.strip() for name in player_names if name.strip()]
+
+    # Validate player count
+    required_players = num_courts * 4
+    if len(player_names) != required_players:
+        flash(f'Need exactly {required_players} players for {num_courts} courts. You entered {len(player_names)} players.')
+        return redirect('/admin')
+
+    # Update tournament
+    db.execute(
+        'UPDATE tournaments SET name = ?, num_courts = ? WHERE id = ?',
+        (tournament_name, num_courts, tournament_id)
+    )
+
+    # Remove existing player assignments
+    db.execute('DELETE FROM tournament_players WHERE tournament_id = ?', (tournament_id,))
+
+    # Add updated player list
+    for name in player_names:
+        parts = name.strip().split(' ', 1)
+        first_name = parts[0] if len(parts) > 0 else ''
+        last_name = parts[1] if len(parts) > 1 else ''
+
+        # Check if player exists in registry
+        existing_player = db.execute(
+            'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
+            (first_name, last_name)
+        ).fetchone()
+
+        if existing_player:
+            player_id = existing_player['id']
+        else:
+            cursor = db.execute(
+                'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+                (first_name, last_name)
+            )
+            player_id = cursor.lastrowid
+
+        # Link player to tournament
+        try:
+            db.execute(
+                'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
+                (tournament_id, player_id)
+            )
+        except sqlite3.IntegrityError:
+            pass  # Player already linked
+
+    db.commit()
+
+    flash(f'Tournament "{tournament_name}" updated successfully!')
+    return redirect('/admin')
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/delete', methods=['POST'])
+def admin_delete_tournament(tournament_id):
+    """Delete a tournament and all associated data (ADMIN)"""
+    db = get_db_connection()
+
+    # Get tournament name for flash message
+    tournament = db.execute(
+        'SELECT name FROM tournaments WHERE id = ?',
+        (tournament_id,)
+    ).fetchone()
+
+    if not tournament:
+        flash('Tournament not found.')
+        return redirect('/admin')
+
+    tournament_name = tournament['name']
+
+    try:
+        # Delete in correct order due to foreign key constraints
+        # 1. Delete scores (references matches)
+        db.execute(
+            '''DELETE FROM scores WHERE match_id IN
+               (SELECT m.id FROM matches m
+                JOIN rounds r ON m.round_id = r.id
+                WHERE r.tournament_id = ?)''',
+            (tournament_id,)
+        )
+
+        # 2. Delete matches (references rounds)
+        db.execute(
+            '''DELETE FROM matches WHERE round_id IN
+               (SELECT id FROM rounds WHERE tournament_id = ?)''',
+            (tournament_id,)
+        )
+
+        # 3. Delete rounds (references tournaments)
+        db.execute(
+            'DELETE FROM rounds WHERE tournament_id = ?',
+            (tournament_id,)
+        )
+
+        # 4. Delete tournament player associations
+        db.execute(
+            'DELETE FROM tournament_players WHERE tournament_id = ?',
+            (tournament_id,)
+        )
+
+        # 5. Finally delete the tournament
+        db.execute(
+            'DELETE FROM tournaments WHERE id = ?',
+            (tournament_id,)
+        )
+
+        db.commit()
+
+        flash(f'Tournament "{tournament_name}" and all associated data deleted successfully.')
+    except Exception as e:
+        db.rollback()
+        flash(f'Error deleting tournament: {str(e)}')
+
+    return redirect('/admin')
 
 
 @app.route('/admin/logout', methods=['POST'])
