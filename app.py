@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, g, session
+from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify
 import os
 import sqlite3
 from datetime import datetime, timedelta
@@ -166,6 +166,54 @@ def validate_round1_pairings(tournament_id, pairings, db):
         errors.append(f"Not all players assigned. Missing player IDs: {missing}")
 
     return errors
+
+def format_round1_pairings_for_frontend(tournament_id, db):
+    """
+    Format Round 1 preview pairings for frontend consumption.
+
+    Args:
+        tournament_id: ID of tournament
+        db: Database connection
+
+    Returns:
+        dict with 'pairings' and 'players' keys
+    """
+    # Get preview pairings from database
+    pairings_raw = db.execute("""
+        SELECT * FROM round1_preview_pairings
+        WHERE tournament_id = ?
+        ORDER BY court_number
+    """, (tournament_id,)).fetchall()
+
+    # Get all player details for this tournament
+    players_raw = db.execute("""
+        SELECT pr.id, pr.first_name, pr.last_name
+        FROM player_registry pr
+        JOIN tournament_players tp ON pr.id = tp.player_id
+        WHERE tp.tournament_id = ?
+    """, (tournament_id,)).fetchall()
+
+    # Format pairings
+    pairings = []
+    for p in pairings_raw:
+        pairings.append({
+            'court': p['court_number'],
+            'team1': [p['team1_player1_id'], p['team1_player2_id']],
+            'team2': [p['team2_player1_id'], p['team2_player2_id']]
+        })
+
+    # Format players
+    players = {}
+    for p in players_raw:
+        players[str(p['id'])] = {
+            'first_name': p['first_name'],
+            'last_name': p['last_name']
+        }
+
+    return {
+        'pairings': pairings,
+        'players': players
+    }
 
 def get_tournament_leaderboard(tournament_id):
     """Get player standings for a specific tournament"""
@@ -1825,6 +1873,62 @@ def admin_create_tournament():
 
     # Redirect back to admin dashboard
     return redirect('/admin')
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/preview-round1', methods=['POST'])
+def admin_preview_round1(tournament_id):
+    """Generate Round 1 preview using seeding algorithm (ADMIN)"""
+    db = get_db_connection()
+
+    # Validate tournament exists and is in setup status
+    tournament = db.execute(
+        'SELECT * FROM tournaments WHERE id = ? AND status = ?',
+        (tournament_id, 'setup')
+    ).fetchone()
+
+    if not tournament:
+        return jsonify({'error': 'Tournament not found or not in setup status'}), 404
+
+    # Get players with seeding points
+    players_with_seeds = db.execute("""
+        SELECT p.id, COALESCE(ps.seed_points, 0) as seed_points
+        FROM player_registry p
+        JOIN tournament_players tp ON p.id = tp.player_id
+        LEFT JOIN player_seeding ps ON p.id = ps.player_id
+        WHERE tp.tournament_id = ?
+        ORDER BY seed_points DESC
+    """, (tournament_id,)).fetchall()
+
+    if not players_with_seeds:
+        return jsonify({'error': 'No players in tournament'}), 400
+
+    # Generate seeded pairings using existing algorithm
+    from seeded_pairing import generate_seeded_round1_pairings
+    players_with_seeds = [dict(p) for p in players_with_seeds]
+    court_assignments = generate_seeded_round1_pairings(
+        players_with_seeds,
+        tournament['num_courts']
+    )
+
+    # Clear existing preview pairings for this tournament
+    db.execute(
+        'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+        (tournament_id,)
+    )
+
+    # Save new pairings to preview table
+    for court_num, player_ids in enumerate(court_assignments, start=1):
+        db.execute("""
+            INSERT INTO round1_preview_pairings
+            (tournament_id, court_number, team1_player1_id, team1_player2_id,
+             team2_player1_id, team2_player2_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (tournament_id, court_num, *player_ids))
+
+    db.commit()
+
+    # Return formatted data for frontend
+    return jsonify(format_round1_pairings_for_frontend(tournament_id, db))
 
 
 @app.route('/admin/tournaments/<int:tournament_id>/players')
