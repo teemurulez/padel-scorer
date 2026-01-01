@@ -1,28 +1,59 @@
 import sqlite3
-from database import get_db
+import pytest
+import os
 from migration import migrate_tournaments_to_seasons
+from app import app
 
-def test_migrate_creates_seasons_from_years():
-    """Test that migration creates season for each year"""
-    conn = get_db()
-    cursor = conn.cursor()
+@pytest.fixture
+def test_db(tmp_path):
+    """Create isolated test database"""
+    db_path = tmp_path / "test_migration.db"
+    conn = sqlite3.connect(str(db_path))
 
-    # Cleanup: Remove any existing test data
-    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
-    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
+    # Create Phase 3 schema
+    conn.executescript("""
+        CREATE TABLE seasons (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            is_current BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ended_at TIMESTAMP
+        );
+
+        CREATE TABLE tournaments (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            num_courts INTEGER NOT NULL,
+            status TEXT DEFAULT 'setup',
+            season_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP,
+            FOREIGN KEY (season_id) REFERENCES seasons(id)
+        );
+    """)
     conn.commit()
+
+    yield conn
+
+    conn.close()
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
+def test_migrate_creates_seasons_from_years(test_db):
+    """Test that migration creates season for each year"""
+    cursor = test_db.cursor()
 
     # Setup: Create tournaments in different years
-    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at, season_id) VALUES (?, ?, ?, NULL)",
                   ("Tournament 2024-1", 3, "2024-01-15 10:00:00"))
-    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at, season_id) VALUES (?, ?, ?, NULL)",
                   ("Tournament 2024-2", 3, "2024-06-20 14:00:00"))
-    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at, season_id) VALUES (?, ?, ?, NULL)",
                   ("Tournament 2025-1", 3, "2025-01-10 09:00:00"))
-    conn.commit()
+    test_db.commit()
 
     # Run migration
-    migrate_tournaments_to_seasons(conn)
+    migrate_tournaments_to_seasons(test_db)
 
     # Verify seasons created
     seasons = cursor.execute("SELECT name FROM seasons ORDER BY name").fetchall()
@@ -30,32 +61,19 @@ def test_migrate_creates_seasons_from_years():
     assert seasons[0][0] == "Season 2024"
     assert seasons[1][0] == "Season 2025"
 
-    # Cleanup
-    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
-    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
-    conn.commit()
-
-    conn.close()
-
-def test_migrate_assigns_tournaments_to_seasons():
+def test_migrate_assigns_tournaments_to_seasons(test_db):
     """Test that tournaments are assigned to correct seasons"""
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # Cleanup: Remove any existing test data
-    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
-    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
-    conn.commit()
+    cursor = test_db.cursor()
 
     # Setup
-    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at, season_id) VALUES (?, ?, ?, NULL)",
                   ("Tournament 2024", 3, "2024-01-15 10:00:00"))
-    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at, season_id) VALUES (?, ?, ?, NULL)",
                   ("Tournament 2025", 3, "2025-01-10 09:00:00"))
-    conn.commit()
+    test_db.commit()
 
     # Run migration
-    migrate_tournaments_to_seasons(conn)
+    migrate_tournaments_to_seasons(test_db)
 
     # Verify assignments
     t2024 = cursor.execute(
@@ -70,32 +88,19 @@ def test_migrate_assigns_tournaments_to_seasons():
     ).fetchone()
     assert t2025[1] == "Season 2025"
 
-    # Cleanup
-    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
-    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
-    conn.commit()
-
-    conn.close()
-
-def test_migrate_marks_latest_season_as_current():
+def test_migrate_marks_latest_season_as_current(test_db):
     """Test that most recent season is marked as current"""
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # Cleanup: Remove any existing test data
-    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
-    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
-    conn.commit()
+    cursor = test_db.cursor()
 
     # Setup
-    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at, season_id) VALUES (?, ?, ?, NULL)",
                   ("Tournament 2024", 3, "2024-01-15 10:00:00"))
-    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at) VALUES (?, ?, ?)",
+    cursor.execute("INSERT INTO tournaments (name, num_courts, created_at, season_id) VALUES (?, ?, ?, NULL)",
                   ("Tournament 2025", 3, "2025-01-10 09:00:00"))
-    conn.commit()
+    test_db.commit()
 
     # Run migration
-    migrate_tournaments_to_seasons(conn)
+    migrate_tournaments_to_seasons(test_db)
 
     # Verify only 2025 is current
     current = cursor.execute("SELECT name FROM seasons WHERE is_current = 1").fetchone()
@@ -105,32 +110,19 @@ def test_migrate_marks_latest_season_as_current():
     not_current = cursor.execute("SELECT name FROM seasons WHERE is_current = 0").fetchone()
     assert not_current[0] == "Season 2024"
 
-    # Cleanup
-    cursor.execute("DELETE FROM tournaments WHERE name LIKE 'Tournament 202%'")
-    cursor.execute("DELETE FROM seasons WHERE name LIKE 'Season 202%'")
-    conn.commit()
-
-    conn.close()
-
-def test_migrate_skips_if_already_migrated():
+def test_migrate_skips_if_already_migrated(test_db):
     """Test that migration doesn't run if tournaments already have season_id"""
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # Cleanup: Remove any existing test data
-    cursor.execute("DELETE FROM tournaments WHERE name = 'Tournament'")
-    cursor.execute("DELETE FROM seasons WHERE name = 'Existing Season'")
-    conn.commit()
+    cursor = test_db.cursor()
 
     # Setup: Create season and assign tournament
     cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Existing Season", 1))
     season_id = cursor.lastrowid
     cursor.execute("INSERT INTO tournaments (name, num_courts, season_id) VALUES (?, ?, ?)",
                   ("Tournament", 3, season_id))
-    conn.commit()
+    test_db.commit()
 
     # Run migration
-    result = migrate_tournaments_to_seasons(conn)
+    result = migrate_tournaments_to_seasons(test_db)
 
     # Verify migration was skipped
     assert result == "already_migrated"
@@ -138,10 +130,3 @@ def test_migrate_skips_if_already_migrated():
     # Verify no new seasons created
     seasons = cursor.execute("SELECT COUNT(*) FROM seasons").fetchone()
     assert seasons[0] == 1
-
-    # Cleanup
-    cursor.execute("DELETE FROM tournaments WHERE name = 'Tournament'")
-    cursor.execute("DELETE FROM seasons WHERE name = 'Existing Season'")
-    conn.commit()
-
-    conn.close()

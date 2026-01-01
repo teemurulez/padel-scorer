@@ -29,21 +29,16 @@ def test_new_tournament_has_setup_status(client):
         # Create current season
         conn = get_db()
         conn.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season", 1))
+        season_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        # Create tournament directly (no /setup route anymore)
+        conn.execute("""
+            INSERT INTO tournaments (name, num_courts, season_id)
+            VALUES (?, ?, ?)
+        """, ("Test Tournament", 1, season_id))
         conn.commit()
 
-    # Create tournament via /setup route
-    response = client.post('/setup', data={
-        'tournament_name': 'Test Tournament',
-        'num_courts': '1',
-        'players': 'Player One\nPlayer Two\nPlayer Three\nPlayer Four'
-    }, follow_redirects=False)
-
-    # Should redirect to start_round
-    assert response.status_code == 302
-
-    # Verify tournament has status='setup'
-    with app.app_context():
-        conn = get_db()
+        # Verify tournament has status='setup' (default)
         tournament = conn.execute(
             "SELECT status FROM tournaments WHERE name = ?",
             ("Test Tournament",)
@@ -68,11 +63,20 @@ def test_start_round1_sets_active_status(client):
         tournament_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
         # Add 4 players to player_registry
+        player_ids = []
         for i in range(4):
             conn.execute("""
                 INSERT INTO player_registry (first_name, last_name)
                 VALUES (?, ?)
             """, (f"Player{i}", f"Last{i}"))
+            player_ids.append(conn.execute("SELECT last_insert_rowid()").fetchone()[0])
+
+        # Add players to tournament_players
+        for player_id in player_ids:
+            conn.execute("""
+                INSERT INTO tournament_players (tournament_id, player_id, total_points)
+                VALUES (?, ?, 0)
+            """, (tournament_id, player_id))
 
         conn.commit()
 

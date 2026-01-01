@@ -246,7 +246,7 @@ def start_round(tournament_id):
         required_players = num_courts * 4
         if num_players < required_players:
             flash(f'Need {required_players} players for {num_courts} courts. You have {num_players}.')
-            return redirect(url_for('setup_tournament'))
+            return redirect(url_for('index'))
 
         # Get or create current round
         last_round = db.execute(
