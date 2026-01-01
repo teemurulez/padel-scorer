@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from database import get_db
 
 def migrate_tournaments_to_seasons(conn):
@@ -64,7 +65,7 @@ def run_migration_if_needed():
 
 def migrate_add_round1_preview_pairings():
     """Add round1_preview_pairings table for manual Round 1 editing"""
-    conn = sqlite3.connect('instance/padel.db')
+    conn = get_db()
     cursor = conn.cursor()
 
     # Check if table already exists
@@ -79,7 +80,7 @@ def migrate_add_round1_preview_pairings():
         return "table_exists"
 
     # Read and execute migration SQL
-    migration_path = 'migrations/add_round1_preview_pairings.sql'
+    migration_path = os.path.join(os.path.dirname(__file__), 'migrations', 'add_round1_preview_pairings.sql')
     try:
         with open(migration_path, 'r') as f:
             migration_sql = f.read()
@@ -88,12 +89,14 @@ def migrate_add_round1_preview_pairings():
         conn.commit()
         print("✅ Created round1_preview_pairings table")
         result = "success"
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         print(f"❌ Migration file not found: {migration_path}")
-        result = "file_not_found"
+        conn.close()
+        raise
     except Exception as e:
         print(f"❌ Migration failed: {e}")
-        result = "error"
+        conn.close()
+        raise
     finally:
         conn.close()
 

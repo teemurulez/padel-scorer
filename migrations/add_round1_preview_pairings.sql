@@ -10,10 +10,10 @@ CREATE TABLE IF NOT EXISTS round1_preview_pairings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
-    FOREIGN KEY (team1_player1_id) REFERENCES player_registry(id),
-    FOREIGN KEY (team1_player2_id) REFERENCES player_registry(id),
-    FOREIGN KEY (team2_player1_id) REFERENCES player_registry(id),
-    FOREIGN KEY (team2_player2_id) REFERENCES player_registry(id),
+    FOREIGN KEY (team1_player1_id) REFERENCES player_registry(id) ON DELETE RESTRICT,
+    FOREIGN KEY (team1_player2_id) REFERENCES player_registry(id) ON DELETE RESTRICT,
+    FOREIGN KEY (team2_player1_id) REFERENCES player_registry(id) ON DELETE RESTRICT,
+    FOREIGN KEY (team2_player2_id) REFERENCES player_registry(id) ON DELETE RESTRICT,
     UNIQUE(tournament_id, court_number)
 );
 
