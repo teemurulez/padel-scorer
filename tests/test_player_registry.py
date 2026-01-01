@@ -58,6 +58,14 @@ def init_test_db():
             PRIMARY KEY (tournament_id, player_id)
         );
 
+        CREATE TABLE seasons (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            is_current BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ended_at TIMESTAMP
+        );
+
         -- Create player_seeding view
         CREATE VIEW player_seeding AS
         SELECT
