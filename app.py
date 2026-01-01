@@ -109,6 +109,64 @@ def get_player(player_id):
         'last_name': f'Player {player_id}]'
     }
 
+def validate_round1_pairings(tournament_id, pairings, db):
+    """
+    Validate custom Round 1 pairings before saving.
+
+    Args:
+        tournament_id: ID of tournament
+        pairings: List of dicts with court, team1, team2
+        db: Database connection
+
+    Returns:
+        List of error messages (empty if valid)
+    """
+    errors = []
+
+    # Get valid player IDs for this tournament
+    tournament_players = db.execute(
+        'SELECT player_id FROM tournament_players WHERE tournament_id = ?',
+        (tournament_id,)
+    ).fetchall()
+    valid_player_ids = {p['player_id'] for p in tournament_players}
+
+    if not valid_player_ids:
+        errors.append("Tournament has no players assigned")
+        return errors
+
+    all_players = []
+
+    for court in pairings:
+        court_players = court['team1'] + court['team2']
+
+        # Validate all players exist in tournament
+        for pid in court_players:
+            if pid not in valid_player_ids:
+                errors.append(f"Player {pid} not in tournament")
+
+        # Validate no duplicates within court
+        if len(court_players) != len(set(court_players)):
+            errors.append(f"Duplicate players in Court {court['court']}")
+
+        # Validate each team has exactly 2 players
+        if len(court['team1']) != 2:
+            errors.append(f"Court {court['court']} team1 must have 2 players (has {len(court['team1'])})")
+        if len(court['team2']) != 2:
+            errors.append(f"Court {court['court']} team2 must have 2 players (has {len(court['team2'])})")
+
+        all_players.extend(court_players)
+
+    # Validate no duplicates across courts
+    if len(all_players) != len(set(all_players)):
+        errors.append("Player assigned to multiple courts")
+
+    # Validate all tournament players are assigned
+    if set(all_players) != valid_player_ids:
+        missing = valid_player_ids - set(all_players)
+        errors.append(f"Not all players assigned. Missing player IDs: {missing}")
+
+    return errors
+
 def get_tournament_leaderboard(tournament_id):
     """Get player standings for a specific tournament"""
     db = get_db_connection()
@@ -1765,8 +1823,8 @@ def admin_create_tournament():
 
     flash(f'Tournament "{tournament_name}" created successfully!')
 
-    # Redirect to start round to begin Round 1
-    return redirect(url_for('start_round', tournament_id=tournament_id))
+    # Redirect back to admin dashboard
+    return redirect('/admin')
 
 
 @app.route('/admin/tournaments/<int:tournament_id>/players')
