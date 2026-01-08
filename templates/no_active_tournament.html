@@ -92,23 +92,20 @@
             <div class="message-icon">🎾</div>
             <h1 class="message-title">No Active Tournament</h1>
             <p class="message-text">
-                There are currently no tournaments running.
+                No tournament is running right now.<br>
+                Check back soon or contact the organizer!
             </p>
 
             {% if season %}
             <div class="season-info">
                 <strong>{{ season.name }}</strong><br>
-                {{ season.tournament_count }} tournament{{ 's' if season.tournament_count != 1 else '' }} played this season
+                {{ season.tournament_count }} tournament{{ 's' if season.tournament_count != 1 else '' }} this season
             </div>
             {% endif %}
 
-            <a href="{{ url_for('season_leaderboard') }}" class="btn btn-primary">
-                View Season Leaderboard
+            <a href="{{ url_for('season_leaderboard') }}" class="btn btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
+                📊 View Leaderboard
             </a>
-
-            <div class="footer-link">
-                <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
-            </div>
         </div>
     </div>
 </body>

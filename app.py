@@ -413,6 +413,18 @@ def start_round(tournament_id):
             (tournament_id,)
         ).fetchone()
 
+        # If there's a previous round (round 2+), ensure it's complete before starting new round
+        if last_round:
+            incomplete_matches = db.execute(
+                '''SELECT COUNT(*) as count FROM matches
+                   WHERE round_id = ? AND completed = 0''',
+                (last_round['id'],)
+            ).fetchone()
+
+            if incomplete_matches['count'] > 0:
+                flash(f'Cannot start new round: Round {last_round["round_number"]} has incomplete matches. Please complete all matches first.')
+                return redirect(url_for('active_round', tournament_id=tournament_id, round_id=last_round['id']))
+
         round_number = 1 if not last_round else last_round['round_number'] + 1
 
         cursor = db.execute(
@@ -875,23 +887,28 @@ def active_round(tournament_id, round_id):
         flash('Round not found')
         return redirect(url_for('index'))
 
-    # Get all matches with player names
-    matches = db.execute(
-        '''SELECT
-            m.*,
-            p1.name as player1_name,
-            p2.name as player2_name,
-            p3.name as player3_name,
-            p4.name as player4_name
+    # Get all matches (without player names - we'll add them below)
+    matches_raw = db.execute(
+        '''SELECT m.*
            FROM matches m
-           JOIN players p1 ON m.player1_id = p1.id
-           JOIN players p2 ON m.player2_id = p2.id
-           JOIN players p3 ON m.player3_id = p3.id
-           JOIN players p4 ON m.player4_id = p4.id
            WHERE m.round_id = ?
            ORDER BY m.court_number''',
         (round_id,)
     ).fetchall()
+
+    # Add player names using helper function (Phase 3 compatible)
+    matches = []
+    for match in matches_raw:
+        match_dict = dict(match)
+        player1 = get_player(match_dict['player1_id'])
+        player2 = get_player(match_dict['player2_id'])
+        player3 = get_player(match_dict['player3_id'])
+        player4 = get_player(match_dict['player4_id'])
+        match_dict['player1_name'] = f"{player1['first_name']} {player1['last_name']}"
+        match_dict['player2_name'] = f"{player2['first_name']} {player2['last_name']}"
+        match_dict['player3_name'] = f"{player3['first_name']} {player3['last_name']}"
+        match_dict['player4_name'] = f"{player4['first_name']} {player4['last_name']}"
+        matches.append(match_dict)
 
     # Check if all matches are completed
     all_completed = all(match['completed'] for match in matches)

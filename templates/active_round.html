@@ -3,13 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Round {{ round_data['round_number'] }}</title>
+    <title>Round {{ round_data['round_number'] }} - Matches</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Mobile-optimized match list */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .round-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .round-info h1 {
+            font-size: 2.5rem;
+            margin: 0 0 0.5rem 0;
+        }
+        .movement-note {
+            font-size: 1rem;
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+        }
+        .messages {
+            margin: 1rem 0;
+        }
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        .matches {
+            margin: 1.5rem 0;
+        }
+        .match-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        .match-card.completed {
+            opacity: 0.85;
+            background: #f8f9fa;
+        }
+        .court-number {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .teams {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 1rem 0;
+            gap: 1rem;
+        }
+        .team {
+            flex: 1;
+            text-align: center;
+        }
+        .team strong {
+            display: block;
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        .team p {
+            font-size: 1.1rem;
+            margin: 0.3rem 0;
+            color: #555;
+        }
+        .vs {
+            font-weight: bold;
+            color: #999;
+            font-size: 1.2rem;
+            padding: 0 0.5rem;
+        }
+        .actions {
+            margin-top: 1rem;
+        }
+        .btn-enter-score {
+            display: block;
+            width: 100%;
+            padding: 1.3rem;
+            background: #27ae60;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+            transition: all 0.2s ease;
+        }
+        .btn-enter-score:active {
+            transform: scale(0.98);
+        }
+        .completed-badge {
+            background: #3498db;
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+        .round-actions {
+            margin: 2rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .btn-leaderboard {
+            display: block;
+            padding: 1.3rem;
+            background: #f39c12;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+        }
+        .btn-admin {
+            padding: 1rem;
+            background: white;
+            border: 2px solid #3498db;
+            color: #3498db;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        @media (max-width: 480px) {
+            .container {
+                padding: 0.5rem;
+            }
+            .round-info h1 {
+                font-size: 2rem;
+            }
+            .teams {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .vs {
+                transform: rotate(90deg);
+                margin: 0.5rem 0;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="round-info">
-            <h1>Round {{ round_data['round_number'] }}</h1>
+            <h1>🎾 Round {{ round_data['round_number'] }}</h1>
             {% if round_data['round_number'] > 1 %}
                 <p class="movement-note">Winners moved up • Losers moved down</p>
             {% endif %}
@@ -49,11 +215,11 @@
                 {% if not match['completed'] %}
                 <div class="actions">
                     <a href="{{ url_for('score_entry', match_id=match['id']) }}"
-                       class="btn-primary">Enter Score</a>
+                       class="btn-enter-score">⚡ Enter Score</a>
                 </div>
                 {% else %}
                 <div class="completed-badge">
-                    Winner: Team {{ match['winning_team'] }}
+                    ✅ Winner: Team {{ match['winning_team'] }}
                 </div>
                 {% endif %}
             </div>
@@ -62,24 +228,57 @@
 
         <div class="round-actions">
             <a href="{{ url_for('leaderboard', tournament_id=tournament_id) }}"
-               class="btn-secondary">View Leaderboard</a>
+               class="btn-leaderboard">📊 View Leaderboard</a>
 
             {% if all_completed %}
-            <form action="{{ url_for('start_round', tournament_id=tournament_id) }}" method="POST" style="display: inline;">
-                <button type="submit" class="btn btn-primary">Start Next Round</button>
+            <form id="nextRoundForm" action="{{ url_for('start_round', tournament_id=tournament_id) }}" method="POST">
+                <button type="submit" class="btn-admin">▶️ Start Next Round</button>
             </form>
-            <form action="{{ url_for('end_tournament', tournament_id=tournament_id) }}"
-                  method="POST"
-                  onsubmit="return confirm('Are you sure you want to end this tournament? You can still view and edit results after ending.')"
-                  style="display: inline;">
-                <button type="submit" class="btn btn-warning">End Tournament</button>
+            <form id="endTournamentForm" action="{{ url_for('end_tournament', tournament_id=tournament_id) }}" method="POST">
+                <button type="submit" class="btn-admin" style="background: #e74c3c; color: white; border-color: #e74c3c;">🏁 End Tournament</button>
             </form>
+            <script>
+                // Prevent HTTP warnings on admin forms
+                document.getElementById('nextRoundForm').addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const form = e.target;
+                    const btn = form.querySelector('button');
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Starting...';
+
+                    const formData = new FormData(form);
+                    const response = await fetch(form.action, { method: 'POST', body: formData });
+                    if (response.ok) {
+                        window.location.href = '{{ url_for("active_tournament", tournament_id=tournament_id) }}';
+                    } else {
+                        alert('Error starting round');
+                        btn.disabled = false;
+                        btn.textContent = '▶️ Start Next Round';
+                    }
+                });
+
+                document.getElementById('endTournamentForm').addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    if (!confirm('Are you sure you want to end this tournament?')) return;
+
+                    const form = e.target;
+                    const btn = form.querySelector('button');
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Ending...';
+
+                    const formData = new FormData(form);
+                    const response = await fetch(form.action, { method: 'POST', body: formData });
+                    if (response.ok) {
+                        window.location.href = '/';
+                    } else {
+                        alert('Error ending tournament');
+                        btn.disabled = false;
+                        btn.textContent = '🏁 End Tournament';
+                    }
+                });
+            </script>
             {% endif %}
         </div>
-    </div>
-
-    <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e0e0e0; text-align: center;">
-        <a href="{{ url_for('admin_dashboard') }}" style="color: #3498db; text-decoration: none; font-size: 0.95rem;">Admin Dashboard</a>
     </div>
 </body>
 </html>
