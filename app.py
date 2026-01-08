@@ -369,8 +369,11 @@ def index():
                 (current_season['id'],)
             ).fetchone()['count']
 
+            # Handle both old schema (year) and new schema (name)
+            season_name = current_season.get('name') or f"Season {current_season['year']}"
+
             season_info = {
-                'name': current_season['name'],
+                'name': season_name,
                 'tournament_count': tournament_count
             }
 
@@ -1171,8 +1174,11 @@ def season_leaderboard():
         "SELECT COUNT(*) as count FROM seasons WHERE is_current = 0"
     ).fetchone()['count'] > 0
 
+    # Handle both old schema (year) and new schema (name)
+    season_name = current_season.get('name') or f"Season {current_season['year']}"
+
     return render_template('season_leaderboard.html',
-                          season_name=current_season['name'],
+                          season_name=season_name,
                           no_season=False,
                           season_stats=season_stats,
                           tournaments=tournaments_with_stats,
@@ -1384,11 +1390,14 @@ def player_profile(player_id):
                 rank = current_rank
                 break
 
+    # Handle both old schema (year) and new schema (name)
+    season_name = current_season.get('name') or f"Season {current_season['year']}"
+
     return render_template(
         'player_profile.html',
         player=player,
         season_stats=season_stats,
-        season_name=current_season['name'],
+        season_name=season_name,
         current_year=current_year,
         rank=rank,
         wins_per_tournament=wins_per_tournament
@@ -1799,7 +1808,9 @@ def admin_end_current_season():
     )
     db.commit()
 
-    flash(f"Season '{current_season['name']}' has been ended")
+    # Handle both old schema (year) and new schema (name)
+    season_name = current_season.get('name') or f"Season {current_season['year']}"
+    flash(f"Season '{season_name}' has been ended")
     return redirect('/admin')
 
 
@@ -1856,7 +1867,9 @@ def admin_activate_season(season_id):
 
     set_current_season(db, season_id)
 
-    flash(f"Season '{season['name']}' is now active")
+    # Handle both old schema (year) and new schema (name)
+    season_name = season.get('name') or f"Season {season['year']}"
+    flash(f"Season '{season_name}' is now active")
     return redirect('/admin')
 
 
