@@ -167,6 +167,54 @@ def validate_round1_pairings(tournament_id, pairings, db):
 
     return errors
 
+def validate_saved_pairings_still_valid(tournament_id, db):
+    """
+    Check if saved Round 1 pairings match current tournament players.
+    Deletes invalid pairings if mismatch detected.
+
+    Args:
+        tournament_id: ID of tournament
+        db: Database connection
+
+    Returns:
+        True if pairings valid, False if invalid (and deleted)
+    """
+    saved_pairings = db.execute(
+        'SELECT * FROM round1_preview_pairings WHERE tournament_id = ?',
+        (tournament_id,)
+    ).fetchall()
+
+    if not saved_pairings:
+        return True  # No saved pairings, nothing to validate
+
+    # Extract all player IDs from saved pairings
+    pairing_player_ids = set()
+    for p in saved_pairings:
+        pairing_player_ids.update([
+            p['team1_player1_id'],
+            p['team1_player2_id'],
+            p['team2_player1_id'],
+            p['team2_player2_id']
+        ])
+
+    # Get current tournament players
+    current_players = db.execute(
+        'SELECT player_id FROM tournament_players WHERE tournament_id = ?',
+        (tournament_id,)
+    ).fetchall()
+    current_player_ids = {p['player_id'] for p in current_players}
+
+    # If mismatch, delete invalid pairings
+    if pairing_player_ids != current_player_ids:
+        db.execute(
+            'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+            (tournament_id,)
+        )
+        db.commit()
+        return False  # Invalid pairings deleted
+
+    return True  # Pairings valid
+
 def format_round1_pairings_for_frontend(tournament_id, db):
     """
     Format Round 1 preview pairings for frontend consumption.
@@ -370,12 +418,18 @@ def start_round(tournament_id):
 
         # Determine pairing strategy
         if round_number == 1:
-            # Round 1: Check for saved custom pairings first
-            saved_pairings = db.execute("""
-                SELECT * FROM round1_preview_pairings
-                WHERE tournament_id = ?
-                ORDER BY court_number
-            """, (tournament_id,)).fetchall()
+            # Round 1: Validate and check for saved custom pairings
+            pairings_valid = validate_saved_pairings_still_valid(tournament_id, db)
+
+            if pairings_valid:
+                saved_pairings = db.execute("""
+                    SELECT * FROM round1_preview_pairings
+                    WHERE tournament_id = ?
+                    ORDER BY court_number
+                """, (tournament_id,)).fetchall()
+            else:
+                saved_pairings = []
+                flash('⚠️ Saved Round 1 pairings were invalid - using seeded pairings', 'warning')
 
             if saved_pairings:
                 # Use saved custom pairings
