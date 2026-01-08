@@ -274,3 +274,157 @@ function swapPlayers(tournamentId, player1, player2) {
         updateModifiedState(tournamentId, checkIfModified(tournamentId));
     }, 500);
 }
+
+/**
+ * Preview Round 1 - fetch seeded pairings from backend
+ */
+async function previewRound1(tournamentId) {
+    const state = initRound1State(tournamentId);
+
+    // Disable button during request
+    const previewBtn = document.getElementById(`preview-round1-btn-${tournamentId}`);
+    if (previewBtn) {
+        previewBtn.disabled = true;
+        previewBtn.textContent = 'Loading...';
+    }
+
+    try {
+        const response = await fetch(`/admin/tournaments/${tournamentId}/preview-round1`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to preview Round 1');
+        }
+
+        const data = await response.json();
+
+        // Update state
+        state.pairingsData = data.pairings;
+        state.originalPairingsData = clonePairings(data.pairings);
+        state.playersData = data.players;
+        state.modified = false;
+
+        // Render courts
+        renderCourts(tournamentId);
+
+        // Show success message
+        showSuccessMessage(tournamentId, 'Round 1 preview generated!');
+
+    } catch (error) {
+        console.error('Preview Round 1 error:', error);
+        showErrorMessage(tournamentId, error.message);
+    } finally {
+        // Re-enable button
+        if (previewBtn) {
+            previewBtn.disabled = false;
+            previewBtn.textContent = 'Preview Round 1';
+        }
+    }
+}
+
+/**
+ * Save custom Round 1 pairings
+ */
+async function saveRound1Pairings(tournamentId) {
+    const state = getRound1State(tournamentId);
+
+    if (!state.modified) {
+        showErrorMessage(tournamentId, 'No changes to save');
+        return;
+    }
+
+    // Disable button during request
+    const saveBtn = document.getElementById(`save-round1-btn-${tournamentId}`);
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+    }
+
+    try {
+        const response = await fetch(`/admin/tournaments/${tournamentId}/save-round1-pairings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                pairings: state.pairingsData
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.errors ? error.errors.join(', ') : 'Failed to save pairings');
+        }
+
+        // Update original to match current (no longer modified)
+        state.originalPairingsData = clonePairings(state.pairingsData);
+        updateModifiedState(tournamentId, false);
+
+        showSuccessMessage(tournamentId, 'Round 1 pairings saved successfully!');
+
+    } catch (error) {
+        console.error('Save pairings error:', error);
+        showErrorMessage(tournamentId, error.message);
+    } finally {
+        // Re-enable button
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Round 1 Pairings';
+        }
+    }
+}
+
+/**
+ * Reset to algorithm-generated pairings
+ */
+async function resetRound1(tournamentId) {
+    if (!confirm('Reset to algorithm-generated pairings? Your changes will be lost.')) {
+        return;
+    }
+
+    // Re-fetch from API (same as preview)
+    await previewRound1(tournamentId);
+}
+
+/**
+ * Show success message
+ */
+function showSuccessMessage(tournamentId, message) {
+    // Create flash-style message
+    const flashContainer = document.querySelector('.flash-messages') || createFlashContainer();
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flash success';
+    messageDiv.textContent = message;
+    flashContainer.appendChild(messageDiv);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => messageDiv.remove(), 5000);
+}
+
+/**
+ * Show error message
+ */
+function showErrorMessage(tournamentId, message) {
+    const flashContainer = document.querySelector('.flash-messages') || createFlashContainer();
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flash error';
+    messageDiv.textContent = message;
+    flashContainer.appendChild(messageDiv);
+
+    setTimeout(() => messageDiv.remove(), 5000);
+}
+
+/**
+ * Create flash message container if doesn't exist
+ */
+function createFlashContainer() {
+    const container = document.createElement('div');
+    container.className = 'flash-messages';
+    document.querySelector('.admin-container').prepend(container);
+    return container;
+}
