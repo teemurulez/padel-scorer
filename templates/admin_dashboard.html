@@ -126,6 +126,39 @@
                                                 <label>Players (one per line, {{ tournament['num_courts'] * 4 }} required):</label>
                                                 <textarea name="players" rows="12" required class="form-textarea" id="players-{{ tournament['id'] }}">Loading...</textarea>
                                             </div>
+
+                                            <!-- Round 1 Court Assignments Preview -->
+                                            <div class="round1-preview-section" id="round1-section-{{ tournament['id'] }}" style="margin-top: 2rem;">
+                                                <h4 style="margin-bottom: 1rem; color: #333;">Round 1 Court Assignments</h4>
+
+                                                <div id="round1-controls-{{ tournament['id'] }}" style="margin-bottom: 1rem;">
+                                                    <button type="button"
+                                                            class="btn-primary"
+                                                            id="preview-round1-btn-{{ tournament['id'] }}"
+                                                            onclick="previewRound1({{ tournament['id'] }})">
+                                                        Preview Round 1
+                                                    </button>
+                                                    <button type="button"
+                                                            class="btn-secondary"
+                                                            id="reset-round1-btn-{{ tournament['id'] }}"
+                                                            onclick="resetRound1({{ tournament['id'] }})"
+                                                            style="display: none;">
+                                                        Reset
+                                                    </button>
+                                                    <button type="button"
+                                                            class="btn-primary"
+                                                            id="save-round1-btn-{{ tournament['id'] }}"
+                                                            onclick="saveRound1Pairings({{ tournament['id'] }})"
+                                                            style="display: none;">
+                                                        Save Round 1 Pairings
+                                                    </button>
+                                                </div>
+
+                                                <div id="round1-courts-{{ tournament['id'] }}" style="display: none;">
+                                                    <!-- Courts will be rendered here by JavaScript -->
+                                                </div>
+                                            </div>
+
                                             <div class="form-actions">
                                                 <button type="submit" class="btn-primary">Save Changes</button>
                                                 <button type="button" onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary">Cancel</button>
