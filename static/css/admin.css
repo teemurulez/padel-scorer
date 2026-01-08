@@ -570,3 +570,101 @@ body {
     gap: 1rem;
     margin-top: 2rem;
 }
+
+/* Round 1 Court Assignment Editor */
+.round1-preview-section {
+    border-top: 2px solid #e0e0e0;
+    padding-top: 1.5rem;
+}
+
+.court-card {
+    border: 2px solid #3498db;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #f8f9fa;
+}
+
+.court-header {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    color: #2c3e50;
+    text-align: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.court-teams {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.team-column {
+    padding: 0.5rem;
+}
+
+.team-column h5 {
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.player-box {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 2px solid #dee2e6;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.player-box:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.player-box.selected {
+    border: 3px solid #FFD700;
+    background: #FFFACD;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.player-box.selected::before {
+    content: '✓ ';
+    color: #FFD700;
+    font-weight: bold;
+}
+
+.player-name {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+/* Swap animation */
+@keyframes swap-slide {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    50% {
+        transform: translateY(-10px);
+        opacity: 0.5;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.player-box.swapping {
+    animation: swap-slide 0.5s ease-in-out;
+}
+
+/* Button spacing in controls */
+#round1-controls button {
+    margin-right: 0.5rem;
+}
