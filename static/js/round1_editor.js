@@ -6,14 +6,15 @@
  */
 
 // Global state per tournament (keyed by tournament ID)
-const round1State = {};
+// Exposed on window for form submission handler
+window.round1States = window.round1States || {};
 
 /**
  * Initialize state for a tournament
  */
 function initRound1State(tournamentId) {
-    if (!round1State[tournamentId]) {
-        round1State[tournamentId] = {
+    if (!window.round1States[tournamentId]) {
+        window.round1States[tournamentId] = {
             pairingsData: [],
             originalPairingsData: [],
             playersData: {},
@@ -21,28 +22,23 @@ function initRound1State(tournamentId) {
             modified: false
         };
     }
-    return round1State[tournamentId];
+    return window.round1States[tournamentId];
 }
 
 /**
  * Get state for a tournament
  */
 function getRound1State(tournamentId) {
-    return round1State[tournamentId] || initRound1State(tournamentId);
+    return window.round1States[tournamentId] || initRound1State(tournamentId);
 }
 
 /**
- * Update state modified flag and button visibility
+ * Update state modified flag
  */
 function updateModifiedState(tournamentId, isModified) {
     const state = getRound1State(tournamentId);
     state.modified = isModified;
-
-    // Show/hide save button based on modified state
-    const saveBtn = document.getElementById(`save-round1-btn-${tournamentId}`);
-    if (saveBtn) {
-        saveBtn.style.display = isModified ? 'inline-block' : 'none';
-    }
+    // Note: Pairings will be saved when the form's "Save Changes" button is clicked
 }
 
 /**
@@ -277,8 +273,10 @@ function swapPlayers(tournamentId, player1, player2) {
 
 /**
  * Preview Round 1 - fetch seeded pairings from backend
+ * @param {number} tournamentId - The tournament ID
+ * @param {boolean} force - If true, force regeneration (for Reset button)
  */
-async function previewRound1(tournamentId) {
+async function previewRound1(tournamentId, force = false) {
     const state = initRound1State(tournamentId);
 
     // Disable button during request
@@ -293,7 +291,8 @@ async function previewRound1(tournamentId) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ force: force })
         });
 
         if (!response.ok) {
@@ -313,7 +312,8 @@ async function previewRound1(tournamentId) {
         renderCourts(tournamentId);
 
         // Show success message
-        showSuccessMessage(tournamentId, 'Round 1 preview generated!');
+        const message = force ? 'Round 1 pairings reset to algorithm-generated!' : 'Round 1 preview loaded!';
+        showSuccessMessage(tournamentId, message);
 
     } catch (error) {
         console.error('Preview Round 1 error:', error);
@@ -387,8 +387,8 @@ async function resetRound1(tournamentId) {
         return;
     }
 
-    // Re-fetch from API (same as preview)
-    await previewRound1(tournamentId);
+    // Force regeneration by passing force=true
+    await previewRound1(tournamentId, true);
 }
 
 /**

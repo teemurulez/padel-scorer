@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify
 import os
 import sqlite3
+import json
 from datetime import datetime, timedelta
 from config import Config
 from database import get_db, init_db
@@ -1971,7 +1972,7 @@ def admin_create_tournament():
 
 @app.route('/admin/tournaments/<int:tournament_id>/preview-round1', methods=['POST'])
 def admin_preview_round1(tournament_id):
-    """Generate Round 1 preview using seeding algorithm (ADMIN)"""
+    """Generate or load Round 1 preview (ADMIN)"""
     db = get_db_connection()
 
     # Validate tournament exists and is in setup status
@@ -1983,6 +1984,24 @@ def admin_preview_round1(tournament_id):
     if not tournament:
         return jsonify({'error': 'Tournament not found or not in setup status'}), 404
 
+    # Check if we should force regeneration (for Reset button)
+    force_regenerate = False
+    if request.is_json and request.json:
+        force_regenerate = request.json.get('force', False)
+
+    # Check if saved pairings already exist
+    existing_pairings = None
+    if not force_regenerate:
+        existing_pairings = db.execute(
+            'SELECT * FROM round1_preview_pairings WHERE tournament_id = ?',
+            (tournament_id,)
+        ).fetchall()
+
+    # If pairings exist and we're not forcing regeneration, return them
+    if existing_pairings and not force_regenerate:
+        return jsonify(format_round1_pairings_for_frontend(tournament_id, db))
+
+    # Otherwise, generate new pairings
     # Get players with seeding points
     players_with_seeds = db.execute("""
         SELECT p.id, COALESCE(ps.seed_points, 0) as seed_points
@@ -2211,6 +2230,41 @@ def admin_edit_tournament(tournament_id):
             )
         except sqlite3.IntegrityError:
             pass  # Player already linked
+
+    # Save Round 1 pairings if provided
+    round1_pairings_json = request.form.get('round1_pairings', '').strip()
+    if round1_pairings_json:
+        try:
+            pairings = json.loads(round1_pairings_json)
+            if pairings:
+                # Validate pairings
+                errors = validate_round1_pairings(tournament_id, pairings, db)
+                if not errors:
+                    # Clear existing pairings
+                    db.execute(
+                        'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+                        (tournament_id,)
+                    )
+
+                    # Save new pairings
+                    for court in pairings:
+                        db.execute("""
+                            INSERT INTO round1_preview_pairings
+                            (tournament_id, court_number, team1_player1_id, team1_player2_id,
+                             team2_player1_id, team2_player2_id)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                            tournament_id,
+                            court['court'],
+                            court['team1'][0],
+                            court['team1'][1],
+                            court['team2'][0],
+                            court['team2'][1]
+                        ))
+                else:
+                    flash(f'⚠️ Round 1 pairings validation failed: {", ".join(errors)}', 'warning')
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            flash(f'⚠️ Invalid Round 1 pairings data: {str(e)}', 'warning')
 
     db.commit()
 

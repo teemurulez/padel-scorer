@@ -113,7 +113,7 @@
                                 <td colspan="4">
                                     <div class="edit-form-container">
                                         <h4>Edit Tournament</h4>
-                                        <form method="POST" action="{{ url_for('admin_edit_tournament', tournament_id=tournament['id']) }}">
+                                        <form method="POST" action="{{ url_for('admin_edit_tournament', tournament_id=tournament['id']) }}" id="edit-form-{{ tournament['id'] }}">
                                             <div class="form-group">
                                                 <label>Tournament Name:</label>
                                                 <input type="text" name="tournament_name" value="{{ tournament['name'] }}" required class="form-input">
@@ -126,6 +126,9 @@
                                                 <label>Players (one per line, {{ tournament['num_courts'] * 4 }} required):</label>
                                                 <textarea name="players" rows="12" required class="form-textarea" id="players-{{ tournament['id'] }}">Loading...</textarea>
                                             </div>
+
+                                            <!-- Hidden field for round1 pairings data -->
+                                            <input type="hidden" name="round1_pairings" id="round1-pairings-data-{{ tournament['id'] }}" value="">
 
                                             <!-- Round 1 Court Assignments Preview -->
                                             <div class="round1-preview-section" id="round1-section-{{ tournament['id'] }}" style="margin-top: 2rem;">
@@ -144,13 +147,6 @@
                                                             onclick="resetRound1({{ tournament['id'] }})"
                                                             style="display: none;">
                                                         Reset
-                                                    </button>
-                                                    <button type="button"
-                                                            class="btn-primary"
-                                                            id="save-round1-btn-{{ tournament['id'] }}"
-                                                            onclick="saveRound1Pairings({{ tournament['id'] }})"
-                                                            style="display: none;">
-                                                        Save Round 1 Pairings
                                                     </button>
                                                 </div>
 
@@ -362,6 +358,25 @@
                 editBtn.textContent = 'Edit';
             }
         }
+
+        // Setup form submission handler for round1 pairings
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add submit handlers to all tournament edit forms
+            document.querySelectorAll('form[id^="edit-form-"]').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const tournamentId = form.id.replace('edit-form-', '');
+                    const hiddenInput = document.getElementById(`round1-pairings-data-${tournamentId}`);
+
+                    // Check if round1 state exists and has pairings
+                    const state = window.round1States && window.round1States[tournamentId];
+                    if (state && state.pairingsData && state.pairingsData.length > 0) {
+                        // Add pairings data to hidden field
+                        hiddenInput.value = JSON.stringify(state.pairingsData);
+                    }
+                    // Form will submit normally with pairings data included
+                });
+            });
+        });
     </script>
 
     <!-- Round 1 Editor JavaScript -->
