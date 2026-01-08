@@ -1931,6 +1931,49 @@ def admin_preview_round1(tournament_id):
     return jsonify(format_round1_pairings_for_frontend(tournament_id, db))
 
 
+@app.route('/admin/tournaments/<int:tournament_id>/save-round1-pairings', methods=['POST'])
+def admin_save_round1_pairings(tournament_id):
+    """Save custom Round 1 pairings (ADMIN)"""
+    db = get_db_connection()
+
+    # Get pairings from request
+    pairings = request.json.get('pairings', [])
+
+    if not pairings:
+        return {'errors': ['No pairings provided']}, 400
+
+    # Validate pairings
+    errors = validate_round1_pairings(tournament_id, pairings, db)
+    if errors:
+        return {'errors': errors}, 400
+
+    # Clear existing pairings for this tournament
+    db.execute(
+        'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+        (tournament_id,)
+    )
+
+    # Save new pairings
+    for court in pairings:
+        db.execute("""
+            INSERT INTO round1_preview_pairings
+            (tournament_id, court_number, team1_player1_id, team1_player2_id,
+             team2_player1_id, team2_player2_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            tournament_id,
+            court['court'],
+            court['team1'][0],
+            court['team1'][1],
+            court['team2'][0],
+            court['team2'][1]
+        ))
+
+    db.commit()
+
+    return {'success': True}
+
+
 @app.route('/admin/tournaments/<int:tournament_id>/players')
 def admin_get_tournament_players(tournament_id):
     """Get players for a tournament (ADMIN - API endpoint)"""
