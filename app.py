@@ -2068,6 +2068,49 @@ def admin_edit_tournament(tournament_id):
         flash(f'Need exactly {required_players} players for {num_courts} courts. You entered {len(player_names)} players.')
         return redirect('/admin')
 
+    # Get current state for comparison
+    current_tournament = db.execute(
+        'SELECT num_courts FROM tournaments WHERE id = ?',
+        (tournament_id,)
+    ).fetchone()
+
+    current_players = db.execute(
+        'SELECT player_id FROM tournament_players WHERE tournament_id = ? ORDER BY player_id',
+        (tournament_id,)
+    ).fetchall()
+    current_player_ids = {p['player_id'] for p in current_players}
+
+    # Parse new player list to get player IDs
+    new_player_ids = set()
+    for name in player_names:
+        parts = name.strip().split(' ', 1)
+        first_name = parts[0] if len(parts) > 0 else ''
+        last_name = parts[1] if len(parts) > 1 else ''
+
+        player = db.execute(
+            'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
+            (first_name, last_name)
+        ).fetchone()
+
+        if player:
+            new_player_ids.add(player['id'])
+
+    # Check if player list or court count changed
+    players_changed = current_player_ids != new_player_ids
+    courts_changed = current_tournament['num_courts'] != num_courts
+
+    if players_changed or courts_changed:
+        # Clear saved Round 1 pairings
+        db.execute(
+            'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+            (tournament_id,)
+        )
+
+        if players_changed:
+            flash('⚠️ Player list changed - Round 1 pairings have been reset', 'warning')
+        if courts_changed:
+            flash('⚠️ Number of courts changed - Round 1 pairings have been reset', 'warning')
+
     # Update tournament
     db.execute(
         'UPDATE tournaments SET name = ?, num_courts = ? WHERE id = ?',
