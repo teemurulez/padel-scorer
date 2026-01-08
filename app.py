@@ -179,10 +179,14 @@ def validate_saved_pairings_still_valid(tournament_id, db):
     Returns:
         True if pairings valid, False if invalid (and deleted)
     """
-    saved_pairings = db.execute(
-        'SELECT * FROM round1_preview_pairings WHERE tournament_id = ?',
-        (tournament_id,)
-    ).fetchall()
+    try:
+        saved_pairings = db.execute(
+            'SELECT * FROM round1_preview_pairings WHERE tournament_id = ?',
+            (tournament_id,)
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # Table doesn't exist (old schema) - skip validation
+        return True
 
     if not saved_pairings:
         return True  # No saved pairings, nothing to validate
@@ -422,11 +426,15 @@ def start_round(tournament_id):
             pairings_valid = validate_saved_pairings_still_valid(tournament_id, db)
 
             if pairings_valid:
-                saved_pairings = db.execute("""
-                    SELECT * FROM round1_preview_pairings
-                    WHERE tournament_id = ?
-                    ORDER BY court_number
-                """, (tournament_id,)).fetchall()
+                try:
+                    saved_pairings = db.execute("""
+                        SELECT * FROM round1_preview_pairings
+                        WHERE tournament_id = ?
+                        ORDER BY court_number
+                    """, (tournament_id,)).fetchall()
+                except sqlite3.OperationalError:
+                    # Table doesn't exist (old schema)
+                    saved_pairings = []
             else:
                 saved_pairings = []
                 flash('⚠️ Saved Round 1 pairings were invalid - using seeded pairings', 'warning')
