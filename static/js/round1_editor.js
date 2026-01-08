@@ -185,3 +185,92 @@ function createPlayerBox(tournamentId, playerId, courtNum, team, position, playe
 
     return box;
 }
+
+/**
+ * Handle player box click (click-then-click swap)
+ */
+function handlePlayerClick(tournamentId, playerId, courtNum, team, position) {
+    const state = getRound1State(tournamentId);
+
+    if (!state.selectedPlayer) {
+        // First click: Select player
+        selectPlayer(tournamentId, playerId, courtNum, team, position);
+    } else if (state.selectedPlayer.playerId === playerId) {
+        // Clicked same player: Deselect
+        deselectPlayer(tournamentId);
+    } else {
+        // Second click: Swap players
+        swapPlayers(
+            tournamentId,
+            state.selectedPlayer,
+            {playerId, courtNum, team, position}
+        );
+        deselectPlayer(tournamentId);
+    }
+}
+
+/**
+ * Select a player (first click)
+ */
+function selectPlayer(tournamentId, playerId, courtNum, team, position) {
+    const state = getRound1State(tournamentId);
+
+    state.selectedPlayer = {playerId, courtNum, team, position};
+
+    // Add visual highlight
+    const allBoxes = document.querySelectorAll(`#round1-courts-${tournamentId} .player-box`);
+    allBoxes.forEach(box => {
+        if (parseInt(box.dataset.playerId) === playerId) {
+            box.classList.add('selected');
+        }
+    });
+}
+
+/**
+ * Deselect player
+ */
+function deselectPlayer(tournamentId) {
+    const state = getRound1State(tournamentId);
+    state.selectedPlayer = null;
+
+    // Remove all highlights
+    const allBoxes = document.querySelectorAll(`#round1-courts-${tournamentId} .player-box`);
+    allBoxes.forEach(box => box.classList.remove('selected'));
+}
+
+/**
+ * Swap two players
+ */
+function swapPlayers(tournamentId, player1, player2) {
+    const state = getRound1State(tournamentId);
+
+    // Find courts in pairings data
+    const p1Court = state.pairingsData.find(c => c.court === player1.courtNum);
+    const p2Court = state.pairingsData.find(c => c.court === player2.courtNum);
+
+    if (!p1Court || !p2Court) {
+        console.error('Court not found for swap');
+        return;
+    }
+
+    // Swap player IDs in data structure
+    const temp = p1Court[player1.team][player1.position];
+    p1Court[player1.team][player1.position] = p2Court[player2.team][player2.position];
+    p2Court[player2.team][player2.position] = temp;
+
+    // Add swap animation class
+    const allBoxes = document.querySelectorAll(`#round1-courts-${tournamentId} .player-box`);
+    allBoxes.forEach(box => {
+        const boxPlayerId = parseInt(box.dataset.playerId);
+        if (boxPlayerId === player1.playerId || boxPlayerId === player2.playerId) {
+            box.classList.add('swapping');
+            setTimeout(() => box.classList.remove('swapping'), 500);
+        }
+    });
+
+    // Re-render courts after animation
+    setTimeout(() => {
+        renderCourts(tournamentId);
+        updateModifiedState(tournamentId, checkIfModified(tournamentId));
+    }, 500);
+}
