@@ -20,8 +20,8 @@ def client(tmp_path):
     if os.path.exists(db_path):
         os.remove(db_path)
 
-def test_home_page_has_manage_seasons_link(client):
-    """Test that home page has link to season management"""
+def test_home_page_has_admin_dashboard_link(client):
+    """Test that home page has link to admin dashboard"""
     response = client.get('/')
-    assert b'Manage Seasons' in response.data
-    assert b'/seasons' in response.data
+    assert b'Admin Dashboard' in response.data
+    assert b'/admin' in response.data

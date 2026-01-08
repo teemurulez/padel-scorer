@@ -47,12 +47,229 @@
         <div id="seasons" class="tab-content active">
             <div class="tab-panel">
                 <h2>Season Management</h2>
-                <div style="padding: 20px;">
-                    <p style="margin-bottom: 20px; color: #666;">Create, activate, archive, and manage tournament seasons.</p>
-                    <a href="{{ url_for('seasons_management') }}" class="btn-primary" style="display: inline-block; padding: 12px 24px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px; font-weight: 500;">
-                        Go to Season Management
-                    </a>
+
+                <!-- Current Season Card -->
+                {% if current_season %}
+                <div class="season-card current">
+                    <h3>🏆 Current Season: {{ current_season.name }}</h3>
+                    <p>Created: {{ current_season.created_at[:10] }}</p>
+                    <p>Tournaments: {{ current_tournament_count }}</p>
+
+                    <form method="POST" action="/admin/seasons/end-current" onsubmit="return confirm('End {{ current_season.name }}? You can reactivate it or create a new season later.');">
+                        <button type="submit" class="btn-warning">End Current Season</button>
+                    </form>
                 </div>
+                {% else %}
+                <div class="season-card no-season">
+                    <h3>⚠️ No Active Season</h3>
+                    <p>Create a new season or reactivate an archived season below.</p>
+                </div>
+                {% endif %}
+
+                <!-- Current Season Tournaments -->
+                {% if current_season %}
+                <div class="current-season-tournaments">
+                    <h3>Tournaments in {{ current_season.name }}</h3>
+
+                    {% if current_season_tournaments %}
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Tournament Name</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tournament in current_season_tournaments %}
+                            <tr>
+                                <td>{{ tournament['name'] }}</td>
+                                <td>{{ tournament['created_at'][:10] }}</td>
+                                <td>
+                                    {% if tournament['status'] == 'active' %}
+                                    <span class="status-badge active-badge">Active</span>
+                                    {% elif tournament['status'] == 'completed' %}
+                                    <span class="status-badge completed-badge">Completed</span>
+                                    {% else %}
+                                    <span class="status-badge setup-badge">Setup</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if tournament['status'] == 'setup' %}
+                                    <button onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary" id="edit-btn-{{ tournament['id'] }}">Edit</button>
+                                    {% elif tournament['status'] == 'active' %}
+                                    <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-secondary">View</a>
+                                    {% else %}
+                                    <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary">View</a>
+                                    {% endif %}
+                                    <form method="POST" action="{{ url_for('admin_delete_tournament', tournament_id=tournament['id']) }}" style="display: inline;" onsubmit="return confirm('⚠️ Are you sure you want to delete \'{{ tournament['name'] }}\'? This will permanently delete all rounds, matches, and scores. This cannot be undone.');">
+                                        <button type="submit" class="btn-danger">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% if tournament['status'] == 'setup' %}
+                            <tr id="edit-row-{{ tournament['id'] }}" class="edit-row" style="display: none;">
+                                <td colspan="4">
+                                    <div class="edit-form-container">
+                                        <h4>Edit Tournament</h4>
+                                        <form method="POST" action="{{ url_for('admin_edit_tournament', tournament_id=tournament['id']) }}" id="edit-form-{{ tournament['id'] }}">
+                                            <div class="form-group">
+                                                <label>Tournament Name:</label>
+                                                <input type="text" name="tournament_name" value="{{ tournament['name'] }}" required class="form-input">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Number of Courts:</label>
+                                                <input type="number" name="num_courts" value="{{ tournament['num_courts'] }}" min="1" max="10" required class="form-input">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Players (one per line, {{ tournament['num_courts'] * 4 }} required):</label>
+                                                <textarea name="players" rows="12" required class="form-textarea" id="players-{{ tournament['id'] }}">Loading...</textarea>
+                                            </div>
+
+                                            <!-- Hidden field for round1 pairings data -->
+                                            <input type="hidden" name="round1_pairings" id="round1-pairings-data-{{ tournament['id'] }}" value="">
+
+                                            <!-- Round 1 Court Assignments Preview -->
+                                            <div class="round1-preview-section" id="round1-section-{{ tournament['id'] }}" style="margin-top: 2rem;">
+                                                <h4 style="margin-bottom: 1rem; color: #333;">Round 1 Court Assignments</h4>
+
+                                                <div id="round1-controls-{{ tournament['id'] }}" style="margin-bottom: 1rem;">
+                                                    <button type="button"
+                                                            class="btn-primary"
+                                                            id="preview-round1-btn-{{ tournament['id'] }}"
+                                                            onclick="previewRound1({{ tournament['id'] }})">
+                                                        Preview Round 1
+                                                    </button>
+                                                    <button type="button"
+                                                            class="btn-secondary"
+                                                            id="reset-round1-btn-{{ tournament['id'] }}"
+                                                            onclick="resetRound1({{ tournament['id'] }})"
+                                                            style="display: none;">
+                                                        Reset
+                                                    </button>
+                                                </div>
+
+                                                <div id="round1-courts-{{ tournament['id'] }}" style="display: none;">
+                                                    <!-- Courts will be rendered here by JavaScript -->
+                                                </div>
+                                            </div>
+
+                                            <div class="form-actions">
+                                                <button type="submit" class="btn-primary">Save Changes</button>
+                                                <button type="button" onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary">Cancel</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="empty-state-message">No tournaments yet. Create one below.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Create Tournament Form -->
+                {% if current_season %}
+                <div class="create-tournament-form">
+                    <h3>Create New Tournament</h3>
+                    <form method="POST" action="/admin/tournaments/create">
+                        <div class="form-group">
+                            <label for="tournament_name">Tournament Name</label>
+                            <input type="text" id="tournament_name" name="tournament_name" placeholder="e.g., Friday Night Padel" maxlength="100" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="num_courts">Number of Courts</label>
+                            <select id="num_courts" name="num_courts" required>
+                                <option value="">Select courts...</option>
+                                <option value="1">1 court (4 players)</option>
+                                <option value="2">2 courts (8 players)</option>
+                                <option value="3">3 courts (12 players)</option>
+                                <option value="4">4 courts (16 players)</option>
+                                <option value="5">5 courts (20 players)</option>
+                                <option value="6">6 courts (24 players)</option>
+                                <option value="7">7 courts (28 players)</option>
+                                <option value="8">8 courts (32 players)</option>
+                                <option value="9">9 courts (36 players)</option>
+                                <option value="10">10 courts (40 players)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="players">Player Names (one per line)</label>
+                            <textarea id="players" name="players" rows="12" placeholder="Enter player names, one per line&#10;Example:&#10;John Smith&#10;Jane Doe&#10;..." required></textarea>
+                            <p class="form-hint">Minimum <span id="min_players">12</span> players required for <span id="selected_courts">3</span> courts</p>
+                        </div>
+
+                        <button type="submit" class="btn-primary">Create Tournament</button>
+                    </form>
+                </div>
+                {% endif %}
+
+                <script>
+                // Update player count hint when courts selection changes
+                document.addEventListener('DOMContentLoaded', function() {
+                    const courtsSelect = document.getElementById('num_courts');
+                    const minPlayersSpan = document.getElementById('min_players');
+                    const selectedCourtsSpan = document.getElementById('selected_courts');
+
+                    if (courtsSelect) {
+                        courtsSelect.addEventListener('change', function() {
+                            const courts = parseInt(this.value) || 0;
+                            const minPlayers = courts * 4;
+                            minPlayersSpan.textContent = minPlayers;
+                            selectedCourtsSpan.textContent = courts;
+                        });
+                    }
+                });
+                </script>
+
+                <!-- Create New Season Form -->
+                <div class="create-season-form">
+                    <h3>Create New Season</h3>
+                    <form method="POST" action="/admin/seasons/create">
+                        <input type="text" name="season_name" placeholder="Season name (e.g., Winter 2025)" maxlength="100" required>
+                        <button type="submit" class="btn-primary">Create Season</button>
+                    </form>
+                </div>
+
+                <!-- Archived Seasons Table -->
+                {% if archived_seasons %}
+                <div class="archived-seasons">
+                    <h3>Archived Seasons</h3>
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Season Name</th>
+                                <th>Created</th>
+                                <th>Ended</th>
+                                <th>Tournaments</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for season in archived_seasons %}
+                            <tr>
+                                <td>{{ season.name }}</td>
+                                <td>{{ season.created_at[:10] }}</td>
+                                <td>{{ season.ended_at[:10] if season.ended_at else '-' }}</td>
+                                <td>{{ season.tournament_count }}</td>
+                                <td>
+                                    <form method="POST" action="/admin/seasons/{{ season.id }}/activate" style="display:inline;" onsubmit="return confirm('Make {{ season.name }} the current season?');">
+                                        <button type="submit" class="btn-secondary">Set as Current</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -114,6 +331,55 @@
                 });
             });
         });
+
+        // Tournament edit toggle function
+        async function toggleEditTournament(tournamentId) {
+            const editRow = document.getElementById(`edit-row-${tournamentId}`);
+            const editBtn = document.getElementById(`edit-btn-${tournamentId}`);
+
+            if (editRow.style.display === 'none') {
+                // Show edit form
+                editRow.style.display = 'table-row';
+                editBtn.textContent = 'Cancel';
+
+                // Fetch player names for this tournament
+                const playersTextarea = document.getElementById(`players-${tournamentId}`);
+                try {
+                    const response = await fetch(`/admin/tournaments/${tournamentId}/players`);
+                    const data = await response.json();
+                    playersTextarea.value = data.players.join('\n');
+                } catch (error) {
+                    playersTextarea.value = '';
+                    console.error('Failed to load players:', error);
+                }
+            } else {
+                // Hide edit form
+                editRow.style.display = 'none';
+                editBtn.textContent = 'Edit';
+            }
+        }
+
+        // Setup form submission handler for round1 pairings
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add submit handlers to all tournament edit forms
+            document.querySelectorAll('form[id^="edit-form-"]').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const tournamentId = form.id.replace('edit-form-', '');
+                    const hiddenInput = document.getElementById(`round1-pairings-data-${tournamentId}`);
+
+                    // Check if round1 state exists and has pairings
+                    const state = window.round1States && window.round1States[tournamentId];
+                    if (state && state.pairingsData && state.pairingsData.length > 0) {
+                        // Add pairings data to hidden field
+                        hiddenInput.value = JSON.stringify(state.pairingsData);
+                    }
+                    // Form will submit normally with pairings data included
+                });
+            });
+        });
     </script>
+
+    <!-- Round 1 Editor JavaScript -->
+    <script src="{{ url_for('static', filename='js/round1_editor.js') }}"></script>
 </body>
 </html>

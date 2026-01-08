@@ -218,6 +218,14 @@ def test_round1_uses_seeded_pairing(client):
                VALUES (1, 'Test Tournament', 2, 1, 'setup')"""
         )
 
+        # Add all 8 players to this tournament
+        for player_id, _, _, _ in players_data:
+            db.execute(
+                """INSERT INTO tournament_players (tournament_id, player_id, total_points)
+                   VALUES (1, ?, 0)""",
+                (player_id,)
+            )
+
         db.commit()
 
     # Start Round 1
@@ -310,6 +318,14 @@ def test_round2_uses_court_movement(client):
             """INSERT INTO tournaments (id, name, num_courts, season_id, status)
                VALUES (1, 'Test Tournament', 2, 1, 'active')"""
         )
+
+        # Add all 8 players to this tournament
+        for i in range(1, 9):
+            db.execute(
+                """INSERT INTO tournament_players (tournament_id, player_id, total_points)
+                   VALUES (1, ?, 0)""",
+                (i,)
+            )
 
         # Create completed Round 1 with specific match results
         db.execute(
@@ -421,6 +437,14 @@ def test_round1_with_no_previous_tournaments(client):
             """INSERT INTO tournaments (id, name, num_courts, season_id, status)
                VALUES (1, 'Test Tournament', 2, 1, 'setup')"""
         )
+
+        # Add all 8 players to this tournament
+        for i in range(1, 9):
+            db.execute(
+                """INSERT INTO tournament_players (tournament_id, player_id, total_points)
+                   VALUES (1, ?, 0)""",
+                (i,)
+            )
 
         db.commit()
 

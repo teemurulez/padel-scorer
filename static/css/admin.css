@@ -10,6 +10,11 @@
     --yellow-dark: #CCAA00;
     --white: #ffffff;
     --text-light: #e0e0e0;
+    --success-green: #22c55e;
+    --warning-orange: #ff9800;
+    --warning-orange-dark: #f57c00;
+    --neutral-gray: #6b7280;
+    --empty-state-gray: #888888;
 }
 
 * {
@@ -236,4 +241,430 @@ body {
         flex: 1;
         min-width: calc(50% - 0.5rem);
     }
+}
+
+/* Season Card Styles */
+.season-card {
+    background-color: var(--medium-gray);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--yellow);
+}
+
+.season-card.current {
+    border-left-color: var(--success-green);
+}
+
+.season-card.no-season {
+    border-left-color: var(--warning-orange);
+}
+
+.season-card h3 {
+    color: var(--yellow);
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.season-card p {
+    color: var(--text-light);
+    margin-bottom: 0.5rem;
+}
+
+/* Button Styles */
+.btn-primary,
+.btn-secondary,
+.btn-warning,
+.btn-danger {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background-color: var(--yellow);
+    color: var(--black);
+}
+
+.btn-primary:hover {
+    background-color: var(--yellow-hover);
+}
+
+.btn-secondary {
+    background-color: var(--medium-gray);
+    color: var(--yellow);
+    border: 2px solid var(--yellow);
+}
+
+.btn-secondary:hover {
+    background-color: var(--yellow);
+    color: var(--black);
+}
+
+.btn-warning {
+    background-color: var(--warning-orange);
+    color: white;
+}
+
+.btn-warning:hover {
+    background-color: var(--warning-orange-dark);
+}
+
+.btn-danger {
+    background-color: var(--medium-gray);
+    color: #ef4444;
+    border: 2px solid #ef4444;
+}
+
+.btn-danger:hover {
+    background-color: #ef4444;
+    color: white;
+}
+
+/* Create Season Form */
+.create-season-form {
+    background-color: var(--medium-gray);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.create-season-form h3 {
+    color: var(--yellow);
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.create-season-form form {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.create-season-form input[type="text"] {
+    flex: 1;
+    padding: 0.75rem;
+    background-color: var(--light-gray);
+    border: 2px solid var(--light-gray);
+    border-radius: 4px;
+    color: var(--text-light);
+    font-size: 1rem;
+}
+
+.create-season-form input[type="text"]:focus {
+    outline: none;
+    border-color: var(--yellow);
+}
+
+/* Shared Admin Table Styles */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--medium-gray);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.admin-table thead {
+    background-color: var(--light-gray);
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.admin-table th {
+    color: var(--yellow);
+    font-weight: 600;
+}
+
+.admin-table td {
+    color: var(--text-light);
+}
+
+.admin-table tbody tr:hover {
+    background-color: var(--light-gray);
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Archived Seasons Table */
+.archived-seasons {
+    margin-top: 2rem;
+}
+
+.archived-seasons h3 {
+    color: var(--yellow);
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+/* Current Season Tournaments */
+.current-season-tournaments {
+    margin-top: 3rem; /* 2 line spaces */
+    margin-bottom: 3rem;
+}
+
+.current-season-tournaments h3 {
+    color: var(--yellow);
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+}
+
+/* Empty State Message */
+.empty-state-message {
+    color: var(--empty-state-gray);
+    font-style: italic;
+    margin-top: 1rem;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.active-badge {
+    background-color: var(--success-green);
+    color: white;
+}
+
+.completed-badge {
+    background-color: var(--neutral-gray);
+    color: white;
+}
+
+.setup-badge {
+    background-color: var(--warning-orange);
+    color: white;
+}
+
+/* Create Tournament Form */
+.create-tournament-form {
+    margin-top: 3rem; /* 2 line spaces */
+    margin-bottom: 3rem;
+}
+
+.create-tournament-form h3 {
+    color: var(--yellow);
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+}
+
+.create-tournament-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.create-tournament-form label {
+    display: block;
+    color: var(--yellow);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.create-tournament-form input[type="text"],
+.create-tournament-form select,
+.create-tournament-form textarea {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+    background-color: var(--medium-gray);
+    border: 2px solid var(--light-gray);
+    border-radius: 4px;
+    color: var(--white);
+    min-height: 48px;
+    font-family: inherit;
+}
+
+.create-tournament-form textarea {
+    min-height: 200px;
+    resize: vertical;
+}
+
+.create-tournament-form input:focus,
+.create-tournament-form select:focus,
+.create-tournament-form textarea:focus {
+    outline: none;
+    border-color: var(--yellow);
+}
+
+.create-tournament-form .form-hint {
+    color: #888;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.create-tournament-form button[type="submit"] {
+    margin-top: 1rem;
+}
+
+/* Tournament Edit Form */
+.edit-row {
+    background-color: var(--light-gray);
+}
+
+.edit-form-container {
+    padding: 2rem;
+    background-color: var(--medium-gray);
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+.edit-form-container h4 {
+    color: var(--yellow);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+}
+
+.edit-form-container .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.edit-form-container label {
+    display: block;
+    color: var(--white);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.edit-form-container .form-input,
+.edit-form-container .form-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    background-color: var(--dark-gray);
+    border: 2px solid var(--light-gray);
+    border-radius: 4px;
+    color: var(--white);
+    font-family: inherit;
+}
+
+.edit-form-container .form-textarea {
+    min-height: 250px;
+    resize: vertical;
+    font-family: monospace;
+}
+
+.edit-form-container .form-input:focus,
+.edit-form-container .form-textarea:focus {
+    outline: none;
+    border-color: var(--yellow);
+}
+
+.edit-form-container .form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+/* Round 1 Court Assignment Editor */
+.round1-preview-section {
+    border-top: 2px solid #e0e0e0;
+    padding-top: 1.5rem;
+}
+
+.court-card {
+    border: 2px solid #3498db;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #f8f9fa;
+}
+
+.court-header {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    color: #2c3e50;
+    text-align: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.court-teams {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.team-column {
+    padding: 0.5rem;
+}
+
+.team-column h5 {
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.player-box {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 2px solid #dee2e6;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.player-box:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.player-box.selected {
+    border: 3px solid #FFD700;
+    background: #FFFACD;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.player-box.selected::before {
+    content: '✓ ';
+    color: #FFD700;
+    font-weight: bold;
+}
+
+.player-name {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+/* Swap animation */
+@keyframes swap-slide {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    50% {
+        transform: translateY(-10px);
+        opacity: 0.5;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.player-box.swapping {
+    animation: swap-slide 0.5s ease-in-out;
+}
+
+/* Button spacing in controls */
+#round1-controls button {
+    margin-right: 0.5rem;
 }

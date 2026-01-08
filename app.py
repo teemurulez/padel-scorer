@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, g, session
+from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify
 import os
 import sqlite3
+import json
 from datetime import datetime, timedelta
 from config import Config
 from database import get_db, init_db
@@ -109,6 +110,164 @@ def get_player(player_id):
         'last_name': f'Player {player_id}]'
     }
 
+def validate_round1_pairings(tournament_id, pairings, db):
+    """
+    Validate custom Round 1 pairings before saving.
+
+    Args:
+        tournament_id: ID of tournament
+        pairings: List of dicts with court, team1, team2
+        db: Database connection
+
+    Returns:
+        List of error messages (empty if valid)
+    """
+    errors = []
+
+    # Get valid player IDs for this tournament
+    tournament_players = db.execute(
+        'SELECT player_id FROM tournament_players WHERE tournament_id = ?',
+        (tournament_id,)
+    ).fetchall()
+    valid_player_ids = {p['player_id'] for p in tournament_players}
+
+    if not valid_player_ids:
+        errors.append("Tournament has no players assigned")
+        return errors
+
+    all_players = []
+
+    for court in pairings:
+        court_players = court['team1'] + court['team2']
+
+        # Validate all players exist in tournament
+        for pid in court_players:
+            if pid not in valid_player_ids:
+                errors.append(f"Player {pid} not in tournament")
+
+        # Validate no duplicates within court
+        if len(court_players) != len(set(court_players)):
+            errors.append(f"Duplicate players in Court {court['court']}")
+
+        # Validate each team has exactly 2 players
+        if len(court['team1']) != 2:
+            errors.append(f"Court {court['court']} team1 must have 2 players (has {len(court['team1'])})")
+        if len(court['team2']) != 2:
+            errors.append(f"Court {court['court']} team2 must have 2 players (has {len(court['team2'])})")
+
+        all_players.extend(court_players)
+
+    # Validate no duplicates across courts
+    if len(all_players) != len(set(all_players)):
+        errors.append("Player assigned to multiple courts")
+
+    # Validate all tournament players are assigned
+    if set(all_players) != valid_player_ids:
+        missing = valid_player_ids - set(all_players)
+        errors.append(f"Not all players assigned. Missing player IDs: {missing}")
+
+    return errors
+
+def validate_saved_pairings_still_valid(tournament_id, db):
+    """
+    Check if saved Round 1 pairings match current tournament players.
+    Deletes invalid pairings if mismatch detected.
+
+    Args:
+        tournament_id: ID of tournament
+        db: Database connection
+
+    Returns:
+        True if pairings valid, False if invalid (and deleted)
+    """
+    try:
+        saved_pairings = db.execute(
+            'SELECT * FROM round1_preview_pairings WHERE tournament_id = ?',
+            (tournament_id,)
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # Table doesn't exist (old schema) - skip validation
+        return True
+
+    if not saved_pairings:
+        return True  # No saved pairings, nothing to validate
+
+    # Extract all player IDs from saved pairings
+    pairing_player_ids = set()
+    for p in saved_pairings:
+        pairing_player_ids.update([
+            p['team1_player1_id'],
+            p['team1_player2_id'],
+            p['team2_player1_id'],
+            p['team2_player2_id']
+        ])
+
+    # Get current tournament players
+    current_players = db.execute(
+        'SELECT player_id FROM tournament_players WHERE tournament_id = ?',
+        (tournament_id,)
+    ).fetchall()
+    current_player_ids = {p['player_id'] for p in current_players}
+
+    # If mismatch, delete invalid pairings
+    if pairing_player_ids != current_player_ids:
+        db.execute(
+            'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+            (tournament_id,)
+        )
+        db.commit()
+        return False  # Invalid pairings deleted
+
+    return True  # Pairings valid
+
+def format_round1_pairings_for_frontend(tournament_id, db):
+    """
+    Format Round 1 preview pairings for frontend consumption.
+
+    Args:
+        tournament_id: ID of tournament
+        db: Database connection
+
+    Returns:
+        dict with 'pairings' and 'players' keys
+    """
+    # Get preview pairings from database
+    pairings_raw = db.execute("""
+        SELECT * FROM round1_preview_pairings
+        WHERE tournament_id = ?
+        ORDER BY court_number
+    """, (tournament_id,)).fetchall()
+
+    # Get all player details for this tournament
+    players_raw = db.execute("""
+        SELECT pr.id, pr.first_name, pr.last_name
+        FROM player_registry pr
+        JOIN tournament_players tp ON pr.id = tp.player_id
+        WHERE tp.tournament_id = ?
+    """, (tournament_id,)).fetchall()
+
+    # Format pairings
+    pairings = []
+    for p in pairings_raw:
+        pairings.append({
+            'court': p['court_number'],
+            'team1': [p['team1_player1_id'], p['team1_player2_id']],
+            'team2': [p['team2_player1_id'], p['team2_player2_id']]
+        })
+
+    # Format players
+    players = {}
+    for p in players_raw:
+        players[str(p['id'])] = {
+            'first_name': p['first_name'],
+            'last_name': p['last_name']
+        }
+
+    return {
+        'pairings': pairings,
+        'players': players
+    }
+
 def get_tournament_leaderboard(tournament_id):
     """Get player standings for a specific tournament"""
     db = get_db_connection()
@@ -174,108 +333,48 @@ def get_tournament_leaderboard(tournament_id):
 
 @app.route('/')
 def index():
-    """Landing page - shows active tournament or setup option"""
-    db = get_db_connection()
-    tournament = db.execute(
-        'SELECT * FROM tournaments WHERE status = "active" LIMIT 1'
-    ).fetchone()
+    """Home page - smart entry point for scorekeepers/players"""
+    db = get_db()
 
-    if tournament:
-        return redirect(url_for('active_tournament', tournament_id=tournament['id']))
+    # Query active tournaments (setup or active status)
+    active_tournaments = db.execute(
+        '''SELECT * FROM tournaments
+           WHERE status IN ('active', 'setup')
+           ORDER BY created_at DESC'''
+    ).fetchall()
 
-    # Check for active season
-    current_season = get_current_season(db)
+    active_count = len(active_tournaments)
 
-    # Get tournaments for current season only
-    tournaments = []
-    season_name = None
-    if current_season:
-        tournaments = db.execute(
-            '''SELECT * FROM tournaments
-               WHERE season_id = ?
-               ORDER BY created_at DESC''',
-            (current_season['id'],)
-        ).fetchall()
-        season_name = current_season['name']
+    # Case 1: Exactly 1 active tournament - auto-redirect
+    if active_count == 1:
+        tournament_id = active_tournaments[0]['id']
+        return redirect(url_for('active_tournament', tournament_id=tournament_id))
 
-    has_tournaments = len(tournaments) > 0
-
-    return render_template('index.html',
-                          has_tournaments=has_tournaments,
-                          season_name=season_name,
-                          tournaments=tournaments,
-                          current_season=current_season)
-
-@app.route('/setup', methods=['GET', 'POST'])
-def setup_tournament():
-    """Setup new tournament and add players"""
-    if request.method == 'POST':
-        db = get_db_connection()
-
-        # Check for current season
+    # Case 2: Multiple active tournaments - show selection
+    elif active_count > 1:
         current_season = get_current_season(db)
-        if not current_season:
-            flash('No active season. Please create or activate a season first.')
-            return redirect(url_for('seasons_management'))
+        return render_template('tournament_selection.html',
+                             tournaments=active_tournaments,
+                             season=current_season)
 
-        tournament_name = request.form.get('tournament_name')
-        num_courts = int(request.form.get('num_courts'))
-        player_names = request.form.get('players').strip().split('\n')
+    # Case 3: No active tournaments - show message
+    else:
+        current_season = get_current_season(db)
 
-        # Clean up player names
-        player_names = [name.strip() for name in player_names if name.strip()]
+        # Get tournament count for season info
+        season_info = None
+        if current_season:
+            tournament_count = db.execute(
+                "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
+                (current_season['id'],)
+            ).fetchone()['count']
 
-        # Validate player count
-        required_players = num_courts * 4
-        if len(player_names) < required_players:
-            flash(f'Need at least {required_players} players for {num_courts} courts. You provided {len(player_names)}.')
-            return render_template('setup_tournament.html')
+            season_info = {
+                'name': current_season['name'],
+                'tournament_count': tournament_count
+            }
 
-        # Create tournament with season_id
-        cursor = db.execute(
-            'INSERT INTO tournaments (name, num_courts, status, season_id) VALUES (?, ?, ?, ?)',
-            (tournament_name, num_courts, 'setup', current_season['id'])
-        )
-        tournament_id = cursor.lastrowid
-
-        # Add players to Phase 3 player_registry and link to tournament
-        for name in player_names:
-            # Split name into first and last (assume "First Last" format)
-            parts = name.strip().split(' ', 1)
-            first_name = parts[0] if len(parts) > 0 else ''
-            last_name = parts[1] if len(parts) > 1 else ''
-
-            # Check if player already exists
-            existing_player = db.execute(
-                'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
-                (first_name, last_name)
-            ).fetchone()
-
-            if existing_player:
-                player_id = existing_player['id']
-            else:
-                # Create new player
-                cursor = db.execute(
-                    'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
-                    (first_name, last_name)
-                )
-                player_id = cursor.lastrowid
-
-            # Link player to tournament
-            try:
-                db.execute(
-                    'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
-                    (tournament_id, player_id)
-                )
-            except sqlite3.IntegrityError:
-                # Player already linked to this tournament
-                pass
-
-        db.commit()
-        flash('Tournament created successfully!')
-        return redirect(url_for('start_round', tournament_id=tournament_id))
-
-    return render_template('setup_tournament.html')
+        return render_template('no_active_tournament.html', season=season_info)
 
 @app.route('/tournament/<int:tournament_id>/start_round', methods=['GET', 'POST'])
 def start_round(tournament_id):
@@ -306,7 +405,7 @@ def start_round(tournament_id):
         required_players = num_courts * 4
         if num_players < required_players:
             flash(f'Need {required_players} players for {num_courts} courts. You have {num_players}.')
-            return redirect(url_for('setup_tournament'))
+            return redirect(url_for('index'))
 
         # Get or create current round
         last_round = db.execute(
@@ -324,44 +423,86 @@ def start_round(tournament_id):
 
         # Determine pairing strategy
         if round_number == 1:
-            # Round 1: Seeded pairing (Phase 3 feature)
-            from seeded_pairing import generate_seeded_round1_pairings
+            # Round 1: Validate and check for saved custom pairings
+            pairings_valid = validate_saved_pairings_still_valid(tournament_id, db)
 
-            # Get players with their seed points from player_seeding view
-            # Only include players registered for this tournament
-            try:
-                players_with_seeds = db.execute("""
-                    SELECT
-                        p.id,
-                        COALESCE(ps.seed_points, 0) as seed_points
-                    FROM player_registry p
-                    JOIN tournament_players tp ON p.id = tp.player_id
-                    LEFT JOIN player_seeding ps ON p.id = ps.player_id
-                    WHERE tp.tournament_id = ?
-                    ORDER BY seed_points DESC
-                """, (tournament_id,)).fetchall()
-            except (sqlite3.OperationalError, AttributeError):
-                # Fallback if player_seeding view doesn't exist
-                players_with_seeds = db.execute("""
-                    SELECT p.id, 0 as seed_points
-                    FROM player_registry p
-                    JOIN tournament_players tp ON p.id = tp.player_id
-                    WHERE tp.tournament_id = ?
-                """, (tournament_id,)).fetchall()
+            if pairings_valid:
+                try:
+                    saved_pairings = db.execute("""
+                        SELECT * FROM round1_preview_pairings
+                        WHERE tournament_id = ?
+                        ORDER BY court_number
+                    """, (tournament_id,)).fetchall()
+                except sqlite3.OperationalError:
+                    # Table doesn't exist (old schema)
+                    saved_pairings = []
+            else:
+                saved_pairings = []
+                flash('⚠️ Saved Round 1 pairings were invalid - using seeded pairings', 'warning')
 
-            players_with_seeds = [dict(p) for p in players_with_seeds]
-            court_assignments = generate_seeded_round1_pairings(players_with_seeds, num_courts)
+            if saved_pairings:
+                # Use saved custom pairings
+                for pairing in saved_pairings:
+                    db.execute('''
+                        INSERT INTO matches
+                        (round_id, court_number, player1_id, player2_id,
+                         player3_id, player4_id)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (
+                        round_id,
+                        pairing['court_number'],
+                        pairing['team1_player1_id'],
+                        pairing['team1_player2_id'],
+                        pairing['team2_player1_id'],
+                        pairing['team2_player2_id']
+                    ))
 
-            # Create matches from seeded assignments
-            for court_num, player_ids in enumerate(court_assignments, start=1):
+                # Delete used pairings
                 db.execute(
-                    '''INSERT INTO matches
-                       (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
-                       VALUES (?, ?, ?, ?, ?, ?)''',
-                    (round_id, court_num, *player_ids)
+                    'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+                    (tournament_id,)
                 )
 
-            flash('Round 1 started with seeded pairings (based on recent performance)')
+                flash('Round 1 started with your custom pairings!')
+            else:
+                # Use seeding algorithm (existing code)
+                from seeded_pairing import generate_seeded_round1_pairings
+
+                # Get players with their seed points from player_seeding view
+                # Only include players registered for this tournament
+                try:
+                    players_with_seeds = db.execute("""
+                        SELECT
+                            p.id,
+                            COALESCE(ps.seed_points, 0) as seed_points
+                        FROM player_registry p
+                        JOIN tournament_players tp ON p.id = tp.player_id
+                        LEFT JOIN player_seeding ps ON p.id = ps.player_id
+                        WHERE tp.tournament_id = ?
+                        ORDER BY seed_points DESC
+                    """, (tournament_id,)).fetchall()
+                except (sqlite3.OperationalError, AttributeError):
+                    # Fallback if player_seeding view doesn't exist
+                    players_with_seeds = db.execute("""
+                        SELECT p.id, 0 as seed_points
+                        FROM player_registry p
+                        JOIN tournament_players tp ON p.id = tp.player_id
+                        WHERE tp.tournament_id = ?
+                    """, (tournament_id,)).fetchall()
+
+                players_with_seeds = [dict(p) for p in players_with_seeds]
+                court_assignments = generate_seeded_round1_pairings(players_with_seeds, num_courts)
+
+                # Create matches from seeded assignments
+                for court_num, player_ids in enumerate(court_assignments, start=1):
+                    db.execute(
+                        '''INSERT INTO matches
+                           (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
+                           VALUES (?, ?, ?, ?, ?, ?)''',
+                        (round_id, court_num, *player_ids)
+                    )
+
+                flash('Round 1 started with seeded pairings (based on recent performance)')
         else:
             # Round 2+: Movement-based pairing
             previous_matches = db.execute(
@@ -1484,114 +1625,6 @@ def players_list():
 # SEASON MANAGEMENT ROUTES
 # ============================================================
 
-@app.route('/seasons')
-def seasons_management():
-    """Display season management admin page"""
-    db = get_db()
-
-    current_season = get_current_season(db)
-
-    # Get archived seasons with tournament counts
-    archived_seasons = db.execute("""
-        SELECT
-            s.*,
-            COUNT(t.id) as tournament_count
-        FROM seasons s
-        LEFT JOIN tournaments t ON s.id = t.season_id
-        WHERE s.is_current = 0
-        GROUP BY s.id
-        ORDER BY s.ended_at DESC, s.created_at DESC
-    """).fetchall()
-
-    # Get tournament count for current season
-    if current_season:
-        current_tournament_count = db.execute(
-            "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
-            (current_season['id'],)
-        ).fetchone()['count']
-    else:
-        current_tournament_count = 0
-
-    return render_template('seasons_management.html',
-                          current_season=current_season,
-                          current_tournament_count=current_tournament_count,
-                          archived_seasons=archived_seasons)
-
-@app.route('/seasons/end-current', methods=['POST'])
-def end_current_season():
-    """End the current season without creating a new one"""
-    db = get_db()
-
-    current_season = get_current_season(db)
-    if not current_season:
-        flash('No current season to end')
-        return redirect(url_for('seasons_management'))
-
-    from datetime import datetime
-    db.execute(
-        "UPDATE seasons SET is_current = 0, ended_at = ? WHERE id = ?",
-        (datetime.now(), current_season['id'])
-    )
-    db.commit()
-
-    flash(f"Season '{current_season['name']}' has been ended")
-    return redirect(url_for('seasons_management'))
-
-@app.route('/seasons/create', methods=['POST'])
-def create_season():
-    """Create a new season and make it current"""
-    db = get_db()
-    season_name = request.form.get('season_name', '').strip()
-
-    # Validation
-    if not season_name:
-        flash('Season name is required')
-        return redirect(url_for('seasons_management'))
-
-    if len(season_name) > 100:
-        flash('Season name must be 100 characters or less')
-        return redirect(url_for('seasons_management'))
-
-    # Check for duplicate
-    existing = db.execute(
-        "SELECT id FROM seasons WHERE name = ?", (season_name,)
-    ).fetchone()
-
-    if existing:
-        flash('Season name already exists. Please choose a different name.')
-        return redirect(url_for('seasons_management'))
-
-    # Archive current season if exists
-    db.execute("UPDATE seasons SET is_current = 0 WHERE is_current = 1")
-
-    # Create new season
-    db.execute(
-        "INSERT INTO seasons (name, is_current) VALUES (?, 1)",
-        (season_name,)
-    )
-    db.commit()
-
-    flash(f"Season '{season_name}' created successfully!")
-    return redirect(url_for('seasons_management'))
-
-@app.route('/seasons/<int:season_id>/activate', methods=['POST'])
-def activate_season(season_id):
-    """Reactivate an archived season as the current season"""
-    db = get_db()
-
-    season = db.execute(
-        "SELECT * FROM seasons WHERE id = ?", (season_id,)
-    ).fetchone()
-
-    if not season:
-        flash('Season not found')
-        return redirect(url_for('seasons_management'))
-
-    set_current_season(db, season_id)
-
-    flash(f"Season '{season['name']}' is now active")
-    return redirect(url_for('seasons_management'))
-
 # ============================================================
 # ADMIN ROUTES
 # ============================================================
@@ -1732,10 +1765,574 @@ Tennis Scorer System
     return render_template('admin_forgot_password.html')
 
 
+@app.route('/admin/seasons/end-current', methods=['POST'])
+def admin_end_current_season():
+    """End the current season without creating a new one (ADMIN)"""
+    db = get_db()
+
+    current_season = get_current_season(db)
+    if not current_season:
+        flash('No current season to end')
+        return redirect('/admin')
+
+    from datetime import datetime
+    db.execute(
+        "UPDATE seasons SET is_current = 0, ended_at = ? WHERE id = ?",
+        (datetime.now(), current_season['id'])
+    )
+    db.commit()
+
+    flash(f"Season '{current_season['name']}' has been ended")
+    return redirect('/admin')
+
+
+@app.route('/admin/seasons/create', methods=['POST'])
+def admin_create_season():
+    """Create a new season and make it current (ADMIN)"""
+    db = get_db()
+    season_name = request.form.get('season_name', '').strip()
+
+    # Validation
+    if not season_name:
+        flash('Season name is required')
+        return redirect('/admin')
+
+    if len(season_name) > 100:
+        flash('Season name must be 100 characters or less')
+        return redirect('/admin')
+
+    # Check for duplicate
+    existing = db.execute(
+        "SELECT id FROM seasons WHERE name = ?", (season_name,)
+    ).fetchone()
+
+    if existing:
+        flash('Season name already exists. Please choose a different name.')
+        return redirect('/admin')
+
+    # Archive current season if exists
+    db.execute("UPDATE seasons SET is_current = 0 WHERE is_current = 1")
+
+    # Create new season
+    db.execute(
+        "INSERT INTO seasons (name, is_current) VALUES (?, 1)",
+        (season_name,)
+    )
+    db.commit()
+
+    flash(f"Season '{season_name}' created successfully!")
+    return redirect('/admin')
+
+
+@app.route('/admin/seasons/<int:season_id>/activate', methods=['POST'])
+def admin_activate_season(season_id):
+    """Reactivate an archived season as the current season (ADMIN)"""
+    db = get_db()
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE id = ?", (season_id,)
+    ).fetchone()
+
+    if not season:
+        flash('Season not found')
+        return redirect('/admin')
+
+    set_current_season(db, season_id)
+
+    flash(f"Season '{season['name']}' is now active")
+    return redirect('/admin')
+
+
 @app.route('/admin')
 def admin_dashboard():
-    """Admin dashboard main page"""
-    return render_template('admin_dashboard.html')
+    """Admin dashboard main page with season management"""
+    db = get_db()
+
+    # Get current season
+    current_season = get_current_season(db)
+
+    # Get archived seasons with tournament counts
+    archived_seasons = db.execute("""
+        SELECT
+            s.*,
+            COUNT(t.id) as tournament_count
+        FROM seasons s
+        LEFT JOIN tournaments t ON s.id = t.season_id
+        WHERE s.is_current = 0
+        GROUP BY s.id
+        ORDER BY s.ended_at DESC, s.created_at DESC
+    """).fetchall()
+
+    # Get tournament count for current season
+    current_tournament_count = 0
+    current_season_tournaments = []
+    if current_season:
+        current_tournament_count = db.execute(
+            "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
+            (current_season['id'],)
+        ).fetchone()['count']
+
+        # Fetch tournaments for current season
+        current_season_tournaments = db.execute(
+            "SELECT * FROM tournaments WHERE season_id = ? ORDER BY created_at DESC",
+            (current_season['id'],)
+        ).fetchall()
+
+    return render_template('admin_dashboard.html',
+                          current_season=current_season,
+                          current_tournament_count=current_tournament_count,
+                          current_season_tournaments=current_season_tournaments,
+                          archived_seasons=archived_seasons)
+
+
+@app.route('/admin/tournaments/create', methods=['POST'])
+def admin_create_tournament():
+    """Create new tournament from admin dashboard (ADMIN)"""
+    db = get_db_connection()
+
+    # Check for current season
+    current_season = get_current_season(db)
+    if not current_season:
+        flash('No active season. Please create or activate a season first.')
+        return redirect('/admin')
+
+    # Validate form inputs
+    tournament_name = request.form.get('tournament_name', '').strip()
+    if not tournament_name:
+        flash('Tournament name is required.')
+        return redirect('/admin')
+
+    try:
+        num_courts = int(request.form.get('num_courts'))
+    except (ValueError, TypeError):
+        flash('Invalid number of courts.')
+        return redirect('/admin')
+
+    player_names_raw = request.form.get('players', '')
+    if not player_names_raw:
+        flash('Player names are required.')
+        return redirect('/admin')
+
+    player_names = player_names_raw.strip().split('\n')
+
+    # Clean up player names
+    player_names = [name.strip() for name in player_names if name.strip()]
+
+    # Validate player count (admin route requires exact count for proper pairing)
+    required_players = num_courts * 4
+    if len(player_names) != required_players:
+        flash(f'Need exactly {required_players} players for {num_courts} courts. You entered {len(player_names)} players.')
+        return redirect('/admin')
+
+    # Create tournament
+    cursor = db.execute(
+        'INSERT INTO tournaments (name, num_courts, status, season_id) VALUES (?, ?, ?, ?)',
+        (tournament_name, num_courts, 'setup', current_season['id'])
+    )
+    tournament_id = cursor.lastrowid
+
+    # Add players to Phase 3 player_registry and link to tournament
+    for name in player_names:
+        parts = name.strip().split(' ', 1)
+        first_name = parts[0] if len(parts) > 0 else ''
+        last_name = parts[1] if len(parts) > 1 else ''
+
+        # Check if player already exists
+        existing_player = db.execute(
+            'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
+            (first_name, last_name)
+        ).fetchone()
+
+        if existing_player:
+            player_id = existing_player['id']
+        else:
+            cursor = db.execute(
+                'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+                (first_name, last_name)
+            )
+            player_id = cursor.lastrowid
+
+        # Link player to tournament
+        try:
+            db.execute(
+                'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
+                (tournament_id, player_id)
+            )
+        except sqlite3.IntegrityError:
+            # Player already linked to this tournament
+            pass
+
+    db.commit()
+
+    flash(f'Tournament "{tournament_name}" created successfully!')
+
+    # Redirect back to admin dashboard
+    return redirect('/admin')
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/preview-round1', methods=['POST'])
+def admin_preview_round1(tournament_id):
+    """Generate or load Round 1 preview (ADMIN)"""
+    db = get_db_connection()
+
+    # Validate tournament exists and is in setup status
+    tournament = db.execute(
+        'SELECT * FROM tournaments WHERE id = ? AND status = ?',
+        (tournament_id, 'setup')
+    ).fetchone()
+
+    if not tournament:
+        return jsonify({'error': 'Tournament not found or not in setup status'}), 404
+
+    # Check if we should force regeneration (for Reset button)
+    force_regenerate = False
+    if request.is_json and request.json:
+        force_regenerate = request.json.get('force', False)
+
+    # Check if saved pairings already exist
+    existing_pairings = None
+    if not force_regenerate:
+        existing_pairings = db.execute(
+            'SELECT * FROM round1_preview_pairings WHERE tournament_id = ?',
+            (tournament_id,)
+        ).fetchall()
+
+    # If pairings exist and we're not forcing regeneration, return them
+    if existing_pairings and not force_regenerate:
+        return jsonify(format_round1_pairings_for_frontend(tournament_id, db))
+
+    # Otherwise, generate new pairings
+    # Get players with seeding points
+    players_with_seeds = db.execute("""
+        SELECT p.id, COALESCE(ps.seed_points, 0) as seed_points
+        FROM player_registry p
+        JOIN tournament_players tp ON p.id = tp.player_id
+        LEFT JOIN player_seeding ps ON p.id = ps.player_id
+        WHERE tp.tournament_id = ?
+        ORDER BY seed_points DESC
+    """, (tournament_id,)).fetchall()
+
+    if not players_with_seeds:
+        return jsonify({'error': 'No players in tournament'}), 400
+
+    # Generate seeded pairings using existing algorithm
+    from seeded_pairing import generate_seeded_round1_pairings
+    players_with_seeds = [dict(p) for p in players_with_seeds]
+    court_assignments = generate_seeded_round1_pairings(
+        players_with_seeds,
+        tournament['num_courts']
+    )
+
+    # Clear existing preview pairings for this tournament
+    db.execute(
+        'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+        (tournament_id,)
+    )
+
+    # Save new pairings to preview table
+    for court_num, player_ids in enumerate(court_assignments, start=1):
+        db.execute("""
+            INSERT INTO round1_preview_pairings
+            (tournament_id, court_number, team1_player1_id, team1_player2_id,
+             team2_player1_id, team2_player2_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (tournament_id, court_num, *player_ids))
+
+    db.commit()
+
+    # Return formatted data for frontend
+    return jsonify(format_round1_pairings_for_frontend(tournament_id, db))
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/save-round1-pairings', methods=['POST'])
+def admin_save_round1_pairings(tournament_id):
+    """Save custom Round 1 pairings (ADMIN)"""
+    db = get_db_connection()
+
+    # Get pairings from request
+    pairings = request.json.get('pairings', [])
+
+    if not pairings:
+        return {'errors': ['No pairings provided']}, 400
+
+    # Validate pairings
+    errors = validate_round1_pairings(tournament_id, pairings, db)
+    if errors:
+        return {'errors': errors}, 400
+
+    # Clear existing pairings for this tournament
+    db.execute(
+        'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+        (tournament_id,)
+    )
+
+    # Save new pairings
+    for court in pairings:
+        db.execute("""
+            INSERT INTO round1_preview_pairings
+            (tournament_id, court_number, team1_player1_id, team1_player2_id,
+             team2_player1_id, team2_player2_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            tournament_id,
+            court['court'],
+            court['team1'][0],
+            court['team1'][1],
+            court['team2'][0],
+            court['team2'][1]
+        ))
+
+    db.commit()
+
+    return {'success': True}
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/players')
+def admin_get_tournament_players(tournament_id):
+    """Get players for a tournament (ADMIN - API endpoint)"""
+    db = get_db_connection()
+
+    # Get player names for this tournament
+    players = db.execute(
+        '''SELECT pr.first_name, pr.last_name
+           FROM tournament_players tp
+           JOIN player_registry pr ON tp.player_id = pr.id
+           WHERE tp.tournament_id = ?
+           ORDER BY pr.first_name, pr.last_name''',
+        (tournament_id,)
+    ).fetchall()
+
+    # Format as "First Last" strings
+    player_names = [f"{p['first_name']} {p['last_name']}" for p in players]
+
+    return {'players': player_names}
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/edit', methods=['POST'])
+def admin_edit_tournament(tournament_id):
+    """Edit tournament in setup mode (ADMIN)"""
+    db = get_db_connection()
+
+    # Verify tournament exists and is in setup mode
+    tournament = db.execute(
+        'SELECT * FROM tournaments WHERE id = ? AND status = ?',
+        (tournament_id, 'setup')
+    ).fetchone()
+
+    if not tournament:
+        flash('Tournament not found or cannot be edited (not in setup mode).')
+        return redirect('/admin')
+
+    # Get form data
+    tournament_name = request.form.get('tournament_name', '').strip()
+    if not tournament_name:
+        flash('Tournament name is required.')
+        return redirect('/admin')
+
+    try:
+        num_courts = int(request.form.get('num_courts'))
+    except (ValueError, TypeError):
+        flash('Invalid number of courts.')
+        return redirect('/admin')
+
+    player_names_raw = request.form.get('players', '')
+    if not player_names_raw:
+        flash('Player names are required.')
+        return redirect('/admin')
+
+    player_names = player_names_raw.strip().split('\n')
+    player_names = [name.strip() for name in player_names if name.strip()]
+
+    # Validate player count
+    required_players = num_courts * 4
+    if len(player_names) != required_players:
+        flash(f'Need exactly {required_players} players for {num_courts} courts. You entered {len(player_names)} players.')
+        return redirect('/admin')
+
+    # Get current state for comparison
+    current_tournament = db.execute(
+        'SELECT num_courts FROM tournaments WHERE id = ?',
+        (tournament_id,)
+    ).fetchone()
+
+    current_players = db.execute(
+        'SELECT player_id FROM tournament_players WHERE tournament_id = ? ORDER BY player_id',
+        (tournament_id,)
+    ).fetchall()
+    current_player_ids = {p['player_id'] for p in current_players}
+
+    # Parse new player list to get player IDs
+    new_player_ids = set()
+    for name in player_names:
+        parts = name.strip().split(' ', 1)
+        first_name = parts[0] if len(parts) > 0 else ''
+        last_name = parts[1] if len(parts) > 1 else ''
+
+        player = db.execute(
+            'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
+            (first_name, last_name)
+        ).fetchone()
+
+        if player:
+            new_player_ids.add(player['id'])
+
+    # Check if player list or court count changed
+    players_changed = current_player_ids != new_player_ids
+    courts_changed = current_tournament['num_courts'] != num_courts
+
+    if players_changed or courts_changed:
+        # Clear saved Round 1 pairings
+        db.execute(
+            'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+            (tournament_id,)
+        )
+
+        if players_changed:
+            flash('⚠️ Player list changed - Round 1 pairings have been reset', 'warning')
+        if courts_changed:
+            flash('⚠️ Number of courts changed - Round 1 pairings have been reset', 'warning')
+
+    # Update tournament
+    db.execute(
+        'UPDATE tournaments SET name = ?, num_courts = ? WHERE id = ?',
+        (tournament_name, num_courts, tournament_id)
+    )
+
+    # Remove existing player assignments
+    db.execute('DELETE FROM tournament_players WHERE tournament_id = ?', (tournament_id,))
+
+    # Add updated player list
+    for name in player_names:
+        parts = name.strip().split(' ', 1)
+        first_name = parts[0] if len(parts) > 0 else ''
+        last_name = parts[1] if len(parts) > 1 else ''
+
+        # Check if player exists in registry
+        existing_player = db.execute(
+            'SELECT id FROM player_registry WHERE first_name = ? AND last_name = ?',
+            (first_name, last_name)
+        ).fetchone()
+
+        if existing_player:
+            player_id = existing_player['id']
+        else:
+            cursor = db.execute(
+                'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+                (first_name, last_name)
+            )
+            player_id = cursor.lastrowid
+
+        # Link player to tournament
+        try:
+            db.execute(
+                'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
+                (tournament_id, player_id)
+            )
+        except sqlite3.IntegrityError:
+            pass  # Player already linked
+
+    # Save Round 1 pairings if provided
+    round1_pairings_json = request.form.get('round1_pairings', '').strip()
+    if round1_pairings_json:
+        try:
+            pairings = json.loads(round1_pairings_json)
+            if pairings:
+                # Validate pairings
+                errors = validate_round1_pairings(tournament_id, pairings, db)
+                if not errors:
+                    # Clear existing pairings
+                    db.execute(
+                        'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+                        (tournament_id,)
+                    )
+
+                    # Save new pairings
+                    for court in pairings:
+                        db.execute("""
+                            INSERT INTO round1_preview_pairings
+                            (tournament_id, court_number, team1_player1_id, team1_player2_id,
+                             team2_player1_id, team2_player2_id)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                            tournament_id,
+                            court['court'],
+                            court['team1'][0],
+                            court['team1'][1],
+                            court['team2'][0],
+                            court['team2'][1]
+                        ))
+                else:
+                    flash(f'⚠️ Round 1 pairings validation failed: {", ".join(errors)}', 'warning')
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            flash(f'⚠️ Invalid Round 1 pairings data: {str(e)}', 'warning')
+
+    db.commit()
+
+    flash(f'Tournament "{tournament_name}" updated successfully!')
+    return redirect('/admin')
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/delete', methods=['POST'])
+def admin_delete_tournament(tournament_id):
+    """Delete a tournament and all associated data (ADMIN)"""
+    db = get_db_connection()
+
+    # Get tournament name for flash message
+    tournament = db.execute(
+        'SELECT name FROM tournaments WHERE id = ?',
+        (tournament_id,)
+    ).fetchone()
+
+    if not tournament:
+        flash('Tournament not found.')
+        return redirect('/admin')
+
+    tournament_name = tournament['name']
+
+    try:
+        # Delete in correct order due to foreign key constraints
+        # 1. Delete scores (references matches)
+        db.execute(
+            '''DELETE FROM scores WHERE match_id IN
+               (SELECT m.id FROM matches m
+                JOIN rounds r ON m.round_id = r.id
+                WHERE r.tournament_id = ?)''',
+            (tournament_id,)
+        )
+
+        # 2. Delete matches (references rounds)
+        db.execute(
+            '''DELETE FROM matches WHERE round_id IN
+               (SELECT id FROM rounds WHERE tournament_id = ?)''',
+            (tournament_id,)
+        )
+
+        # 3. Delete rounds (references tournaments)
+        db.execute(
+            'DELETE FROM rounds WHERE tournament_id = ?',
+            (tournament_id,)
+        )
+
+        # 4. Delete tournament player associations
+        db.execute(
+            'DELETE FROM tournament_players WHERE tournament_id = ?',
+            (tournament_id,)
+        )
+
+        # 5. Finally delete the tournament
+        db.execute(
+            'DELETE FROM tournaments WHERE id = ?',
+            (tournament_id,)
+        )
+
+        db.commit()
+
+        flash(f'Tournament "{tournament_name}" and all associated data deleted successfully.')
+    except Exception as e:
+        db.rollback()
+        flash(f'Error deleting tournament: {str(e)}')
+
+    return redirect('/admin')
 
 
 @app.route('/admin/logout', methods=['POST'])
@@ -1744,6 +2341,19 @@ def admin_logout():
     session.clear()
     flash('You have been logged out successfully.')
     return redirect('/admin/login')
+
+@app.route('/test/selection')
+def test_selection():
+    tournaments = [
+        {'id': 1, 'name': 'Tournament A', 'status': 'active', 'created_at': '2025-12-31'},
+        {'id': 2, 'name': 'Tournament B', 'status': 'setup', 'created_at': '2025-12-31'}
+    ]
+    return render_template('tournament_selection.html', tournaments=tournaments)
+
+@app.route('/test/noactive')
+def test_noactive():
+    season = {'name': 'Winter 2025', 'tournament_count': 5}
+    return render_template('no_active_tournament.html', season=season)
 
 # Run migration on startup if needed
 with app.app_context():

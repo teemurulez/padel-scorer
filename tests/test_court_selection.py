@@ -88,6 +88,14 @@ def init_test_db():
             UNIQUE(first_name, last_name)
         );
 
+        CREATE TABLE seasons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            is_current BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ended_at TIMESTAMP
+        );
+
         -- Test data
         INSERT INTO player_registry (first_name, last_name) VALUES ('John', 'Doe');
         INSERT INTO player_registry (first_name, last_name) VALUES ('Jane', 'Smith');

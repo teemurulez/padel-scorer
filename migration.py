@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from database import get_db
 
 def migrate_tournaments_to_seasons(conn):
@@ -61,3 +62,45 @@ def run_migration_if_needed():
     result = migrate_tournaments_to_seasons(conn)
     conn.close()
     return result
+
+def migrate_add_round1_preview_pairings():
+    """Add round1_preview_pairings table for manual Round 1 editing"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Check if table already exists
+    cursor.execute("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='round1_preview_pairings'
+    """)
+
+    if cursor.fetchone():
+        print("✅ round1_preview_pairings table already exists")
+        conn.close()
+        return "table_exists"
+
+    # Read and execute migration SQL
+    migration_path = os.path.join(os.path.dirname(__file__), 'migrations', 'add_round1_preview_pairings.sql')
+    try:
+        with open(migration_path, 'r') as f:
+            migration_sql = f.read()
+
+        cursor.executescript(migration_sql)
+        conn.commit()
+        print("✅ Created round1_preview_pairings table")
+        result = "success"
+    except FileNotFoundError as e:
+        print(f"❌ Migration file not found: {migration_path}")
+        conn.close()
+        raise
+    except Exception as e:
+        print(f"❌ Migration failed: {e}")
+        conn.close()
+        raise
+    finally:
+        conn.close()
+
+    return result
+
+if __name__ == "__main__":
+    migrate_add_round1_preview_pairings()

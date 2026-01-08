@@ -227,23 +227,42 @@ def test_full_tournament_lifecycle(tmp_path):
             db.commit()
 
         # PHASE 1: SETUP (status='setup')
-        # Create tournament with required players (2 courts * 4 players = 8 minimum)
-        player_names = '\n'.join([f'Player {i}' for i in range(1, 9)])
-        response = client.post('/setup', data={
-            'tournament_name': 'Lifecycle Test Tournament',
-            'num_courts': 2,
-            'players': player_names
-        }, follow_redirects=True)
-        assert response.status_code == 200
-
-        # Verify tournament created with status='setup'
+        # Create tournament directly (no /setup route anymore)
         with app.app_context():
             db = get_db_connection()
+
+            # Get season_id
+            season = db.execute("SELECT id FROM seasons WHERE name = 'Test Season 9999'").fetchone()
+            season_id = season['id']
+
+            # Create tournament
+            db.execute("""
+                INSERT INTO tournaments (name, num_courts, season_id, status)
+                VALUES (?, ?, ?, 'setup')
+            """, ('Lifecycle Test Tournament', 2, season_id))
+            tournament_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+            # Create 8 players and add to tournament
+            for i in range(1, 9):
+                db.execute("""
+                    INSERT INTO player_registry (first_name, last_name)
+                    VALUES (?, ?)
+                """, (f'Player', f'{i}'))
+                player_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+                db.execute("""
+                    INSERT INTO tournament_players (tournament_id, player_id, total_points)
+                    VALUES (?, ?, 0)
+                """, (tournament_id, player_id))
+
+            db.commit()
+
+            # Verify tournament created with status='setup'
             tournament = db.execute(
-                "SELECT id, status FROM tournaments WHERE name = 'Lifecycle Test Tournament'"
+                "SELECT id, status FROM tournaments WHERE id = ?",
+                (tournament_id,)
             ).fetchone()
             assert tournament is not None
-            tournament_id = tournament['id']
             assert tournament['status'] == 'setup'
 
         # PHASE 2: ACTIVE (status='active')
