@@ -370,44 +370,76 @@ def start_round(tournament_id):
 
         # Determine pairing strategy
         if round_number == 1:
-            # Round 1: Seeded pairing (Phase 3 feature)
-            from seeded_pairing import generate_seeded_round1_pairings
+            # Round 1: Check for saved custom pairings first
+            saved_pairings = db.execute("""
+                SELECT * FROM round1_preview_pairings
+                WHERE tournament_id = ?
+                ORDER BY court_number
+            """, (tournament_id,)).fetchall()
 
-            # Get players with their seed points from player_seeding view
-            # Only include players registered for this tournament
-            try:
-                players_with_seeds = db.execute("""
-                    SELECT
-                        p.id,
-                        COALESCE(ps.seed_points, 0) as seed_points
-                    FROM player_registry p
-                    JOIN tournament_players tp ON p.id = tp.player_id
-                    LEFT JOIN player_seeding ps ON p.id = ps.player_id
-                    WHERE tp.tournament_id = ?
-                    ORDER BY seed_points DESC
-                """, (tournament_id,)).fetchall()
-            except (sqlite3.OperationalError, AttributeError):
-                # Fallback if player_seeding view doesn't exist
-                players_with_seeds = db.execute("""
-                    SELECT p.id, 0 as seed_points
-                    FROM player_registry p
-                    JOIN tournament_players tp ON p.id = tp.player_id
-                    WHERE tp.tournament_id = ?
-                """, (tournament_id,)).fetchall()
+            if saved_pairings:
+                # Use saved custom pairings
+                for pairing in saved_pairings:
+                    db.execute('''
+                        INSERT INTO matches
+                        (round_id, court_number, player1_id, player2_id,
+                         player3_id, player4_id)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (
+                        round_id,
+                        pairing['court_number'],
+                        pairing['team1_player1_id'],
+                        pairing['team1_player2_id'],
+                        pairing['team2_player1_id'],
+                        pairing['team2_player2_id']
+                    ))
 
-            players_with_seeds = [dict(p) for p in players_with_seeds]
-            court_assignments = generate_seeded_round1_pairings(players_with_seeds, num_courts)
-
-            # Create matches from seeded assignments
-            for court_num, player_ids in enumerate(court_assignments, start=1):
+                # Delete used pairings
                 db.execute(
-                    '''INSERT INTO matches
-                       (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
-                       VALUES (?, ?, ?, ?, ?, ?)''',
-                    (round_id, court_num, *player_ids)
+                    'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
+                    (tournament_id,)
                 )
 
-            flash('Round 1 started with seeded pairings (based on recent performance)')
+                flash('Round 1 started with your custom pairings!')
+            else:
+                # Use seeding algorithm (existing code)
+                from seeded_pairing import generate_seeded_round1_pairings
+
+                # Get players with their seed points from player_seeding view
+                # Only include players registered for this tournament
+                try:
+                    players_with_seeds = db.execute("""
+                        SELECT
+                            p.id,
+                            COALESCE(ps.seed_points, 0) as seed_points
+                        FROM player_registry p
+                        JOIN tournament_players tp ON p.id = tp.player_id
+                        LEFT JOIN player_seeding ps ON p.id = ps.player_id
+                        WHERE tp.tournament_id = ?
+                        ORDER BY seed_points DESC
+                    """, (tournament_id,)).fetchall()
+                except (sqlite3.OperationalError, AttributeError):
+                    # Fallback if player_seeding view doesn't exist
+                    players_with_seeds = db.execute("""
+                        SELECT p.id, 0 as seed_points
+                        FROM player_registry p
+                        JOIN tournament_players tp ON p.id = tp.player_id
+                        WHERE tp.tournament_id = ?
+                    """, (tournament_id,)).fetchall()
+
+                players_with_seeds = [dict(p) for p in players_with_seeds]
+                court_assignments = generate_seeded_round1_pairings(players_with_seeds, num_courts)
+
+                # Create matches from seeded assignments
+                for court_num, player_ids in enumerate(court_assignments, start=1):
+                    db.execute(
+                        '''INSERT INTO matches
+                           (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
+                           VALUES (?, ?, ?, ?, ?, ?)''',
+                        (round_id, court_num, *player_ids)
+                    )
+
+                flash('Round 1 started with seeded pairings (based on recent performance)')
         else:
             # Round 2+: Movement-based pairing
             previous_matches = db.execute(
