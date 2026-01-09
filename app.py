@@ -370,7 +370,7 @@ def index():
             ).fetchone()['count']
 
             # Handle both old schema (year) and new schema (name)
-            season_name = current_season.get('name') or f"Season {current_season['year']}"
+            season_name = current_season['name'] if 'name' in current_season.keys() else f"Season {current_season['year']}"
 
             season_info = {
                 'name': season_name,
@@ -1175,7 +1175,7 @@ def season_leaderboard():
     ).fetchone()['count'] > 0
 
     # Handle both old schema (year) and new schema (name)
-    season_name = current_season.get('name') or f"Season {current_season['year']}"
+    season_name = current_season['name'] if 'name' in current_season.keys() else f"Season {current_season['year']}"
 
     return render_template('season_leaderboard.html',
                           season_name=season_name,
@@ -1391,7 +1391,7 @@ def player_profile(player_id):
                 break
 
     # Handle both old schema (year) and new schema (name)
-    season_name = current_season.get('name') or f"Season {current_season['year']}"
+    season_name = current_season['name'] if 'name' in current_season.keys() else f"Season {current_season['year']}"
 
     return render_template(
         'player_profile.html',
@@ -1809,7 +1809,7 @@ def admin_end_current_season():
     db.commit()
 
     # Handle both old schema (year) and new schema (name)
-    season_name = current_season.get('name') or f"Season {current_season['year']}"
+    season_name = current_season['name'] if 'name' in current_season.keys() else f"Season {current_season['year']}"
     flash(f"Season '{season_name}' has been ended")
     return redirect('/admin')
 
@@ -1868,7 +1868,7 @@ def admin_activate_season(season_id):
     set_current_season(db, season_id)
 
     # Handle both old schema (year) and new schema (name)
-    season_name = season.get('name') or f"Season {season['year']}"
+    season_name = season['name'] if 'name' in season.keys() else f"Season {season['year']}"
     flash(f"Season '{season_name}' is now active")
     return redirect('/admin')
 
