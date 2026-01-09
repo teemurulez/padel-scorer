@@ -2385,13 +2385,18 @@ def test_noactive():
     season = {'name': 'Winter 2025', 'tournament_count': 5}
     return render_template('no_active_tournament.html', season=season)
 
-# Run migration on startup if needed
+# Run migrations on startup if needed
 with app.app_context():
-    from migration import run_migration_if_needed
+    from migration import run_migration_if_needed, migrate_seasons_schema
     result = run_migration_if_needed()
     if result == "migrated":
         print("✅ Data migration completed: Tournaments assigned to seasons")
     elif result == "already_migrated":
         print("✅ Data already migrated")
+
+    # Ensure seasons table has name and ended_at columns
+    schema_result = migrate_seasons_schema()
+    if schema_result == "migrated":
+        print("✅ Seasons schema migration completed")
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')

@@ -102,5 +102,39 @@ def migrate_add_round1_preview_pairings():
 
     return result
 
+def migrate_seasons_schema():
+    """Add name and ended_at columns to seasons table if missing"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Check existing columns
+    cursor.execute("PRAGMA table_info(seasons)")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    changes_made = False
+
+    if 'name' not in columns:
+        print("Adding 'name' column to seasons table...")
+        cursor.execute('ALTER TABLE seasons ADD COLUMN name TEXT')
+        # Populate name from year for existing rows
+        cursor.execute("UPDATE seasons SET name = 'Season ' || year WHERE name IS NULL")
+        changes_made = True
+
+    if 'ended_at' not in columns:
+        print("Adding 'ended_at' column to seasons table...")
+        cursor.execute('ALTER TABLE seasons ADD COLUMN ended_at TIMESTAMP NULL')
+        changes_made = True
+
+    if changes_made:
+        conn.commit()
+        print("✅ Seasons schema updated")
+        result = "migrated"
+    else:
+        result = "already_migrated"
+
+    conn.close()
+    return result
+
+
 if __name__ == "__main__":
     migrate_add_round1_preview_pairings()
