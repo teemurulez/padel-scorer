@@ -22,16 +22,19 @@ def test_tournament_status_default_value():
     conn = sqlite3.connect('instance/padel.db')
     cursor = conn.cursor()
 
+    tournament_id = None
+    season_id = None
+
     try:
-        # Create season
-        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season", 1))
+        # Create season (include year for backward compatibility)
+        cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season Status", 2091, 0))
         season_id = cursor.lastrowid
 
         # Create tournament without specifying status
         cursor.execute("""
             INSERT INTO tournaments (name, num_courts, season_id)
             VALUES (?, ?, ?)
-        """, ("Test Tournament", 2, season_id))
+        """, ("Test Tournament Status", 2, season_id))
         tournament_id = cursor.lastrowid
         conn.commit()
 
@@ -40,8 +43,10 @@ def test_tournament_status_default_value():
         status = cursor.fetchone()[0]
         assert status == 'setup'
     finally:
-        cursor.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
-        cursor.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
+        if tournament_id:
+            cursor.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
+        if season_id:
+            cursor.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
         conn.commit()
         conn.close()
 
@@ -51,15 +56,18 @@ def test_tournament_status_transitions():
     conn = sqlite3.connect('instance/padel.db')
     cursor = conn.cursor()
 
+    tournament_id = None
+    season_id = None
+
     try:
-        # Create season and tournament
-        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season", 1))
+        # Create season and tournament (include year for backward compatibility)
+        cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season Trans", 2090, 0))
         season_id = cursor.lastrowid
 
         cursor.execute("""
             INSERT INTO tournaments (name, num_courts, season_id, status)
             VALUES (?, ?, ?, ?)
-        """, ("Test Tournament", 2, season_id, "setup"))
+        """, ("Test Tournament Trans", 2, season_id, "setup"))
         tournament_id = cursor.lastrowid
         conn.commit()
 
@@ -94,7 +102,9 @@ def test_tournament_status_transitions():
         assert row[0] == 'archived'
         assert row[1] is not None
     finally:
-        cursor.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
-        cursor.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
+        if tournament_id:
+            cursor.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
+        if season_id:
+            cursor.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
         conn.commit()
         conn.close()

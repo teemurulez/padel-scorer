@@ -48,9 +48,13 @@ def test_tournament_players_composite_primary_key():
     conn = sqlite3.connect('instance/padel.db')
     cursor = conn.cursor()
 
+    tournament_id = None
+    player_id = None
+    season_id = None
+
     try:
-        # Create test season, tournament, and player
-        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season", 1))
+        # Create test season, tournament, and player (include year for backward compatibility)
+        cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season PK", 2092, 0))
         season_id = cursor.lastrowid
 
         cursor.execute("""
@@ -82,10 +86,13 @@ def test_tournament_players_composite_primary_key():
             """, (tournament_id, player_id, 150))
             conn.commit()
     finally:
-        # Cleanup
-        cursor.execute("DELETE FROM tournament_players WHERE tournament_id = ?", (tournament_id,))
-        cursor.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
-        cursor.execute("DELETE FROM player_registry WHERE id = ?", (player_id,))
-        cursor.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
+        # Cleanup (handle case where variables might not be set)
+        if tournament_id:
+            cursor.execute("DELETE FROM tournament_players WHERE tournament_id = ?", (tournament_id,))
+            cursor.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
+        if player_id:
+            cursor.execute("DELETE FROM player_registry WHERE id = ?", (player_id,))
+        if season_id:
+            cursor.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
         conn.commit()
         conn.close()
