@@ -1,29 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ season_name }} Leaderboard</title>
+    <title>{{ season_name }} - Tulokset</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .season-header {
             text-align: center;
             margin-bottom: 30px;
             padding: 20px;
-            padding-right: 180px;
             background: #f9f9f9;
             border-radius: 8px;
-            position: relative;
         }
         .season-meta {
             color: #666;
             font-size: 14px;
             margin: 5px 0;
-        }
-        .clear-data-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
         }
         .tournaments-section {
             margin-top: 40px;
@@ -83,16 +76,6 @@
             padding: 40px;
             color: #999;
         }
-        @media (max-width: 768px) {
-            .season-header {
-                padding-right: 20px;
-            }
-            .clear-data-btn {
-                position: static;
-                margin-top: 15px;
-                text-align: center;
-            }
-        }
         .player-name a {
             color: #2563eb;
             text-decoration: none;
@@ -120,19 +103,11 @@
 <body>
     <div class="container">
         <div class="season-header">
-            <h1>{{ season_name }} Leaderboard</h1>
+            <h1>{{ season_name }} - Tulokset</h1>
             {% if not no_season %}
-            <div class="season-meta">{{ tournament_count }} Tournament{{ 's' if tournament_count != 1 else '' }}</div>
+            <div class="season-meta">{{ tournament_count }} turnaus{{ 'ta' if tournament_count != 1 else '' }}</div>
             {% endif %}
 
-            {% if tournament_count > 0 %}
-            <form method="POST"
-                  action="{{ url_for('clear_all_data') }}"
-                  onsubmit="return confirm('⚠️ WARNING: This will permanently delete ALL tournaments, matches, scores, and players from the database. This cannot be undone. Are you absolutely sure?')"
-                  class="clear-data-btn">
-                <button type="submit" class="btn-danger">Clear All Data</button>
-            </form>
-            {% endif %}
         </div>
 
         {% with messages = get_flashed_messages() %}
@@ -147,21 +122,22 @@
 
         {% if no_season %}
         <div class="no-season-message">
-            <p>No current season. <a href="{{ url_for('admin_dashboard') }}">Visit Admin Dashboard</a> to create or activate one.</p>
+            <p>Ei aktiivista kautta. <a href="{{ url_for('admin_dashboard') }}">Siirry ylläpitoon</a> luodaksesi tai aktivoidaksesi kauden.</p>
         </div>
         {% else %}
 
         <!-- Season-Wide Standings -->
-        <h2>Season Standings</h2>
+        <h2>Kauden tilanne</h2>
         {% if season_stats %}
         <table class="leaderboard">
             <thead>
                 <tr>
-                    <th class="rank">Rank</th>
-                    <th>Player</th>
-                    <th class="wins">Total Wins</th>
-                    <th class="matches">Total Matches</th>
-                    <th class="win-rate">Win %</th>
+                    <th class="rank">Sija</th>
+                    <th>Pelaaja</th>
+                    <th class="points">Pisteet</th>
+                    <th class="tournaments" style="text-align: center;">Turnaukset</th>
+                    <th class="matches">Ottelut</th>
+                    <th class="win-rate">Voitto-%</th>
                 </tr>
             </thead>
             <tbody>
@@ -173,7 +149,8 @@
                             {{ player['first_name'] }} {{ player['last_name'] }}
                         </a>
                     </td>
-                    <td class="wins">{{ player['total_wins'] }}</td>
+                    <td class="points">{{ player['total_points'] }}</td>
+                    <td class="tournaments" style="text-align: center;">{{ player['total_tournaments'] }}</td>
                     <td class="matches">{{ player['total_matches'] }}</td>
                     <td class="win-rate">
                         {% if player['win_rate'] %}
@@ -188,14 +165,14 @@
         </table>
         {% else %}
         <div class="empty-state">
-            <p>No completed matches yet this season.</p>
+            <p>Ei vielä pelattuja otteluita tällä kaudella.</p>
         </div>
         {% endif %}
 
         <!-- Individual Tournaments -->
         {% if tournaments %}
         <div class="tournaments-section">
-            <h2>Individual Tournaments</h2>
+            <h2>Turnaukset</h2>
             {% for item in tournaments %}
             {% set tournament = item['tournament'] %}
             {% set stats = item['stats'] %}
@@ -204,10 +181,10 @@
                     <span class="toggle-icon" id="icon-{{ tournament['id'] }}">▶</span>
                     <span><strong>{{ tournament['name'] }}</strong></span>
                     <span>{{ tournament['created_at'][:10] }}</span>
-                    <span>{{ stats['rounds'] }} Round{{ 's' if stats['rounds'] != 1 else '' }}</span>
-                    <span>{{ tournament['num_courts'] }} Court{{ 's' if tournament['num_courts'] != 1 else '' }}</span>
+                    <span>{{ stats['rounds'] }} kierros{{ 'ta' if stats['rounds'] != 1 else '' }}</span>
+                    <span>{{ tournament['num_courts'] }} kenttä{{ 'ä' if tournament['num_courts'] != 1 else '' }}</span>
                     <span class="badge {{ 'active' if tournament['status'] == 'active' else 'completed' }}">
-                        {{ tournament['status']|capitalize }}
+                        {% if tournament['status'] == 'active' %}Käynnissä{% else %}Päättynyt{% endif %}
                     </span>
                 </div>
                 <div id="tournament-{{ tournament['id'] }}" class="tournament-details">
@@ -215,11 +192,11 @@
                     <table class="leaderboard">
                         <thead>
                             <tr>
-                                <th class="rank">Rank</th>
-                                <th>Player</th>
-                                <th class="wins">Wins</th>
-                                <th class="matches">Matches</th>
-                                <th class="win-rate">Win %</th>
+                                <th class="rank">Sija</th>
+                                <th>Pelaaja</th>
+                                <th class="wins">Voitot</th>
+                                <th class="matches">Ottelut</th>
+                                <th class="win-rate">Voitto-%</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -245,7 +222,7 @@
                         </tbody>
                     </table>
                     {% else %}
-                    <div class="empty-state">No completed matches in this tournament.</div>
+                    <div class="empty-state">Ei pelattuja otteluita tässä turnauksessa.</div>
                     {% endif %}
                 </div>
             </div>
@@ -255,15 +232,15 @@
 
         <div class="actions">
             {% if has_previous_seasons %}
-            <a href="{{ url_for('season_history') }}" class="btn btn-secondary">View Previous Seasons</a>
+            <a href="{{ url_for('season_history') }}" class="btn btn-secondary">Näytä aiemmat kaudet</a>
             {% endif %}
-            <a href="/" class="btn btn-secondary">Back to Home</a>
+            <a href="/" class="btn btn-secondary">Takaisin etusivulle</a>
         </div>
         {% endif %}
     </div>
 
     <div class="admin-footer">
-        <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+        <a href="{{ url_for('admin_dashboard') }}">Ylläpito</a>
     </div>
 
     <script>

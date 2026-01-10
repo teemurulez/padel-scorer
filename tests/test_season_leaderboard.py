@@ -51,4 +51,4 @@ def test_season_leaderboard_filters_by_current_season(client):
 def test_season_leaderboard_shows_message_without_current_season(client):
     """Test message when no current season exists"""
     response = client.get('/leaderboard/season')
-    assert b'No current season' in response.data
+    assert 'Ei aktiivista kautta'.encode('utf-8') in response.data  # Finnish: "No current season"

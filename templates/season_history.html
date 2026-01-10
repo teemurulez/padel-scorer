@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Season History</title>
+    <title>Kausihistoria</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .season-section {
@@ -107,8 +107,8 @@
 <body>
     <div class="container">
         <div class="page-header">
-            <h1>Previous Seasons</h1>
-            <p class="info-text">Historical tournament data from past years</p>
+            <h1>Aiemmat kaudet</h1>
+            <p class="info-text">Historiallinen turnausdata aiemmilta vuosilta</p>
         </div>
 
         {% if seasons_data %}
@@ -116,20 +116,20 @@
             <div class="season-section">
                 <div class="season-header">
                     <h2>{{ season_data.season.name }}</h2>
-                    <div class="season-meta">{{ season_data.tournament_count }} Tournament{{ 's' if season_data.tournament_count != 1 else '' }}</div>
+                    <div class="season-meta">{{ season_data.tournament_count }} turnaus{{ 'ta' if season_data.tournament_count != 1 else '' }}</div>
                 </div>
 
                 <!-- Season-Wide Standings -->
-                <h2>Season Standings</h2>
+                <h2>Kauden tilanne</h2>
                 {% if season_data.season_stats %}
                 <table class="leaderboard">
                     <thead>
                         <tr>
-                            <th class="rank">Rank</th>
-                            <th>Player</th>
-                            <th class="wins">Total Wins</th>
-                            <th class="matches">Total Matches</th>
-                            <th class="win-rate">Win %</th>
+                            <th class="rank">Sija</th>
+                            <th>Pelaaja</th>
+                            <th class="wins">Voitot yht.</th>
+                            <th class="matches">Ottelut yht.</th>
+                            <th class="win-rate">Voitto-%</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -152,14 +152,14 @@
                 </table>
                 {% else %}
                 <div class="empty-state">
-                    <p>No completed matches in this season.</p>
+                    <p>Ei pelattuja otteluita tällä kaudella.</p>
                 </div>
                 {% endif %}
 
                 <!-- Individual Tournaments -->
                 {% if season_data.tournaments %}
                 <div class="tournaments-section">
-                    <h2>Individual Tournaments</h2>
+                    <h2>Turnaukset</h2>
                     {% for item in season_data.tournaments %}
                     {% set tournament = item['tournament'] %}
                     {% set stats = item['stats'] %}
@@ -168,10 +168,10 @@
                             <span class="toggle-icon" id="icon-{{ season_data.season.id }}-{{ tournament['id'] }}">▶</span>
                             <span><strong>{{ tournament['name'] }}</strong></span>
                             <span>{{ tournament['created_at'][:10] }}</span>
-                            <span>{{ stats['rounds'] }} Round{{ 's' if stats['rounds'] != 1 else '' }}</span>
-                            <span>{{ tournament['num_courts'] }} Court{{ 's' if tournament['num_courts'] != 1 else '' }}</span>
+                            <span>{{ stats['rounds'] }} kierros{{ 'ta' if stats['rounds'] != 1 else '' }}</span>
+                            <span>{{ tournament['num_courts'] }} kenttä{{ 'ä' if tournament['num_courts'] != 1 else '' }}</span>
                             <span class="badge {{ 'active' if tournament['status'] == 'active' else 'completed' }}">
-                                {{ tournament['status']|capitalize }}
+                                {% if tournament['status'] == 'active' %}Käynnissä{% else %}Päättynyt{% endif %}
                             </span>
                         </div>
                         <div id="tournament-{{ season_data.season.id }}-{{ tournament['id'] }}" class="tournament-details">
@@ -179,11 +179,11 @@
                             <table class="leaderboard">
                                 <thead>
                                     <tr>
-                                        <th class="rank">Rank</th>
-                                        <th>Player</th>
-                                        <th class="wins">Wins</th>
-                                        <th class="matches">Matches</th>
-                                        <th class="win-rate">Win %</th>
+                                        <th class="rank">Sija</th>
+                                        <th>Pelaaja</th>
+                                        <th class="wins">Voitot</th>
+                                        <th class="matches">Ottelut</th>
+                                        <th class="win-rate">Voitto-%</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -205,7 +205,7 @@
                                 </tbody>
                             </table>
                             {% else %}
-                            <div class="empty-state">No completed matches in this tournament.</div>
+                            <div class="empty-state">Ei pelattuja otteluita tässä turnauksessa.</div>
                             {% endif %}
                         </div>
                     </div>
@@ -216,18 +216,18 @@
             {% endfor %}
         {% else %}
         <div class="empty-state">
-            <p>No previous seasons found. Historical data will appear here once you have tournaments from past years.</p>
+            <p>Ei aiempia kausia. Historiallinen data näkyy täällä kun sinulla on turnauksia aiemmilta vuosilta.</p>
         </div>
         {% endif %}
 
         <div class="actions">
-            <a href="{{ url_for('season_leaderboard') }}" class="btn btn-secondary">Back to Current Season</a>
-            <a href="/" class="btn btn-secondary">Back to Home</a>
+            <a href="{{ url_for('season_leaderboard') }}" class="btn btn-secondary">Takaisin nykyiseen kauteen</a>
+            <a href="/" class="btn btn-secondary">Takaisin etusivulle</a>
         </div>
     </div>
 
     <div class="admin-footer">
-        <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+        <a href="{{ url_for('admin_dashboard') }}">Ylläpito</a>
     </div>
 
     <script>

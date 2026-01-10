@@ -1,28 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select Tournament - Padel King of the Court</title>
+    <title>Valitse turnaus - Padel Kentän Kuningas</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .selection-container {
             max-width: 800px;
             margin: 0 auto;
             padding: 2rem;
-        }
-        .season-badge {
-            display: inline-block;
-            background: #f8f9fa;
-            border: 2px solid #3498db;
-            border-radius: 8px;
-            padding: 0.75rem 1.5rem;
-            margin-bottom: 2rem;
-            font-size: 1.1rem;
-            color: #2c3e50;
-        }
-        .season-badge strong {
-            color: #3498db;
         }
         .selection-header {
             text-align: center;
@@ -133,13 +120,9 @@
 
     <div class="selection-container">
         <div class="selection-header">
-            {% if season %}
-            <div class="season-badge">
-                <strong>{{ season.name }}</strong>
-            </div>
-            {% endif %}
-            <h1>🎾 Padel Tournament</h1>
-            <p style="font-size: 1.1rem;">Select your tournament:</p>
+            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni" style="width: 100px; height: auto; margin-bottom: 1rem;">
+            <h1>{% if season %}{{ season.name }}{% else %}Padel-turnaus{% endif %}</h1>
+            <p style="font-size: 1.1rem;">Valitse turnauksesi:</p>
         </div>
 
         <div class="tournament-cards">
@@ -148,19 +131,36 @@
                 <h3>
                     {{ tournament['name'] }}
                     {% if tournament['status'] == 'active' %}
-                    <span class="status-badge status-active">Active</span>
+                    <span class="status-badge status-active">Käynnissä</span>
                     {% else %}
-                    <span class="status-badge status-setup">Setup</span>
+                    <span class="status-badge status-setup">Valmistelussa</span>
                     {% endif %}
                 </h3>
-                <p class="tournament-info">Created: {{ tournament['created_at'][:10] }}</p>
+                <p class="tournament-info">Luotu: {{ tournament['created_at'][:10] }}</p>
+                {% if tournament['status'] == 'active' %}
                 <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn btn-primary enter-btn">
-                    ▶️ Enter Tournament
+                    ▶️ Siirry turnaukseen
                 </a>
+                {% else %}
+                <form method="POST" action="{{ url_for('start_round', tournament_id=tournament['id']) }}" style="margin: 0;">
+                    <button type="submit" class="btn btn-primary enter-btn" style="background-color: #ff9800; width: 100%; border: none; cursor: pointer;">
+                        Aloita turnaus
+                    </button>
+                </form>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
 
+        <div style="text-align: center; margin-top: 2rem;">
+            <a href="{{ url_for('season_leaderboard') }}" class="btn btn-secondary" style="font-size: 1rem; padding: 0.75rem 1.5rem;">
+                📊 Kauden tulokset
+            </a>
+        </div>
+
+        <div class="admin-footer">
+            <a href="/admin">Ylläpito</a>
+        </div>
     </div>
 </body>
 </html>

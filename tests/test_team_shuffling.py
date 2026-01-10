@@ -306,13 +306,13 @@ def test_complete_shuffle_workflow(client):
     # Step 1: Navigate to court selection
     response = client.get(f'/tournament/{tournament_id}/round/{round_id}/courts')
     assert response.status_code == 200
-    assert b'Court 1' in response.data
-    assert b'Court 2' in response.data
+    assert 'Kenttä 1'.encode('utf-8') in response.data  # Finnish: "Court 1"
+    assert 'Kenttä 2'.encode('utf-8') in response.data  # Finnish: "Court 2"
 
     # Step 2: Navigate to Court 1 confirmation
     response = client.get(f'/tournament/{tournament_id}/round/{round_id}/court/1/confirm')
     assert response.status_code == 200
-    assert b'Drag players to swap teams' in response.data
+    assert 'Vedä pelaajia'.encode('utf-8') in response.data  # Finnish: "Drag players"
     assert b'John Doe' in response.data  # Player 1 from registry
 
     # Step 3: Shuffle teams (swap players 2 and 3)

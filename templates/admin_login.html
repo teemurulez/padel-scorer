@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login</title>
+    <title>Ylläpitäjän kirjautuminen</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         body {
@@ -100,7 +100,7 @@
 </head>
 <body>
     <div class="login-container">
-        <h1>🔒 Admin Login</h1>
+        <h1>🔒 Ylläpito</h1>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -118,26 +118,26 @@
 
         <form method="POST" action="/admin/login">
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password">Salasana</label>
                 <input
                     type="password"
                     id="password"
                     name="password"
                     required
-                    placeholder="Enter admin password"
+                    placeholder="Syötä ylläpidon salasana"
                     autofocus
                 >
             </div>
 
-            <button type="submit" class="btn-primary">Login</button>
+            <button type="submit" class="btn-primary">Kirjaudu</button>
         </form>
 
         <div class="back-link" style="margin-top: 15px;">
-            <a href="{{ url_for('admin_forgot_password') }}">Forgot password?</a>
+            <a href="{{ url_for('admin_forgot_password') }}">Unohditko salasanan?</a>
         </div>
 
         <div class="back-link">
-            <a href="/">← Back to Home</a>
+            <a href="/">← Takaisin etusivulle</a>
         </div>
     </div>
 </body>

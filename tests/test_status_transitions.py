@@ -83,7 +83,7 @@ def test_start_round1_sets_active_status(client):
     # Start Round 1 via POST to start_round
     response = client.post(f'/tournament/{tournament_id}/start_round', follow_redirects=False)
 
-    # Should redirect to court_selection
+    # Should redirect to active_round
     assert response.status_code == 302
 
     # Verify status is now 'active'
@@ -137,7 +137,7 @@ def test_subsequent_rounds_keep_active_status(client):
     # Start Round 2 via POST
     response = client.post(f'/tournament/{tournament_id}/start_round', follow_redirects=False)
 
-    # Should redirect to court_selection
+    # Should redirect to active_round
     assert response.status_code == 302
 
     # Verify status is still 'active' (unchanged)

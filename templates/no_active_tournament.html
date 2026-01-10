@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>No Active Tournament - Padel King of the Court</title>
+    <title>Ei aktiivista turnausta - Padel Kentän Kuningas</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .message-container {
@@ -19,8 +19,11 @@
             padding: 3rem 2rem;
         }
         .message-icon {
-            font-size: 4rem;
             margin-bottom: 1rem;
+        }
+        .message-icon img {
+            width: 120px;
+            height: auto;
         }
         .message-title {
             color: #2c3e50;
@@ -89,26 +92,28 @@
 
     <div class="message-container">
         <div class="message-box">
-            <div class="message-icon">🎾</div>
-            <h1 class="message-title">No Active Tournament</h1>
+            <div class="message-icon">
+                <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            </div>
+            <h1 class="message-title">Ei aktiivista turnausta</h1>
             <p class="message-text">
-                No tournament is running right now.<br>
-                Check back soon or contact the organizer!
+                Turnaus ei ole käynnissä.<br>
+                Tarkista myöhemmin tai ota yhteyttä järjestäjään!
             </p>
 
             {% if season %}
             <div class="season-info">
                 <strong>{{ season.name }}</strong><br>
-                {{ season.tournament_count }} tournament{{ 's' if season.tournament_count != 1 else '' }} this season
+                {{ season.tournament_count }} turnaus{{ 'ta' if season.tournament_count != 1 else '' }} tällä kaudella
             </div>
             {% endif %}
 
             <a href="{{ url_for('season_leaderboard') }}" class="btn btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
-                📊 View Leaderboard
+                📊 Näytä tulokset
             </a>
 
             <div class="footer-link">
-                <a href="/admin">Admin Dashboard</a>
+                <a href="/admin">Ylläpito</a>
             </div>
         </div>
     </div>

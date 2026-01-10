@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaderboard - {{ tournament['name'] }}</title>
+    <title>Tulokset - {{ tournament['name'] }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .tournament-header {
@@ -101,12 +101,12 @@
         <div class="tournament-header">
             <h1>{{ tournament['name'] }}</h1>
             <span class="status-badge {% if tournament['status'] == 'completed' %}completed{% else %}active{% endif %}">
-                {{ tournament['status']|capitalize }}
+                {% if tournament['status'] == 'completed' %}Päättynyt{% else %}Käynnissä{% endif %}
             </span>
             <div class="tournament-meta">
                 <span>📅 {{ tournament['created_at'][:10] }}</span>
-                <span>🎾 {{ tournament_stats['total_rounds'] }} Round{{ 's' if tournament_stats['total_rounds'] != 1 else '' }}</span>
-                <span>🏟️ {{ tournament['num_courts'] }} Court{{ 's' if tournament['num_courts'] != 1 else '' }}</span>
+                <span>🎾 {{ tournament_stats['total_rounds'] }} kierros{{ 'ta' if tournament_stats['total_rounds'] != 1 else '' }}</span>
+                <span>🏟️ {{ tournament['num_courts'] }} kenttä{{ 'ä' if tournament['num_courts'] != 1 else '' }}</span>
             </div>
         </div>
 
@@ -124,11 +124,11 @@
         <table class="leaderboard">
             <thead>
                 <tr>
-                    <th class="rank">Rank</th>
-                    <th>Player</th>
-                    <th class="wins">Wins</th>
-                    <th class="matches">Matches</th>
-                    <th class="win-rate">Win %</th>
+                    <th class="rank">Sija</th>
+                    <th>Pelaaja</th>
+                    <th class="wins">Voitot</th>
+                    <th class="matches">Ottelut</th>
+                    <th class="win-rate">Voitto-%</th>
                 </tr>
             </thead>
             <tbody>
@@ -151,21 +151,22 @@
         </table>
         {% else %}
         <div class="empty-state">
-            <p>No matches played yet.</p>
+            <p>Ei vielä pelattuja otteluita.</p>
         </div>
         {% endif %}
 
         <div class="actions">
             {% if tournament['status'] != 'completed' %}
             <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}"
-               class="btn btn-primary">Back to Tournament</a>
+               class="btn btn-primary">Takaisin turnaukseen</a>
+            {% else %}
+            <a href="/" class="btn btn-secondary">Takaisin etusivulle</a>
             {% endif %}
-            <a href="/" class="btn btn-secondary">Back to Home</a>
         </div>
     </div>
 
     <div class="admin-footer">
-        <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+        <a href="{{ url_for('admin_dashboard') }}">Ylläpito</a>
     </div>
 </body>
 </html>

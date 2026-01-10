@@ -336,28 +336,39 @@ def index():
     """Home page - smart entry point for scorekeepers/players"""
     db = get_db()
 
-    # Query active tournaments (setup or active status)
+    # Query active tournaments
     active_tournaments = db.execute(
         '''SELECT * FROM tournaments
-           WHERE status IN ('active', 'setup')
+           WHERE status = 'active'
+           ORDER BY created_at DESC'''
+    ).fetchall()
+
+    # Query setup tournaments
+    setup_tournaments = db.execute(
+        '''SELECT * FROM tournaments
+           WHERE status = 'setup'
            ORDER BY created_at DESC'''
     ).fetchall()
 
     active_count = len(active_tournaments)
+    setup_count = len(setup_tournaments)
+    total_count = active_count + setup_count
 
-    # Case 1: Exactly 1 active tournament - auto-redirect
-    if active_count == 1:
+    # Case 1: Exactly 1 active tournament and no setup - auto-redirect
+    if active_count == 1 and setup_count == 0:
         tournament_id = active_tournaments[0]['id']
         return redirect(url_for('active_tournament', tournament_id=tournament_id))
 
-    # Case 2: Multiple active tournaments - show selection
-    elif active_count > 1:
+    # Case 2: Multiple tournaments (active or setup) - show selection
+    elif total_count > 0:
         current_season = get_current_season(db)
+        # Combine active and setup tournaments
+        all_tournaments = list(active_tournaments) + list(setup_tournaments)
         return render_template('tournament_selection.html',
-                             tournaments=active_tournaments,
+                             tournaments=all_tournaments,
                              season=current_season)
 
-    # Case 3: No active tournaments - show message
+    # Case 3: No tournaments at all - show message
     else:
         current_season = get_current_season(db)
 
@@ -389,6 +400,10 @@ def start_round(tournament_id):
 
     if not tournament:
         flash('Tournament not found')
+        return redirect(url_for('index'))
+
+    if tournament['status'] == 'completed':
+        flash('Turnaus on päättynyt')
         return redirect(url_for('index'))
 
     if request.method == 'POST':
@@ -557,8 +572,8 @@ def start_round(tournament_id):
             )
             db.commit()
 
-        flash(f"Round {round_number} created! Players, go to your courts to confirm teams.")
-        return redirect(url_for('court_selection', tournament_id=tournament_id, round_id=round_id))
+        flash(f"Kierros {round_number} luotu!")
+        return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
 
     # Get current round if exists
     current_round = db.execute(
@@ -581,93 +596,6 @@ def start_round(tournament_id):
                          tournament=tournament,
                          current_round=current_round,
                          has_leaderboard_data=has_leaderboard_data)
-
-@app.route('/tournament/<int:tournament_id>/round/<int:round_id>/courts')
-def court_selection(tournament_id, round_id):
-    """
-    Display court selection screen for a round.
-
-    Shows all courts for this round with algorithm-generated team pairings.
-    Users can click "Go to Court N" to proceed to the pre-match confirmation
-    screen where they can optionally shuffle teams before starting the match.
-
-    Args:
-        tournament_id (int): ID of the tournament
-        round_id (int): ID of the round
-
-    Returns:
-        Rendered template (court_selection.html) with court grid, or
-        redirect to index with flash message on error
-
-    Redirects to index if:
-        - Tournament not found
-        - Round not found
-        - Round doesn't belong to tournament
-        - No matches found for round
-
-    Template variables:
-        tournament: Tournament database row
-        round: Round database row
-        matches: List of match dicts with enriched player data
-    """
-    db = get_db_connection()
-
-    # Get tournament
-    tournament = db.execute(
-        'SELECT * FROM tournaments WHERE id = ?',
-        (tournament_id,)
-    ).fetchone()
-
-    if not tournament:
-        flash('Tournament not found')
-        return redirect(url_for('index'))
-
-    # Get round
-    round_obj = db.execute(
-        'SELECT * FROM rounds WHERE id = ?',
-        (round_id,)
-    ).fetchone()
-
-    if not round_obj:
-        flash('Round not found')
-        return redirect(url_for('index'))
-
-    # Validate round belongs to tournament
-    if round_obj['tournament_id'] != tournament_id:
-        flash('Round not found in this tournament')
-        return redirect(url_for('index'))
-
-    # Get all matches for this round
-    matches = db.execute(
-        'SELECT * FROM matches WHERE round_id = ? ORDER BY court_number',
-        (round_id,)
-    ).fetchall()
-
-    # Check for empty matches
-    if not matches:
-        flash('No matches found for this round. Please contact the organizer.')
-        return redirect(url_for('index'))
-
-    # Add player details to each match
-    matches_with_players = []
-    for match in matches:
-        match_dict = dict(match)
-        match_dict['player1'] = get_player(match['player1_id'])
-        match_dict['player2'] = get_player(match['player2_id'])
-        match_dict['player3'] = get_player(match['player3_id'])
-        match_dict['player4'] = get_player(match['player4_id'])
-        matches_with_players.append(match_dict)
-
-    # Check if all matches are completed
-    all_completed = all(match['completed'] for match in matches)
-
-    return render_template(
-        'court_selection.html',
-        tournament=tournament,
-        round=round_obj,
-        matches=matches_with_players,
-        all_completed=all_completed
-    )
 
 @app.route('/tournament/<int:tournament_id>/round/<int:round_id>/court/<int:court_number>/confirm', methods=['GET', 'POST'])
 def confirm_match_teams(tournament_id, round_id, court_number):
@@ -701,6 +629,12 @@ def confirm_match_teams(tournament_id, round_id, court_number):
     """
     db = get_db_connection()
 
+    # Check if tournament is completed
+    tournament = db.execute('SELECT status FROM tournaments WHERE id = ?', (tournament_id,)).fetchone()
+    if tournament and tournament['status'] == 'completed':
+        flash('Turnaus on päättynyt')
+        return redirect(url_for('index'))
+
     # Handle POST request (save shuffled teams)
     if request.method == 'POST':
         # Get match first
@@ -710,8 +644,8 @@ def confirm_match_teams(tournament_id, round_id, court_number):
         ).fetchone()
 
         if not match:
-            flash('Match not found')
-            return redirect(url_for('court_selection', tournament_id=tournament_id, round_id=round_id))
+            flash('Ottelua ei löytynyt')
+            return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
 
         # Get submitted team configuration
         try:
@@ -884,10 +818,15 @@ def active_round(tournament_id, round_id):
     """Display all matches in current round"""
     db = get_db_connection()
 
+    tournament = db.execute('SELECT * FROM tournaments WHERE id = ?', (tournament_id,)).fetchone()
     round_data = db.execute('SELECT * FROM rounds WHERE id = ?', (round_id,)).fetchone()
 
     if not round_data:
         flash('Round not found')
+        return redirect(url_for('index'))
+
+    if tournament and tournament['status'] == 'completed':
+        flash('Turnaus on päättynyt')
         return redirect(url_for('index'))
 
     # Get all matches (without player names - we'll add them below)
@@ -918,6 +857,7 @@ def active_round(tournament_id, round_id):
 
     return render_template('active_round.html',
                           tournament_id=tournament_id,
+                          tournament=tournament,
                           round_data=round_data,
                           matches=matches,
                           all_completed=all_completed)
@@ -939,6 +879,12 @@ def score_entry(match_id):
         flash('Match not found')
         return redirect(url_for('index'))
 
+    # Check if tournament is completed
+    tournament = db.execute('SELECT status FROM tournaments WHERE id = ?', (match['tournament_id'],)).fetchone()
+    if tournament and tournament['status'] == 'completed':
+        flash('Turnaus on päättynyt')
+        return redirect(url_for('index'))
+
     # Get player details using helper function (Phase 3 compatible)
     match = dict(match)
     player1 = get_player(match['player1_id'])
@@ -952,6 +898,17 @@ def score_entry(match_id):
 
     if request.method == 'POST':
         winning_team = int(request.form.get('winning_team'))
+        submitted_version = int(request.form.get('version', 0))
+
+        # Check for concurrent modification (optimistic locking)
+        current_match = db.execute(
+            'SELECT version FROM matches WHERE id = ?', (match_id,)
+        ).fetchone()
+        current_version = current_match['version'] if current_match and current_match['version'] else 1
+
+        if submitted_version != current_version:
+            # Return 409 Conflict for AJAX requests
+            return jsonify({'error': 'version_conflict', 'message': 'Joku muu on muokannut tätä ottelua.'}), 409
 
         # Determine winners
         if winning_team == 1:
@@ -970,7 +927,7 @@ def score_entry(match_id):
                     'INSERT INTO scores (player_id, match_id, points) VALUES (?, ?, ?)',
                     (player_id, match_id, 1)
                 )
-            flash('Score updated successfully!')
+            flash('Tulos päivitetty!')
         else:
             # Record new scores (1 point for winners)
             for player_id in winner_ids:
@@ -978,17 +935,17 @@ def score_entry(match_id):
                     'INSERT INTO scores (player_id, match_id, points) VALUES (?, ?, ?)',
                     (player_id, match_id, 1)
                 )
-            flash('Score recorded successfully!')
+            flash('Tulos tallennettu!')
 
-        # Mark match as completed
+        # Mark match as completed and increment version
         db.execute(
-            'UPDATE matches SET completed = 1, winning_team = ? WHERE id = ?',
-            (winning_team, match_id)
+            'UPDATE matches SET completed = 1, winning_team = ?, version = ? WHERE id = ?',
+            (winning_team, current_version + 1, match_id)
         )
 
         db.commit()
 
-        return redirect(url_for('court_selection',
+        return redirect(url_for('active_round',
                                tournament_id=match['tournament_id'],
                                round_id=match['round_id']))
 
@@ -1015,8 +972,8 @@ def end_tournament(tournament_id):
     )
     db.commit()
 
-    flash('Tournament ended successfully!')
-    return redirect(url_for('leaderboard', tournament_id=tournament_id))
+    flash('Turnaus päättyi!')
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/tournament/<int:tournament_id>/leaderboard')
 def leaderboard(tournament_id):
@@ -1113,6 +1070,7 @@ def season_leaderboard():
 
     # Get leaderboard (existing logic, but filter by current season)
     # Sort by total_points first, then win_rate for tiebreaker
+    # Includes admin adjustments from player_points_adjustment table
     season_stats_raw = db.execute("""
         SELECT
             pr.id,
@@ -1120,12 +1078,13 @@ def season_leaderboard():
             pr.last_name,
             COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
             COUNT(DISTINCT m.id) as total_matches,
+            COUNT(DISTINCT t.id) as total_tournaments,
             ROUND(
                 CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate,
-            COALESCE(SUM(s.points), 0) as total_points
+            COALESCE(SUM(s.points), 0) + COALESCE(adj.adjustment, 0) as total_points
         FROM player_registry pr
         LEFT JOIN matches m ON (
             pr.id = m.player1_id OR
@@ -1136,12 +1095,13 @@ def season_leaderboard():
         LEFT JOIN rounds r ON m.round_id = r.id
         LEFT JOIN tournaments t ON r.tournament_id = t.id
         LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+        LEFT JOIN player_points_adjustment adj ON (pr.id = adj.player_id AND adj.season_id = ?)
         WHERE t.season_id = ?
           AND m.completed = 1
         GROUP BY pr.id, pr.first_name, pr.last_name
         HAVING total_matches > 0
         ORDER BY total_points DESC, win_rate DESC, pr.last_name ASC
-    """, (current_season['id'],)).fetchall()
+    """, (current_season['id'], current_season['id'])).fetchall()
 
     # Calculate ranks with proper tie handling
     season_stats = []
@@ -1258,7 +1218,12 @@ def season_history():
 
 @app.route('/leaderboard/clear-all', methods=['POST'])
 def clear_all_data():
-    """Clear all tournament and player data - complete reset"""
+    """Clear all tournament and player data - complete reset (admin only)"""
+    # Require admin authentication
+    if not session.get('logged_in_as_admin'):
+        flash('Vain ylläpitäjä voi tyhjentää datan')
+        return redirect(url_for('admin_login'))
+
     db = get_db_connection()
 
     # Delete in correct order (foreign key constraints)
@@ -1896,6 +1861,7 @@ def admin_dashboard():
     # Get tournament count for current season
     current_tournament_count = 0
     current_season_tournaments = []
+    players = []
     if current_season:
         current_tournament_count = db.execute(
             "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
@@ -1908,11 +1874,143 @@ def admin_dashboard():
             (current_season['id'],)
         ).fetchall()
 
+        # Fetch players with season points for Players tab
+        # Uses same query logic as season_leaderboard (scores table)
+        players = db.execute('''
+            SELECT
+                pr.id,
+                pr.first_name,
+                pr.last_name,
+                COALESCE(auto.auto_points, 0) as auto_points,
+                COALESCE(adj.adjustment, 0) as adjustment,
+                COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) as total_points
+            FROM player_registry pr
+            LEFT JOIN (
+                SELECT pr2.id as player_id, COALESCE(SUM(s.points), 0) as auto_points
+                FROM player_registry pr2
+                LEFT JOIN matches m ON (pr2.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
+                LEFT JOIN rounds r ON m.round_id = r.id
+                LEFT JOIN tournaments t ON r.tournament_id = t.id
+                LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr2.id)
+                WHERE t.season_id = ? AND m.completed = 1
+                GROUP BY pr2.id
+            ) auto ON pr.id = auto.player_id
+            LEFT JOIN player_points_adjustment adj
+                ON pr.id = adj.player_id AND adj.season_id = ?
+            WHERE auto.auto_points > 0 OR adj.adjustment IS NOT NULL
+            ORDER BY total_points DESC, pr.last_name ASC
+        ''', (current_season['id'], current_season['id'])).fetchall()
+
     return render_template('admin_dashboard.html',
                           current_season=current_season,
                           current_tournament_count=current_tournament_count,
                           current_season_tournaments=current_season_tournaments,
-                          archived_seasons=archived_seasons)
+                          players=players,
+                          archived_seasons=archived_seasons,
+                          active_tab='seasons')
+
+
+@app.route('/admin/players')
+def admin_players():
+    """Admin players tab - view and edit player season points"""
+    db = get_db()
+
+    # Get current season
+    current_season = get_current_season(db)
+    if not current_season:
+        flash('Ei aktiivista kautta')
+        return redirect('/admin')
+
+    # Get all players with their season points (auto + adjustment)
+    # Uses same query logic as season_leaderboard (scores table)
+    players = db.execute('''
+        SELECT
+            pr.id,
+            pr.first_name,
+            pr.last_name,
+            COALESCE(auto.auto_points, 0) as auto_points,
+            COALESCE(adj.adjustment, 0) as adjustment,
+            COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) as total_points
+        FROM player_registry pr
+        LEFT JOIN (
+            SELECT pr2.id as player_id, COALESCE(SUM(s.points), 0) as auto_points
+            FROM player_registry pr2
+            LEFT JOIN matches m ON (pr2.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
+            LEFT JOIN rounds r ON m.round_id = r.id
+            LEFT JOIN tournaments t ON r.tournament_id = t.id
+            LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr2.id)
+            WHERE t.season_id = ? AND m.completed = 1
+            GROUP BY pr2.id
+        ) auto ON pr.id = auto.player_id
+        LEFT JOIN player_points_adjustment adj
+            ON pr.id = adj.player_id AND adj.season_id = ?
+        WHERE auto.auto_points > 0 OR adj.adjustment IS NOT NULL
+        ORDER BY total_points DESC, pr.last_name ASC
+    ''', (current_season['id'], current_season['id'])).fetchall()
+
+    # Get archived seasons for sidebar
+    archived_seasons = db.execute("""
+        SELECT s.*, COUNT(t.id) as tournament_count
+        FROM seasons s
+        LEFT JOIN tournaments t ON s.id = t.season_id
+        WHERE s.is_current = 0
+        GROUP BY s.id
+        ORDER BY s.ended_at DESC
+    """).fetchall()
+
+    return render_template('admin_dashboard.html',
+                          current_season=current_season,
+                          players=players,
+                          archived_seasons=archived_seasons,
+                          active_tab='players')
+
+
+@app.route('/admin/players/<int:player_id>/edit', methods=['POST'])
+def admin_edit_player_points(player_id):
+    """Edit player season points (admin only)"""
+    db = get_db()
+
+    current_season = get_current_season(db)
+    if not current_season:
+        flash('Ei aktiivista kautta')
+        return redirect('/admin')
+
+    try:
+        new_total = int(request.form.get('new_total_points', 0))
+    except ValueError:
+        flash('Virheellinen pistemäärä')
+        return redirect('/admin/players')
+
+    # Get player's current auto points (from scores table, same as season_leaderboard)
+    auto_result = db.execute('''
+        SELECT COALESCE(SUM(s.points), 0) as auto_points
+        FROM matches m
+        JOIN rounds r ON m.round_id = r.id
+        JOIN tournaments t ON r.tournament_id = t.id
+        LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = ?)
+        WHERE (? IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
+          AND t.season_id = ?
+          AND m.completed = 1
+    ''', (player_id, player_id, current_season['id'])).fetchone()
+
+    auto_points = auto_result['auto_points'] if auto_result else 0
+    adjustment = new_total - auto_points
+
+    # Insert or update adjustment
+    db.execute('''
+        INSERT INTO player_points_adjustment (player_id, season_id, adjustment, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(player_id, season_id)
+        DO UPDATE SET adjustment = ?, updated_at = CURRENT_TIMESTAMP
+    ''', (player_id, current_season['id'], adjustment, adjustment))
+
+    db.commit()
+
+    # Get player name for flash message
+    player = db.execute('SELECT first_name, last_name FROM player_registry WHERE id = ?', (player_id,)).fetchone()
+    flash(f'Pisteet päivitetty: {player["first_name"]} {player["last_name"]} = {new_total}')
+
+    return redirect('/admin/players')
 
 
 @app.route('/admin/tournaments/create', methods=['POST'])
@@ -2398,5 +2496,32 @@ with app.app_context():
     schema_result = migrate_seasons_schema()
     if schema_result == "migrated":
         print("✅ Seasons schema migration completed")
+
+    # Add version column to matches table for concurrency control
+    db = get_db()
+    cursor = db.execute("PRAGMA table_info(matches)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'version' not in columns:
+        db.execute("ALTER TABLE matches ADD COLUMN version INTEGER DEFAULT 1")
+        db.commit()
+        print("✅ Matches version column added")
+
+    # Create player_points_adjustment table if not exists
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS player_points_adjustment (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id INTEGER NOT NULL,
+            season_id INTEGER NOT NULL,
+            adjustment INTEGER DEFAULT 0,
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (player_id) REFERENCES player_registry(id) ON DELETE CASCADE,
+            FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE,
+            UNIQUE(player_id, season_id)
+        )
+    ''')
+    db.commit()
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')

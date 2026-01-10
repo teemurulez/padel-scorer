@@ -104,9 +104,9 @@ def test_tournament_results_shows_archive_button(client_with_db):
     # GET /tournament/<id>/results
     response = client.get(f'/tournament/{tournament_id}/results')
 
-    # Verify Archive Tournament button is present
+    # Verify Archive Tournament button is present (Finnish: "Arkistoi turnaus")
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    assert b'Archive Tournament' in response.data, "Expected Archive Tournament button for completed tournament"
+    assert 'Arkistoi turnaus'.encode('utf-8') in response.data, "Expected Archive Tournament button (Finnish) for completed tournament"
 
 
 def test_tournament_results_404_for_nonexistent(client_with_db):

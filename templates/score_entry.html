@@ -1,157 +1,192 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enter Score - Court {{ match['court_number'] }}</title>
+    <title>Syötä tulos - Kenttä {{ match['court_number'] }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        /* Mobile-optimized score entry */
         body {
             margin: 0;
             padding: 0;
             background: #f5f5f5;
         }
-        .score-entry {
+        body::before {
+            display: none;
+        }
+        .page-watermark {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background-image: url('/static/images/padel-paroni-logo.png');
+            background-repeat: repeat;
+            background-size: 200px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+            transform: rotate(-15deg);
+        }
+        .container {
             max-width: 600px;
             margin: 0 auto;
             padding: 1rem;
-        }
-        .score-header {
-            text-align: center;
             background: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .score-header {
+            background: white;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            margin: -1rem -1rem 1.5rem -1rem;
+        }
+        .score-header img {
+            height: 40px;
+            width: auto;
+            margin-bottom: 0.75rem;
         }
         .score-header h1 {
             font-size: 2rem;
-            margin: 0 0 0.5rem 0;
-            color: #2c3e50;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0 0 0.25rem 0;
+            letter-spacing: -0.5px;
         }
-        .score-header h2 {
-            font-size: 1.3rem;
-            margin: 0;
+        .score-header p {
             color: #666;
-            font-weight: 500;
+            font-size: 0.95rem;
+            margin: 0;
         }
+
+        /* Messages */
+        .messages {
+            margin: 0 0 1rem 0;
+        }
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            text-align: center;
+        }
+
+        /* Team selection */
         .team-selection {
             margin: 1.5rem 0;
         }
         .team-option {
             display: block;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             cursor: pointer;
         }
         .team-option input[type="radio"] {
             display: none;
         }
         .team-box {
-            border: 4px solid #ddd;
+            border: 3px solid #ddd;
             border-radius: 12px;
-            padding: 2rem 1.5rem;
+            padding: 1.5rem;
             text-align: center;
             background: white;
-            transition: all 0.3s ease;
-            min-height: 120px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
         .team-option:active .team-box {
             transform: scale(0.98);
         }
         .team-option input[type="radio"]:checked + .team-box {
-            border-color: #3498db;
-            background: #ebf5fb;
-            box-shadow: 0 4px 16px rgba(52, 152, 219, 0.4);
-            transform: scale(1.02);
+            border-color: #FFD700;
+            background: #FFFEF0;
+            box-shadow: 0 4px 16px rgba(255, 215, 0, 0.3);
         }
-        .team-box strong {
-            display: block;
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            color: #2c3e50;
-            font-weight: 700;
+        .team-box .team-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
         }
-        .team-box p {
-            font-size: 1.2rem;
-            margin: 0.3rem 0;
-            color: #555;
-            line-height: 1.6;
+        .team-box .team-players {
+            font-size: 1.1rem;
+            color: #333;
+            line-height: 1.5;
         }
-        .btn-submit {
-            width: 100%;
-            font-size: 1.4rem;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            border: none;
-            border-radius: 12px;
-            background: #27ae60;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
-        }
-        .btn-submit:active {
-            transform: scale(0.98);
-            box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
-        }
-        .btn-submit:hover {
-            background: #229954;
-        }
-        .btn-cancel {
+
+        /* Buttons */
+        .btn-primary-action {
             display: block;
             width: 100%;
-            text-align: center;
             padding: 1rem;
+            min-height: 56px;
+            background: #FFD700;
+            color: #1a1a1a;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            box-sizing: border-box;
+            margin-bottom: 0.75rem;
+        }
+        .btn-primary-action:active {
+            transform: scale(0.98);
+            background: #e6c200;
+        }
+        .btn-secondary-action {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            min-height: 48px;
+            background: white;
             color: #666;
             text-decoration: none;
-            font-size: 1.1rem;
-            background: white;
+            text-align: center;
             border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
             border: 2px solid #ddd;
+            cursor: pointer;
+            box-sizing: border-box;
         }
-        .btn-cancel:hover {
+        .btn-secondary-action:active {
             background: #f5f5f5;
         }
-        .messages {
-            margin: 1rem 0;
-        }
-        .message {
-            padding: 1rem;
-            border-radius: 8px;
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            color: #856404;
+
+        /* Admin footer */
+        .admin-footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e0e0e0;
             text-align: center;
-            font-size: 1.1rem;
         }
-        @media (max-width: 480px) {
-            .score-entry {
-                padding: 0.5rem;
-            }
-            .team-box {
-                padding: 1.5rem 1rem;
-                min-height: 100px;
-            }
-            .team-box strong {
-                font-size: 1.3rem;
-            }
-            .team-box p {
-                font-size: 1.1rem;
-            }
+        .admin-footer a {
+            color: #999;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .admin-footer a:hover {
+            color: #666;
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <div class="container score-entry">
+    <div class="page-watermark"></div>
+    <div class="container">
         <div class="score-header">
-            <h1>🎾 Court {{ match['court_number'] }}</h1>
-            <h2>{% if match['completed'] %}Edit Score{% else %}Who Won?{% endif %}</h2>
+            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            <h1>Kenttä {{ match['court_number'] }}</h1>
+            <p>{% if match['completed'] %}Muokkaa tulosta{% else %}Valitse voittaja{% endif %}</p>
         </div>
 
         {% with messages = get_flashed_messages() %}
@@ -165,36 +200,48 @@
         {% endwith %}
 
         <form id="scoreForm" method="POST">
+            <input type="hidden" name="version" value="{{ match.get('version', 1) }}">
             <div class="team-selection">
                 <label class="team-option">
                     <input type="radio" name="winning_team" value="1" {% if match['completed'] and match['winning_team'] == 1 %}checked{% endif %} required>
                     <div class="team-box">
-                        <strong>Team 1</strong>
-                        <p>{{ match['player1_name'] }}</p>
-                        <p>{{ match['player2_name'] }}</p>
+                        <div class="team-label">Joukkue 1</div>
+                        <div class="team-players">
+                            {{ match['player1_name'] }}<br>
+                            {{ match['player2_name'] }}
+                        </div>
                     </div>
                 </label>
 
                 <label class="team-option">
                     <input type="radio" name="winning_team" value="2" {% if match['completed'] and match['winning_team'] == 2 %}checked{% endif %} required>
                     <div class="team-box">
-                        <strong>Team 2</strong>
-                        <p>{{ match['player3_name'] }}</p>
-                        <p>{{ match['player4_name'] }}</p>
+                        <div class="team-label">Joukkue 2</div>
+                        <div class="team-players">
+                            {{ match['player3_name'] }}<br>
+                            {{ match['player4_name'] }}
+                        </div>
                     </div>
                 </label>
             </div>
 
-            <button type="submit" class="btn-submit" id="submitBtn">
-                ✅ {% if match['completed'] %}Update Winner{% else %}Confirm Winner{% endif %}
+            <button type="submit" class="btn-primary-action" id="submitBtn">
+                {% if match['completed'] %}Päivitä voittaja{% else %}Vahvista voittaja{% endif %}
             </button>
 
             <a href="{{ url_for('active_round', tournament_id=match['tournament_id'], round_id=match['round_id']) }}"
-               class="btn-cancel">← Back to Matches</a>
+               class="btn-secondary-action">← Takaisin</a>
         </form>
 
         <script>
-            // Prevent browser HTTP warning by using fetch instead of form submission
+            function showOfflineWarning() {
+                if (!navigator.onLine) {
+                    alert('Ei verkkoyhteyttä. Tarkista yhteys ja yritä uudelleen.');
+                    return true;
+                }
+                return false;
+            }
+
             document.getElementById('scoreForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
 
@@ -203,13 +250,14 @@
                 const selectedTeam = form.querySelector('input[name="winning_team"]:checked');
 
                 if (!selectedTeam) {
-                    alert('Please select a winning team');
+                    alert('Valitse voittanut joukkue');
                     return;
                 }
 
-                // Disable button and show loading
+                if (showOfflineWarning()) return;
+
                 submitBtn.disabled = true;
-                submitBtn.textContent = '⏳ Saving...';
+                submitBtn.textContent = 'Tallennetaan...';
 
                 try {
                     const formData = new FormData(form);
@@ -219,20 +267,34 @@
                     });
 
                     if (response.ok) {
-                        // Success - redirect to matches page
                         window.location.href = '{{ url_for("active_round", tournament_id=match["tournament_id"], round_id=match["round_id"]) }}';
+                    } else if (response.status === 409) {
+                        alert('Joku muu on muokannut tätä ottelua. Sivu ladataan uudelleen.');
+                        window.location.reload();
                     } else {
-                        alert('Error saving score. Please try again.');
+                        alert('Palvelinvirhe. Yritä uudelleen hetken kuluttua.');
                         submitBtn.disabled = false;
-                        submitBtn.textContent = '✅ {% if match["completed"] %}Update Winner{% else %}Confirm Winner{% endif %}';
+                        submitBtn.textContent = '{% if match["completed"] %}Päivitä voittaja{% else %}Vahvista voittaja{% endif %}';
                     }
                 } catch (error) {
-                    alert('Error saving score. Please try again.');
+                    if (!navigator.onLine) {
+                        alert('Verkkoyhteys katkesi. Tarkista yhteys ja yritä uudelleen.');
+                    } else {
+                        alert('Yhteysvirhe. Tarkista verkko ja yritä uudelleen.');
+                    }
                     submitBtn.disabled = false;
-                    submitBtn.textContent = '✅ {% if match["completed"] %}Update Winner{% else %}Confirm Winner{% endif %}';
+                    submitBtn.textContent = '{% if match["completed"] %}Päivitä voittaja{% else %}Vahvista voittaja{% endif %}';
                 }
             });
+
+            window.addEventListener('offline', function() {
+                alert('Verkkoyhteys katkesi!');
+            });
         </script>
+
+        <div class="admin-footer">
+            <a href="{{ url_for('admin_dashboard') }}" target="_blank">Ylläpito</a>
+        </div>
     </div>
 </body>
 </html>

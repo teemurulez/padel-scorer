@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="fi">
 <head>
-    <title>Player Registry - Padel King of the Court</title>
+    <title>Pelaajarekisteri - Padel King of the Court</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Player Registry</h1>
+    <h1>Pelaajarekisteri</h1>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -18,27 +18,27 @@
     {% endwith %}
 
     <div class="add-player-form">
-        <h2>Add New Player</h2>
+        <h2>Lisää uusi pelaaja</h2>
         <form method="POST" action="/player/create">
-            <label>First Name:</label>
+            <label>Etunimi:</label>
             <input type="text" name="first_name" required>
 
-            <label>Last Name:</label>
+            <label>Sukunimi:</label>
             <input type="text" name="last_name" required>
 
-            <button type="submit">Add Player</button>
+            <button type="submit">Lisää pelaaja</button>
         </form>
     </div>
 
     <div class="players-list">
-        <h2>All Players ({{ players|length }})</h2>
+        <h2>Kaikki pelaajat ({{ players|length }})</h2>
         {% if players %}
         <table>
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Seed Points</th>
-                    <th>Recent Tournaments</th>
+                    <th>Nimi</th>
+                    <th>Sijoituspisteet</th>
+                    <th>Viimeaikaiset turnaukset</th>
                 </tr>
             </thead>
             <tbody>
@@ -54,16 +54,16 @@
             </tbody>
         </table>
         {% else %}
-        <p>No players in registry yet. Add your first player above!</p>
+        <p>Ei vielä pelaajia rekisterissä. Lisää ensimmäinen pelaaja yllä!</p>
         {% endif %}
     </div>
 
     <div class="navigation">
-        <a href="/">Back to Home</a>
+        <a href="/">Takaisin etusivulle</a>
     </div>
 
     <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e0e0e0; text-align: center;">
-        <a href="{{ url_for('admin_dashboard') }}" style="color: #3498db; text-decoration: none; font-size: 0.95rem;">Admin Dashboard</a>
+        <a href="{{ url_for('admin_dashboard') }}" style="color: #3498db; text-decoration: none; font-size: 0.95rem;">Ylläpito</a>
     </div>
 </body>
 </html>

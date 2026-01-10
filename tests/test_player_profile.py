@@ -96,8 +96,8 @@ def test_player_profile_with_season_data(client):
     assert response.status_code == 200
     assert b'Erik Andersson' in response.data
     assert str(current_year).encode() in response.data
-    # Should show rank, wins, tournaments
-    assert b'Season Rank' in response.data
+    # Should show rank, wins, tournaments (Finnish: "Kauden sijoitus")
+    assert 'Kauden sijoitus'.encode('utf-8') in response.data
 
 
 def test_player_profile_no_season_data(client):
@@ -128,7 +128,7 @@ def test_player_profile_no_season_data(client):
     # Assert
     assert response.status_code == 200
     assert b'New Player' in response.data
-    assert b'No tournaments played this season yet' in response.data
+    assert 'Ei pelattuja turnauksia'.encode('utf-8') in response.data  # Finnish: "No tournaments played"
 
 
 def test_player_profile_not_found(client):

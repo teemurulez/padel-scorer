@@ -146,7 +146,7 @@ class TeamShuffler {
 // Global Functions
 let teamShuffler;
 
-function confirmAndStartMatch() {
+async function confirmAndStartMatch() {
     const config = teamShuffler.getCurrentConfiguration();
 
     // Validate 4 unique players
@@ -154,34 +154,57 @@ function confirmAndStartMatch() {
     const uniquePlayers = new Set(playerIds);
 
     if (uniquePlayers.size !== 4) {
-        alert('Error: All 4 players must be unique. Please check your team configuration.');
+        alert('Virhe: Kaikki 4 pelaajaa täytyy olla eri henkilöitä.');
+        return;
+    }
+
+    // Check network
+    if (!navigator.onLine) {
+        alert('Ei verkkoyhteyttä. Tarkista yhteys ja yritä uudelleen.');
         return;
     }
 
     // Disable button to prevent double-submit
     const btn = event.target;
+    const originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Starting...';
+    btn.textContent = '⏳ Tallennetaan...';
 
-    // Create and submit form
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = window.location.pathname;
+    try {
+        // Create form data
+        const formData = new FormData();
+        Object.entries(config).forEach(([key, value]) => {
+            formData.append(key, value);
+        });
 
-    Object.entries(config).forEach(([key, value]) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
-    });
+        const response = await fetch(window.location.pathname, {
+            method: 'POST',
+            body: formData
+        });
 
-    document.body.appendChild(form);
-    form.submit();
+        if (response.ok) {
+            // Success - follow redirect
+            window.location.href = response.url;
+        } else {
+            // Server error
+            alert('Palvelinvirhe. Yritä uudelleen hetken kuluttua.');
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    } catch (error) {
+        // Network error
+        if (!navigator.onLine) {
+            alert('Verkkoyhteys katkesi. Tarkista yhteys ja yritä uudelleen.');
+        } else {
+            alert('Yhteysvirhe. Tarkista verkko ja yritä uudelleen.');
+        }
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
 }
 
 function resetToOriginal() {
-    if (confirm('Reset teams to original pairing?')) {
+    if (confirm('Palauta alkuperäiset joukkueet?')) {
         teamShuffler.resetToOriginal();
     }
 }

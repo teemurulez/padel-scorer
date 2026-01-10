@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Results</title>
+    <title>Turnauksen tulokset</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .tournament-info {
@@ -71,13 +71,13 @@
 </head>
 <body>
     <div class="container">
-        <h1>Tournament Results: {{ tournament.name }}</h1>
+        <h1>Turnauksen tulokset: {{ tournament.name }}</h1>
 
         <div class="tournament-info">
-            <p><strong>Date:</strong> {{ tournament.created_at }}</p>
-            <p><strong>Status:</strong> {{ tournament.status }}</p>
+            <p><strong>Päivämäärä:</strong> {{ tournament.created_at }}</p>
+            <p><strong>Tila:</strong> {% if tournament.status == 'completed' %}Päättynyt{% elif tournament.status == 'active' %}Käynnissä{% else %}{{ tournament.status }}{% endif %}</p>
             {% if tournament.completed_at %}
-            <p><strong>Completed:</strong> {{ tournament.completed_at }}</p>
+            <p><strong>Päättynyt:</strong> {{ tournament.completed_at }}</p>
             {% endif %}
         </div>
 
@@ -91,17 +91,17 @@
             {% endif %}
         {% endwith %}
 
-        <h2>Final Standings</h2>
+        <h2>Lopputulokset</h2>
 
         {% if standings %}
         <table class="standings-table">
             <thead>
                 <tr>
-                    <th>Rank</th>
-                    <th>Player</th>
-                    <th>Points</th>
-                    <th>Wins</th>
-                    <th>Losses</th>
+                    <th>Sija</th>
+                    <th>Pelaaja</th>
+                    <th>Pisteet</th>
+                    <th>Voitot</th>
+                    <th>Häviöt</th>
                 </tr>
             </thead>
             <tbody>
@@ -117,22 +117,22 @@
             </tbody>
         </table>
         {% else %}
-        <p>No standings data available.</p>
+        <p>Ei tulostietoja saatavilla.</p>
         {% endif %}
 
         <div class="actions">
             {% if tournament.status == 'completed' %}
             <form action="{{ url_for('archive_tournament', tournament_id=tournament.id) }}" method="POST" style="display: inline;">
-                <button type="submit" class="btn btn-warning">Archive Tournament</button>
+                <button type="submit" class="btn btn-warning">Arkistoi turnaus</button>
             </form>
             {% endif %}
 
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Takaisin etusivulle</a>
         </div>
     </div>
 
     <div class="admin-footer">
-        <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+        <a href="{{ url_for('admin_dashboard') }}">Ylläpito</a>
     </div>
 </body>
 </html>

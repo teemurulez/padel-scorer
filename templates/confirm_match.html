@@ -1,85 +1,327 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Confirm Teams - Court {{ court_number }}</title>
+    <title>Muokkaa joukkueita - Kenttä {{ court_number }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/shuffle.css') }}">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+        body::before {
+            display: none;
+        }
+        .page-watermark {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background-image: url('/static/images/padel-paroni-logo.png');
+            background-repeat: repeat;
+            background-size: 200px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+            transform: rotate(-15deg);
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 1rem;
+            background: white;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .page-header {
+            background: white;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            margin: -1rem -1rem 1.5rem -1rem;
+        }
+        .page-header img {
+            height: 40px;
+            width: auto;
+            margin-bottom: 0.75rem;
+        }
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0 0 0.25rem 0;
+            letter-spacing: -0.5px;
+        }
+        .page-header p {
+            color: #666;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
+        /* Messages */
+        .messages {
+            margin: 0 0 1rem 0;
+        }
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            text-align: center;
+        }
+
+        /* Teams container */
+        .teams-container {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .team-box {
+            flex: 1;
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 1rem;
+            border: 2px solid #ddd;
+        }
+        .team-box h3 {
+            margin: 0 0 0.75rem 0;
+            text-align: center;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #999;
+            font-weight: 600;
+        }
+        .player-slot {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+            user-select: none;
+            min-height: 50px;
+            transition: all 0.2s ease;
+            border: 2px solid #FFD700;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .player-slot:last-child {
+            margin-bottom: 0;
+        }
+        .player-slot:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+            background: #FFFEF0;
+        }
+        .player-slot.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+        .player-slot.swapped {
+            animation: flash 0.4s ease;
+        }
+        @keyframes flash {
+            0%, 100% { background: white; }
+            50% { background: #FFF9C4; }
+        }
+        .player-name {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #333;
+        }
+        .drag-handle {
+            font-size: 1.25rem;
+            color: #999;
+            cursor: grab;
+            user-select: none;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        .vs-divider {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #ccc;
+            flex-shrink: 0;
+            padding-top: 3rem;
+        }
+
+        /* Buttons */
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .btn-primary-action {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            min-height: 56px;
+            background: #FFD700;
+            color: #1a1a1a;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-primary-action:active {
+            transform: scale(0.98);
+            background: #e6c200;
+        }
+        .btn-secondary-action {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            min-height: 48px;
+            background: white;
+            color: #666;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-secondary-action:active {
+            background: #f5f5f5;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 1rem;
+        }
+        .back-link a {
+            color: #666;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* Admin footer */
+        .admin-footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        .admin-footer a {
+            color: #999;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .admin-footer a:hover {
+            color: #666;
+            text-decoration: underline;
+        }
+
+        /* Mobile */
+        @media (max-width: 500px) {
+            .teams-container {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            .vs-divider {
+                padding-top: 0;
+                text-align: center;
+            }
+            .player-slot {
+                min-height: 60px;
+                padding: 1.25rem 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="pre-match-confirmation">
-        <header>
-            <h2>Round {{ round.round_number }}, Court {{ court_number }}</h2>
-            <p class="instruction">👆 Drag players to swap teams, then start match</p>
-        </header>
+    <div class="page-watermark"></div>
+    <div class="container">
+        <div class="page-header">
+            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            <h1>Kenttä {{ court_number }}</h1>
+            <p>Vedä pelaajia vaihtaaksesi joukkueita</p>
+        </div>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
-                <div class="flash-messages">
+                <div class="messages">
                     {% for message in messages %}
-                        <div class="flash-message">{{ message }}</div>
+                        <div class="message">{{ message }}</div>
                     {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
 
         <div class="teams-container">
-            <!-- Team 1 Box -->
             <div class="team-box team-1" data-team="1">
-                <h3>Team 1</h3>
+                <h3>Joukkue 1</h3>
                 <div class="player-slot"
                      data-player-id="{{ players.team1[0].id }}"
                      draggable="true">
                     <span class="player-name">{{ players.team1[0].first_name }} {{ players.team1[0].last_name }}</span>
-                    <span class="drag-handle">⋮⋮</span>
+                    <span class="drag-handle">&#8942;&#8942;</span>
                 </div>
                 <div class="player-slot"
                      data-player-id="{{ players.team1[1].id }}"
                      draggable="true">
                     <span class="player-name">{{ players.team1[1].first_name }} {{ players.team1[1].last_name }}</span>
-                    <span class="drag-handle">⋮⋮</span>
+                    <span class="drag-handle">&#8942;&#8942;</span>
                 </div>
             </div>
 
-            <div class="vs-divider">VS</div>
+            <div class="vs-divider">vs</div>
 
-            <!-- Team 2 Box -->
             <div class="team-box team-2" data-team="2">
-                <h3>Team 2</h3>
+                <h3>Joukkue 2</h3>
                 <div class="player-slot"
                      data-player-id="{{ players.team2[0].id }}"
                      draggable="true">
                     <span class="player-name">{{ players.team2[0].first_name }} {{ players.team2[0].last_name }}</span>
-                    <span class="drag-handle">⋮⋮</span>
+                    <span class="drag-handle">&#8942;&#8942;</span>
                 </div>
                 <div class="player-slot"
                      data-player-id="{{ players.team2[1].id }}"
                      draggable="true">
                     <span class="player-name">{{ players.team2[1].first_name }} {{ players.team2[1].last_name }}</span>
-                    <span class="drag-handle">⋮⋮</span>
+                    <span class="drag-handle">&#8942;&#8942;</span>
                 </div>
             </div>
         </div>
 
         <div class="actions">
-            <button class="btn btn-primary btn-large" onclick="confirmAndStartMatch()">
-                ✓ Start Match
+            <button class="btn-primary-action" onclick="confirmAndStartMatch()">
+                Tallenna
             </button>
-            <button class="btn btn-secondary" onclick="resetToOriginal()">
-                ↺ Reset to Original
+            <button class="btn-secondary-action" onclick="resetToOriginal()">
+                Palauta alkuperäinen
             </button>
         </div>
 
-        <div class="actions">
-            <a href="/tournament/{{ tournament.id }}/round/{{ round.id }}/courts" class="btn btn-secondary">
-                ← Back to Court Selection
-            </a>
+        <div class="back-link">
+            <a href="{{ url_for('active_round', tournament_id=tournament.id, round_id=round.id) }}">← Takaisin</a>
         </div>
-    </div>
 
-    <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e0e0e0; text-align: center;">
-        <a href="{{ url_for('admin_dashboard') }}" style="color: #3498db; text-decoration: none; font-size: 0.95rem;">Admin Dashboard</a>
+        <div class="admin-footer">
+            <a href="{{ url_for('admin_dashboard') }}" target="_blank">Ylläpito</a>
+        </div>
     </div>
 
     <script>

@@ -243,6 +243,28 @@ def init_db():
         ON round1_preview_pairings(tournament_id)
     ''')
 
+    # Add version column to matches table for concurrency control
+    cursor.execute("PRAGMA table_info(matches)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'version' not in columns:
+        cursor.execute("ALTER TABLE matches ADD COLUMN version INTEGER DEFAULT 1")
+
+    # Player points adjustment table (for admin manual corrections)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS player_points_adjustment (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id INTEGER NOT NULL,
+            season_id INTEGER NOT NULL,
+            adjustment INTEGER DEFAULT 0,
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (player_id) REFERENCES player_registry(id) ON DELETE CASCADE,
+            FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE,
+            UNIQUE(player_id, season_id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("Database initialized successfully!")

@@ -56,7 +56,7 @@ def test_admin_setup_page_loads_when_no_admin_exists(client):
     """Test that /admin/setup loads when no admin user exists"""
     response = client.get('/admin/setup')
     assert response.status_code == 200
-    assert b'Admin Setup' in response.data
+    assert 'Ylläpidon asennus'.encode('utf-8') in response.data  # Finnish: "Admin Setup"
     assert b'password' in response.data.lower()
 
 
@@ -162,7 +162,7 @@ def test_admin_login_page_loads(client):
 
     response = client.get('/admin/login')
     assert response.status_code == 200
-    assert b'Admin Login' in response.data
+    assert 'Ylläpito'.encode('utf-8') in response.data  # Finnish: "Admin Login"
     assert b'password' in response.data.lower()
 
 
@@ -282,7 +282,7 @@ def test_session_timeout_after_30_minutes(client):
 
     # Try to access admin page
     response = client.get('/admin', follow_redirects=True)
-    assert b'Session expired' in response.data or b'Admin Login' in response.data
+    assert b'Session expired' in response.data or 'Ylläpito'.encode('utf-8') in response.data  # Finnish
 
 
 def test_session_updates_last_activity(client):
@@ -361,14 +361,14 @@ def test_admin_dashboard_shows_tabs(client):
     response = client.get('/admin')
     assert response.status_code == 200
 
-    # Check for all 4 tab names
-    assert b'Seasons' in response.data
-    assert b'Points' in response.data
-    assert b'Players' in response.data
+    # Check for all 4 tab names (Finnish)
+    assert b'Kaudet' in response.data  # Finnish: "Seasons"
+    assert b'Pisteet' in response.data  # Finnish: "Points"
+    assert b'Pelaajat' in response.data  # Finnish: "Players"
     assert b'Data' in response.data
 
-    # Check for logout button
-    assert b'Logout' in response.data or b'logout' in response.data
+    # Check for logout button (Finnish: "Kirjaudu ulos")
+    assert b'Kirjaudu ulos' in response.data or b'logout' in response.data
 
 
 def test_admin_dashboard_has_logo_placeholder(client):
@@ -392,8 +392,8 @@ def test_admin_dashboard_has_logo_placeholder(client):
     response = client.get('/admin')
     assert response.status_code == 200
 
-    # Check for logo placeholder or admin title
-    assert b'ADMIN DASHBOARD' in response.data or b'[LOGO]' in response.data
+    # Check for logo placeholder or admin title (Finnish: "YLLÄPITO")
+    assert 'YLLÄPITO'.encode('utf-8') in response.data or b'[LOGO]' in response.data
 
 
 def test_admin_logout_clears_session(client):

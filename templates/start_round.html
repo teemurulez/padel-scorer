@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Start Round</title>
+    <title>Aloita kierros</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -21,36 +21,36 @@
         {% endwith %}
 
         {% if current_round %}
-            <p class="info-text">Round {{ current_round['round_number'] }} is in progress.</p>
+            <p class="info-text">Kierros {{ current_round['round_number'] }} on käynnissä.</p>
             <a href="{{ url_for('active_round', tournament_id=tournament['id'], round_id=current_round['id']) }}"
-               class="btn-primary">View Current Round</a>
+               class="btn-primary">Näytä nykyinen kierros</a>
         {% else %}
-            <p class="info-text">Ready to start a new round with randomized pairs!</p>
+            <p class="info-text">Valmis aloittamaan uuden kierroksen satunnaisilla pareilla!</p>
         {% endif %}
 
         <form method="POST">
             <button type="submit" class="btn-primary">
                 {% if current_round %}
-                    Start Next Round
+                    Aloita seuraava kierros
                 {% else %}
-                    Start First Round
+                    Aloita ensimmäinen kierros
                 {% endif %}
             </button>
         </form>
 
         {% if has_leaderboard_data %}
             <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary">
-                View Leaderboard
+                Näytä tulokset
             </a>
         {% else %}
             <button class="btn-secondary" disabled style="opacity: 0.5; cursor: not-allowed;">
-                View Leaderboard (No data yet)
+                Näytä tulokset (Ei dataa vielä)
             </button>
         {% endif %}
     </div>
 
     <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e0e0e0; text-align: center;">
-        <a href="{{ url_for('admin_dashboard') }}" style="color: #3498db; text-decoration: none; font-size: 0.95rem;">Admin Dashboard</a>
+        <a href="{{ url_for('admin_dashboard') }}" style="color: #3498db; text-decoration: none; font-size: 0.95rem;">Ylläpito</a>
     </div>
 </body>
 </html>

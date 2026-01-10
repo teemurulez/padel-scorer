@@ -23,5 +23,5 @@ def client(tmp_path):
 def test_home_page_has_admin_dashboard_link(client):
     """Test that home page has link to admin dashboard"""
     response = client.get('/')
-    assert b'Admin Dashboard' in response.data
+    assert 'Ylläpito'.encode('utf-8') in response.data  # Finnish: "Admin Dashboard"
     assert b'/admin' in response.data

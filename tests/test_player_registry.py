@@ -185,5 +185,5 @@ def test_players_list_shows_seeding_info(client):
     response = client.get('/players')
     assert response.status_code == 200
 
-    # Should contain seeding-related text
-    assert b'Seed' in response.data or b'seed' in response.data.lower()
+    # Should contain seeding-related text (Finnish: "Sijoituspisteet")
+    assert 'Sijoituspisteet'.encode('utf-8') in response.data or b'sijoitus' in response.data.lower()

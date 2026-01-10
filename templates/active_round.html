@@ -1,42 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Round {{ round_data['round_number'] }} - Matches</title>
+    <title>Kierros {{ round_data['round_number'] }} - {{ tournament['name'] }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        /* Mobile-optimized match list */
         body {
             margin: 0;
             padding: 0;
             background: #f5f5f5;
         }
+        body::before {
+            display: none;
+        }
+        .page-watermark {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background-image: url('/static/images/padel-paroni-logo.png');
+            background-repeat: repeat;
+            background-size: 200px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+            transform: rotate(-15deg);
+        }
         .container {
-            max-width: 800px;
+            max-width: 600px;
             margin: 0 auto;
             padding: 1rem;
+            background: white;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
         }
-        .round-info {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
+
+        /* Header */
+        .round-header {
+            background: white;
+            padding: 1.5rem 1rem;
             text-align: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-bottom: 1px solid #e0e0e0;
+            margin: -1rem -1rem 1.5rem -1rem;
         }
-        .round-info h1 {
-            font-size: 2.5rem;
-            margin: 0 0 0.5rem 0;
+        .round-header img {
+            height: 40px;
+            width: auto;
+            margin-bottom: 0.75rem;
         }
-        .movement-note {
-            font-size: 1rem;
-            margin: 0.5rem 0 0 0;
-            opacity: 0.9;
+        .round-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0 0 0.25rem 0;
+            letter-spacing: -0.5px;
         }
+        .round-subtitle {
+            color: #666;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+        .movement-badge {
+            display: inline-block;
+            background: #FFF3CD;
+            color: #856404;
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 0.75rem;
+        }
+
+        /* Messages */
         .messages {
-            margin: 1rem 0;
+            margin: 0 0 1rem 0;
         }
         .message {
             padding: 1rem;
@@ -45,239 +84,345 @@
             border: 1px solid #c3e6cb;
             color: #155724;
             text-align: center;
-            font-size: 1.1rem;
         }
+
+        /* Progress indicator */
+        .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Match cards */
         .matches {
-            margin: 1.5rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
         }
         .match-card {
             background: white;
             border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            position: relative;
+            z-index: 1;
         }
         .match-card.completed {
-            opacity: 0.85;
-            background: #f8f9fa;
+            opacity: 0.9;
+            border-left: 4px solid #22c55e;
         }
-        .court-number {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #667eea;
+        .court-header {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #eee;
             margin-bottom: 1rem;
-            text-align: center;
         }
+
+        /* Teams layout */
         .teams {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
-            margin: 1rem 0;
-            gap: 1rem;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
         }
         .team {
             flex: 1;
             text-align: center;
         }
-        .team strong {
-            display: block;
-            font-size: 1.1rem;
-            color: #2c3e50;
+        .team-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             margin-bottom: 0.5rem;
         }
-        .team p {
+        .team-players {
             font-size: 1.1rem;
-            margin: 0.3rem 0;
-            color: #555;
+            color: #333;
+            line-height: 1.5;
         }
         .vs {
-            font-weight: bold;
-            color: #999;
-            font-size: 1.2rem;
-            padding: 0 0.5rem;
+            font-weight: 700;
+            color: #ccc;
+            font-size: 0.9rem;
+            padding-top: 1.25rem;
         }
-        .actions {
-            margin-top: 1rem;
+
+        /* Buttons */
+        .match-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
         }
-        .btn-enter-score {
+        .btn-primary-action {
             display: block;
-            width: 100%;
-            padding: 1.3rem;
-            background: #27ae60;
-            color: white;
+            padding: 1rem;
+            min-height: 56px;
+            background: #FFD700;
+            color: #1a1a1a;
             text-decoration: none;
             text-align: center;
             border-radius: 8px;
-            font-size: 1.3rem;
-            font-weight: bold;
-            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
-            transition: all 0.2s ease;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            box-sizing: border-box;
         }
-        .btn-enter-score:active {
+        .btn-primary-action:active {
             transform: scale(0.98);
+            background: #e6c200;
         }
+        .btn-secondary-action {
+            display: block;
+            padding: 0.75rem;
+            min-height: 48px;
+            background: white;
+            color: #666;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-secondary-action:active {
+            background: #f5f5f5;
+        }
+
+        /* Completed badge - clickable to edit */
         .completed-badge {
-            background: #3498db;
-            color: white;
+            display: block;
+            text-align: center;
+            background: #d4edda;
+            color: #155724;
+            font-weight: 700;
+            font-size: 1.1rem;
             padding: 1rem;
             border-radius: 8px;
-            text-align: center;
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-top: 1rem;
+            text-decoration: none;
+            border: 2px solid #c3e6cb;
         }
+        .completed-badge:active {
+            background: #c3e6cb;
+        }
+        .completed-badge small {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        /* Bottom actions */
         .round-actions {
-            margin: 2rem 0;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.75rem;
+            padding-bottom: 2rem;
         }
         .btn-leaderboard {
             display: block;
-            padding: 1.3rem;
-            background: #f39c12;
-            color: white;
+            padding: 1rem;
+            min-height: 56px;
+            background: #FFD700;
+            color: #1a1a1a;
             text-decoration: none;
             text-align: center;
             border-radius: 8px;
-            font-size: 1.3rem;
-            font-weight: bold;
-            box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
-        }
-        .btn-admin {
-            padding: 1rem;
-            background: white;
-            border: 2px solid #3498db;
-            color: #3498db;
-            border-radius: 8px;
             font-size: 1.1rem;
-            font-weight: bold;
+            font-weight: 700;
+            box-sizing: border-box;
         }
-        @media (max-width: 480px) {
-            .container {
-                padding: 0.5rem;
-            }
-            .round-info h1 {
-                font-size: 2rem;
-            }
-            .teams {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            .vs {
-                transform: rotate(90deg);
-                margin: 0.5rem 0;
-            }
+        .btn-leaderboard:active {
+            transform: scale(0.98);
+            background: #e6c200;
+        }
+        .btn-next-round {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            min-height: 56px;
+            background: white;
+            color: #1a1a1a;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 2px solid #1a1a1a;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-next-round:disabled {
+            background: #f0f0f0;
+            color: #999;
+            border-color: #ddd;
+            cursor: not-allowed;
+        }
+        .btn-next-round:active {
+            background: #f5f5f5;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+        .back-link a {
+            color: #666;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* Admin footer */
+        .admin-footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        .admin-footer a {
+            color: #999;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .admin-footer a:hover {
+            color: #666;
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
+    <div class="page-watermark"></div>
     <div class="container">
-        <div class="round-info">
-            <h1>🎾 Round {{ round_data['round_number'] }}</h1>
+        <!-- Header -->
+        <div class="round-header">
+            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            <h1>Kierros {{ round_data['round_number'] }}</h1>
+            <p class="round-subtitle">{{ tournament['name'] }} &bull; {{ tournament['num_courts'] }} kenttää</p>
             {% if round_data['round_number'] > 1 %}
-                <p class="movement-note">Winners moved up • Losers moved down</p>
+            <div class="movement-badge">
+                ↑ Voittajat ylös &bull; ↓ Häviäjät alas
+            </div>
             {% endif %}
         </div>
 
+        <!-- Flash messages -->
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 <div class="messages">
                     {% for message in messages %}
-                        <div class="message success">{{ message }}</div>
+                        <div class="message">{{ message }}</div>
                     {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
 
+        <!-- Progress -->
+        {% set completed_count = matches|selectattr('completed')|list|length %}
+        <div class="progress-text">
+            {{ completed_count }}/{{ matches|length }} ottelua valmis
+        </div>
+
+        <!-- Match cards -->
         <div class="matches">
             {% for match in matches %}
             <div class="match-card {% if match['completed'] %}completed{% endif %}">
-                <div class="court-number">Court {{ match['court_number'] }}</div>
+                <div class="court-header">Kenttä {{ match['court_number'] }}</div>
 
                 <div class="teams">
-                    <div class="team team-1">
-                        <strong>Team 1</strong>
-                        <p>{{ match['player1_name'] }}</p>
-                        <p>{{ match['player2_name'] }}</p>
+                    <div class="team">
+                        <div class="team-label">Joukkue 1</div>
+                        <div class="team-players">
+                            {{ match['player1_name'] }}<br>
+                            {{ match['player2_name'] }}
+                        </div>
                     </div>
 
-                    <div class="vs">VS</div>
+                    <div class="vs">vs</div>
 
-                    <div class="team team-2">
-                        <strong>Team 2</strong>
-                        <p>{{ match['player3_name'] }}</p>
-                        <p>{{ match['player4_name'] }}</p>
+                    <div class="team">
+                        <div class="team-label">Joukkue 2</div>
+                        <div class="team-players">
+                            {{ match['player3_name'] }}<br>
+                            {{ match['player4_name'] }}
+                        </div>
                     </div>
                 </div>
 
                 {% if not match['completed'] %}
-                <div class="actions">
-                    <a href="{{ url_for('score_entry', match_id=match['id']) }}"
-                       class="btn-enter-score">⚡ Enter Score</a>
+                <div class="match-actions">
+                    <a href="{{ url_for('score_entry', match_id=match['id']) }}" class="btn-primary-action">
+                        Syötä tulos
+                    </a>
+                    <a href="{{ url_for('confirm_match_teams', tournament_id=tournament_id, round_id=round_data['id'], court_number=match['court_number']) }}" class="btn-secondary-action">
+                        Muokkaa joukkueita
+                    </a>
                 </div>
                 {% else %}
-                <div class="completed-badge">
-                    ✅ Winner: Team {{ match['winning_team'] }}
-                </div>
+                <a href="{{ url_for('score_entry', match_id=match['id']) }}" class="completed-badge">
+                    ✓ Joukkue {{ match['winning_team'] }} voitti
+                    <small>Muokkaa tulosta</small>
+                </a>
                 {% endif %}
             </div>
             {% endfor %}
         </div>
 
+        <!-- Bottom actions -->
         <div class="round-actions">
-            <a href="{{ url_for('leaderboard', tournament_id=tournament_id) }}"
-               class="btn-leaderboard">📊 View Leaderboard</a>
+            <a href="{{ url_for('leaderboard', tournament_id=tournament_id) }}" class="btn-leaderboard">
+                Näytä tulokset
+            </a>
 
+            <form id="nextRoundForm" action="{{ url_for('start_round', tournament_id=tournament_id) }}" method="POST" style="margin: 0;">
+                {% if all_completed %}
+                <button type="submit" class="btn-next-round">Aloita seuraava kierros</button>
+                {% else %}
+                {% set remaining = matches|length - completed_count %}
+                <button type="button" class="btn-next-round" disabled>Odottaa {{ remaining }} tulos{% if remaining != 1 %}ta{% endif %}</button>
+                {% endif %}
+            </form>
             {% if all_completed %}
-            <form id="nextRoundForm" action="{{ url_for('start_round', tournament_id=tournament_id) }}" method="POST">
-                <button type="submit" class="btn-admin">▶️ Start Next Round</button>
-            </form>
-            <form id="endTournamentForm" action="{{ url_for('end_tournament', tournament_id=tournament_id) }}" method="POST">
-                <button type="submit" class="btn-admin" style="background: #e74c3c; color: white; border-color: #e74c3c;">🏁 End Tournament</button>
-            </form>
             <script>
-                // Prevent HTTP warnings on admin forms
                 document.getElementById('nextRoundForm').addEventListener('submit', async function(e) {
                     e.preventDefault();
                     const form = e.target;
                     const btn = form.querySelector('button');
                     btn.disabled = true;
-                    btn.textContent = '⏳ Starting...';
+                    btn.textContent = 'Aloitetaan...';
 
                     const formData = new FormData(form);
                     const response = await fetch(form.action, { method: 'POST', body: formData });
                     if (response.ok) {
                         window.location.href = '{{ url_for("active_tournament", tournament_id=tournament_id) }}';
                     } else {
-                        alert('Error starting round');
+                        alert('Virhe kierroksen aloituksessa');
                         btn.disabled = false;
-                        btn.textContent = '▶️ Start Next Round';
-                    }
-                });
-
-                document.getElementById('endTournamentForm').addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    if (!confirm('Are you sure you want to end this tournament?')) return;
-
-                    const form = e.target;
-                    const btn = form.querySelector('button');
-                    btn.disabled = true;
-                    btn.textContent = '⏳ Ending...';
-
-                    const formData = new FormData(form);
-                    const response = await fetch(form.action, { method: 'POST', body: formData });
-                    if (response.ok) {
-                        window.location.href = '/';
-                    } else {
-                        alert('Error ending tournament');
-                        btn.disabled = false;
-                        btn.textContent = '🏁 End Tournament';
+                        btn.textContent = 'Aloita seuraava kierros';
                     }
                 });
             </script>
             {% endif %}
+
+            <div class="back-link">
+                <a href="{{ url_for('index') }}">← Takaisin</a>
+            </div>
+
+            <div class="admin-footer">
+                <a href="{{ url_for('admin_dashboard') }}" target="_blank">Ylläpito</a>
+            </div>
         </div>
     </div>
 </body>

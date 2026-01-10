@@ -1,23 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Tennis Scorer</title>
+    <title>Ylläpito - Tennis Scorer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
 <body>
     <!-- Header -->
     <header class="admin-header">
         <div class="admin-logo">
-            ADMIN DASHBOARD
+            YLLÄPITO
         </div>
         <div class="admin-header-right">
             <a href="{{ url_for('index') }}" style="margin-right: 15px; color: #fff; text-decoration: none; padding: 8px 16px; background: rgba(255,255,255,0.1); border-radius: 4px; display: inline-block;">
-                ← Back to Home
+                ← Etusivulle
             </a>
             <form method="POST" action="/admin/logout" style="margin: 0; display: inline-block;">
-                <button type="submit" class="logout-btn">Logout</button>
+                <button type="submit" class="logout-btn">Kirjaudu ulos</button>
             </form>
         </div>
     </header>
@@ -35,50 +35,50 @@
 
     <!-- Tab Navigation -->
     <nav class="tab-nav">
-        <button class="tab-btn active" data-tab="seasons">Seasons</button>
-        <button class="tab-btn" data-tab="points">Points</button>
-        <button class="tab-btn" data-tab="players">Players</button>
+        <button class="tab-btn {{ 'active' if active_tab == 'seasons' or not active_tab else '' }}" data-tab="seasons">Kaudet</button>
+        <button class="tab-btn {{ 'active' if active_tab == 'players' else '' }}" data-tab="players-tab">Pelaajat</button>
+        <button class="tab-btn" data-tab="points">Pisteet</button>
         <button class="tab-btn" data-tab="data">Data</button>
     </nav>
 
     <!-- Main Content Container -->
     <main class="admin-container">
         <!-- Seasons Tab -->
-        <div id="seasons" class="tab-content active">
+        <div id="seasons" class="tab-content {{ 'active' if active_tab == 'seasons' or not active_tab else '' }}">
             <div class="tab-panel">
-                <h2>Season Management</h2>
+                <h2>Kausien hallinta</h2>
 
                 <!-- Current Season Card -->
                 {% if current_season %}
                 <div class="season-card current">
-                    <h3>🏆 Current Season: {{ current_season.name }}</h3>
-                    <p>Created: {{ current_season.created_at[:10] }}</p>
-                    <p>Tournaments: {{ current_tournament_count }}</p>
+                    <h3>🏆 Nykyinen kausi: {{ current_season.name }}</h3>
+                    <p>Luotu: {{ current_season.created_at[:10] }}</p>
+                    <p>Turnauksia: {{ current_tournament_count }}</p>
 
-                    <form method="POST" action="/admin/seasons/end-current" onsubmit="return confirm('End {{ current_season.name }}? You can reactivate it or create a new season later.');">
-                        <button type="submit" class="btn-warning">End Current Season</button>
+                    <form method="POST" action="/admin/seasons/end-current" onsubmit="return confirm('Lopeta {{ current_season.name }}? Voit aktivoida sen uudelleen tai luoda uuden kauden myöhemmin.');">
+                        <button type="submit" class="btn-warning">Lopeta nykyinen kausi</button>
                     </form>
                 </div>
                 {% else %}
                 <div class="season-card no-season">
-                    <h3>⚠️ No Active Season</h3>
-                    <p>Create a new season or reactivate an archived season below.</p>
+                    <h3>⚠️ Ei aktiivista kautta</h3>
+                    <p>Luo uusi kausi tai aktivoi arkistoitu kausi alla.</p>
                 </div>
                 {% endif %}
 
                 <!-- Current Season Tournaments -->
                 {% if current_season %}
                 <div class="current-season-tournaments">
-                    <h3>Tournaments in {{ current_season.name }}</h3>
+                    <h3>Turnaukset kaudella {{ current_season.name }}</h3>
 
                     {% if current_season_tournaments %}
                     <table class="admin-table">
                         <thead>
                             <tr>
-                                <th>Tournament Name</th>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>Turnauksen nimi</th>
+                                <th>Päivämäärä</th>
+                                <th>Tila</th>
+                                <th>Toiminnot</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -88,23 +88,27 @@
                                 <td>{{ tournament['created_at'][:10] }}</td>
                                 <td>
                                     {% if tournament['status'] == 'active' %}
-                                    <span class="status-badge active-badge">Active</span>
+                                    <span class="status-badge active-badge">Käynnissä</span>
                                     {% elif tournament['status'] == 'completed' %}
-                                    <span class="status-badge completed-badge">Completed</span>
+                                    <span class="status-badge completed-badge">Päättynyt</span>
                                     {% else %}
-                                    <span class="status-badge setup-badge">Setup</span>
+                                    <span class="status-badge setup-badge">Valmistelu</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if tournament['status'] == 'setup' %}
-                                    <button onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary" id="edit-btn-{{ tournament['id'] }}">Edit</button>
+                                    <a href="{{ url_for('start_round', tournament_id=tournament['id']) }}" class="btn-primary">Aloita</a>
+                                    <button onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary" id="edit-btn-{{ tournament['id'] }}">Muokkaa</button>
                                     {% elif tournament['status'] == 'active' %}
-                                    <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-secondary">View</a>
+                                    <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-secondary">Näytä</a>
+                                    <form method="POST" action="{{ url_for('end_tournament', tournament_id=tournament['id']) }}" style="display: inline;" onsubmit="return confirm('Haluatko varmasti lopettaa turnauksen \'{{ tournament['name'] }}\'?');">
+                                        <button type="submit" class="btn-warning">Lopeta</button>
+                                    </form>
                                     {% else %}
-                                    <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary">View</a>
+                                    <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary">Näytä</a>
                                     {% endif %}
-                                    <form method="POST" action="{{ url_for('admin_delete_tournament', tournament_id=tournament['id']) }}" style="display: inline;" onsubmit="return confirm('⚠️ Are you sure you want to delete \'{{ tournament['name'] }}\'? This will permanently delete all rounds, matches, and scores. This cannot be undone.');">
-                                        <button type="submit" class="btn-danger">Delete</button>
+                                    <form method="POST" action="{{ url_for('admin_delete_tournament', tournament_id=tournament['id']) }}" style="display: inline;" onsubmit="return confirm('⚠️ Haluatko varmasti poistaa turnauksen \'{{ tournament['name'] }}\'? Tämä poistaa pysyvästi kaikki kierrokset, ottelut ja tulokset. Tätä ei voi perua.');">
+                                        <button type="submit" class="btn-danger">Poista</button>
                                     </form>
                                 </td>
                             </tr>
@@ -112,19 +116,19 @@
                             <tr id="edit-row-{{ tournament['id'] }}" class="edit-row" style="display: none;">
                                 <td colspan="4">
                                     <div class="edit-form-container">
-                                        <h4>Edit Tournament</h4>
+                                        <h4>Muokkaa turnausta</h4>
                                         <form method="POST" action="{{ url_for('admin_edit_tournament', tournament_id=tournament['id']) }}" id="edit-form-{{ tournament['id'] }}">
                                             <div class="form-group">
-                                                <label>Tournament Name:</label>
+                                                <label>Turnauksen nimi:</label>
                                                 <input type="text" name="tournament_name" value="{{ tournament['name'] }}" required class="form-input">
                                             </div>
                                             <div class="form-group">
-                                                <label>Number of Courts:</label>
+                                                <label>Kenttien määrä:</label>
                                                 <input type="number" name="num_courts" value="{{ tournament['num_courts'] }}" min="1" max="10" required class="form-input">
                                             </div>
                                             <div class="form-group">
-                                                <label>Players (one per line, {{ tournament['num_courts'] * 4 }} required):</label>
-                                                <textarea name="players" rows="12" required class="form-textarea" id="players-{{ tournament['id'] }}">Loading...</textarea>
+                                                <label>Pelaajat (yksi per rivi, {{ tournament['num_courts'] * 4 }} vaaditaan):</label>
+                                                <textarea name="players" rows="12" required class="form-textarea" id="players-{{ tournament['id'] }}">Ladataan...</textarea>
                                             </div>
 
                                             <!-- Hidden field for round1 pairings data -->
@@ -132,21 +136,21 @@
 
                                             <!-- Round 1 Court Assignments Preview -->
                                             <div class="round1-preview-section" id="round1-section-{{ tournament['id'] }}" style="margin-top: 2rem;">
-                                                <h4 style="margin-bottom: 1rem; color: #333;">Round 1 Court Assignments</h4>
+                                                <h4 style="margin-bottom: 1rem; color: #333;">Kierroksen 1 kenttäjaot</h4>
 
                                                 <div id="round1-controls-{{ tournament['id'] }}" style="margin-bottom: 1rem;">
                                                     <button type="button"
                                                             class="btn-primary"
                                                             id="preview-round1-btn-{{ tournament['id'] }}"
                                                             onclick="previewRound1({{ tournament['id'] }})">
-                                                        Preview Round 1
+                                                        Esikatsele kierros 1
                                                     </button>
                                                     <button type="button"
                                                             class="btn-secondary"
                                                             id="reset-round1-btn-{{ tournament['id'] }}"
                                                             onclick="resetRound1({{ tournament['id'] }})"
                                                             style="display: none;">
-                                                        Reset
+                                                        Palauta
                                                     </button>
                                                 </div>
 
@@ -156,8 +160,8 @@
                                             </div>
 
                                             <div class="form-actions">
-                                                <button type="submit" class="btn-primary">Save Changes</button>
-                                                <button type="button" onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary">Cancel</button>
+                                                <button type="submit" class="btn-primary">Tallenna muutokset</button>
+                                                <button type="button" onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary">Peruuta</button>
                                             </div>
                                         </form>
                                     </div>
@@ -168,7 +172,7 @@
                         </tbody>
                     </table>
                     {% else %}
-                    <p class="empty-state-message">No tournaments yet. Create one below.</p>
+                    <p class="empty-state-message">Ei vielä turnauksia. Luo turnaus alla.</p>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -176,37 +180,37 @@
                 <!-- Create Tournament Form -->
                 {% if current_season %}
                 <div class="create-tournament-form">
-                    <h3>Create New Tournament</h3>
+                    <h3>Luo uusi turnaus</h3>
                     <form method="POST" action="/admin/tournaments/create">
                         <div class="form-group">
-                            <label for="tournament_name">Tournament Name</label>
-                            <input type="text" id="tournament_name" name="tournament_name" placeholder="e.g., Friday Night Padel" maxlength="100" required>
+                            <label for="tournament_name">Turnauksen nimi</label>
+                            <input type="text" id="tournament_name" name="tournament_name" placeholder="esim. Perjantai-illan padel" maxlength="100" required>
                         </div>
 
                         <div class="form-group">
-                            <label for="num_courts">Number of Courts</label>
+                            <label for="num_courts">Kenttien määrä</label>
                             <select id="num_courts" name="num_courts" required>
-                                <option value="">Select courts...</option>
-                                <option value="1">1 court (4 players)</option>
-                                <option value="2">2 courts (8 players)</option>
-                                <option value="3">3 courts (12 players)</option>
-                                <option value="4">4 courts (16 players)</option>
-                                <option value="5">5 courts (20 players)</option>
-                                <option value="6">6 courts (24 players)</option>
-                                <option value="7">7 courts (28 players)</option>
-                                <option value="8">8 courts (32 players)</option>
-                                <option value="9">9 courts (36 players)</option>
-                                <option value="10">10 courts (40 players)</option>
+                                <option value="">Valitse kentät...</option>
+                                <option value="1">1 kenttä (4 pelaajaa)</option>
+                                <option value="2">2 kenttää (8 pelaajaa)</option>
+                                <option value="3">3 kenttää (12 pelaajaa)</option>
+                                <option value="4">4 kenttää (16 pelaajaa)</option>
+                                <option value="5">5 kenttää (20 pelaajaa)</option>
+                                <option value="6">6 kenttää (24 pelaajaa)</option>
+                                <option value="7">7 kenttää (28 pelaajaa)</option>
+                                <option value="8">8 kenttää (32 pelaajaa)</option>
+                                <option value="9">9 kenttää (36 pelaajaa)</option>
+                                <option value="10">10 kenttää (40 pelaajaa)</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="players">Player Names (one per line)</label>
-                            <textarea id="players" name="players" rows="12" placeholder="Enter player names, one per line&#10;Example:&#10;John Smith&#10;Jane Doe&#10;..." required></textarea>
-                            <p class="form-hint">Minimum <span id="min_players">12</span> players required for <span id="selected_courts">3</span> courts</p>
+                            <label for="players">Pelaajien nimet (yksi per rivi)</label>
+                            <textarea id="players" name="players" rows="12" placeholder="Syötä pelaajien nimet, yksi per rivi&#10;Esimerkki:&#10;Matti Meikäläinen&#10;Maija Meikäläinen&#10;..." required></textarea>
+                            <p class="form-hint">Vähintään <span id="min_players">12</span> pelaajaa vaaditaan <span id="selected_courts">3</span> kentälle</p>
                         </div>
 
-                        <button type="submit" class="btn-primary">Create Tournament</button>
+                        <button type="submit" class="btn-primary">Luo turnaus</button>
                     </form>
                 </div>
                 {% endif %}
@@ -231,25 +235,25 @@
 
                 <!-- Create New Season Form -->
                 <div class="create-season-form">
-                    <h3>Create New Season</h3>
+                    <h3>Luo uusi kausi</h3>
                     <form method="POST" action="/admin/seasons/create">
-                        <input type="text" name="season_name" placeholder="Season name (e.g., Winter 2025)" maxlength="100" required>
-                        <button type="submit" class="btn-primary">Create Season</button>
+                        <input type="text" name="season_name" placeholder="Kauden nimi (esim. Talvi 2025)" maxlength="100" required>
+                        <button type="submit" class="btn-primary">Luo kausi</button>
                     </form>
                 </div>
 
                 <!-- Archived Seasons Table -->
                 {% if archived_seasons %}
                 <div class="archived-seasons">
-                    <h3>Archived Seasons</h3>
+                    <h3>Arkistoidut kaudet</h3>
                     <table class="admin-table">
                         <thead>
                             <tr>
-                                <th>Season Name</th>
-                                <th>Created</th>
-                                <th>Ended</th>
-                                <th>Tournaments</th>
-                                <th>Actions</th>
+                                <th>Kauden nimi</th>
+                                <th>Luotu</th>
+                                <th>Päättynyt</th>
+                                <th>Turnauksia</th>
+                                <th>Toiminnot</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -260,8 +264,8 @@
                                 <td>{{ season.ended_at[:10] if season.ended_at else '-' }}</td>
                                 <td>{{ season.tournament_count }}</td>
                                 <td>
-                                    <form method="POST" action="/admin/seasons/{{ season.id }}/activate" style="display:inline;" onsubmit="return confirm('Make {{ season.name }} the current season?');">
-                                        <button type="submit" class="btn-secondary">Set as Current</button>
+                                    <form method="POST" action="/admin/seasons/{{ season.id }}/activate" style="display:inline;" onsubmit="return confirm('Aseta {{ season.name }} nykyiseksi kaudeksi?');">
+                                        <button type="submit" class="btn-secondary">Aseta nykyiseksi</button>
                                     </form>
                                 </td>
                             </tr>
@@ -276,35 +280,96 @@
         <!-- Points Tab -->
         <div id="points" class="tab-content">
             <div class="tab-panel">
-                <h2>Points System Configuration</h2>
+                <h2>Pistejärjestelmän asetukset</h2>
                 <div class="placeholder-content">
                     <div class="icon">📊</div>
-                    <h3>Coming in Phase 2</h3>
-                    <p>Configure point values for wins, losses, and tournament placements.</p>
+                    <h3>Tulossa vaiheessa 2</h3>
+                    <p>Määritä pistearvot voitoille, häviöille ja turnaussijoituksille.</p>
                 </div>
             </div>
         </div>
 
         <!-- Players Tab -->
-        <div id="players" class="tab-content">
+        <div id="players-tab" class="tab-content {{ 'active' if active_tab == 'players' else '' }}">
             <div class="tab-panel">
-                <h2>Player Registry Management</h2>
-                <div class="placeholder-content">
-                    <div class="icon">👥</div>
-                    <h3>Coming in Phase 2</h3>
-                    <p>Add, edit, merge, and archive players from the registry.</p>
+                <h2>Pelaajien pisteet</h2>
+
+                {% if current_season %}
+                <p class="season-info">Kausi: <strong>{{ current_season.name }}</strong></p>
+
+                {% if players %}
+                <table class="admin-table players-table">
+                    <thead>
+                        <tr>
+                            <th>Pelaaja</th>
+                            <th>Pisteet</th>
+                            <th>Toiminnot</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in players %}
+                        <tr id="player-row-{{ player.id }}">
+                            <td>{{ player.first_name }} {{ player.last_name }}</td>
+                            <td>
+                                <span id="player-points-{{ player.id }}">{{ player.total_points }}</span>
+                                {% if player.adjustment != 0 %}
+                                <span class="adjustment-indicator" title="Sisältää manuaalisen korjauksen: {{ '+' if player.adjustment > 0 else '' }}{{ player.adjustment }}">
+                                    ({{ '+' if player.adjustment > 0 else '' }}{{ player.adjustment }})
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button type="button" class="btn-secondary" onclick="toggleEditPlayer({{ player.id }}, {{ player.auto_points }}, {{ player.adjustment }}, {{ player.total_points }})">
+                                    Muokkaa
+                                </button>
+                            </td>
+                        </tr>
+                        <tr id="edit-player-row-{{ player.id }}" class="edit-row" style="display: none;">
+                            <td colspan="3">
+                                <div class="edit-form-container player-edit-form">
+                                    <h4>Muokkaa pisteitä: {{ player.first_name }} {{ player.last_name }}</h4>
+                                    <form method="POST" action="{{ url_for('admin_edit_player_points', player_id=player.id) }}">
+                                        <div class="points-info">
+                                            <p>Automaattiset pisteet: <strong id="auto-points-{{ player.id }}">{{ player.auto_points }}</strong></p>
+                                            <p>Nykyinen korjaus: <strong id="current-adj-{{ player.id }}">{{ '+' if player.adjustment > 0 else '' }}{{ player.adjustment }}</strong></p>
+                                            <p>Yhteensä: <strong id="current-total-{{ player.id }}">{{ player.total_points }}</strong></p>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="new-total-{{ player.id }}">Uudet kokonaispisteet:</label>
+                                            <input type="number" name="new_total_points" id="new-total-{{ player.id }}" value="{{ player.total_points }}" class="form-input" min="0" required>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="btn-primary">Tallenna</button>
+                                            <button type="button" class="btn-secondary" onclick="toggleEditPlayer({{ player.id }})">Peruuta</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="empty-state-message">Ei pelaajia joilla olisi pisteitä tällä kaudella.</p>
+                {% endif %}
+
+                {% else %}
+                <div class="season-card no-season">
+                    <h3>⚠️ Ei aktiivista kautta</h3>
+                    <p>Aktivoi tai luo kausi Kaudet-välilehdellä.</p>
                 </div>
+                {% endif %}
             </div>
         </div>
 
         <!-- Data Tab -->
         <div id="data" class="tab-content">
             <div class="tab-panel">
-                <h2>Data Management</h2>
+                <h2>Datan hallinta</h2>
                 <div class="placeholder-content">
                     <div class="icon">💾</div>
-                    <h3>Coming in Phase 3</h3>
-                    <p>Backup, restore, and reset database operations.</p>
+                    <h3>Tulossa vaiheessa 3</h3>
+                    <p>Varmuuskopiointi, palautus ja tietokannan nollaus.</p>
                 </div>
             </div>
         </div>
@@ -332,6 +397,22 @@
             });
         });
 
+        // Player points edit toggle function
+        function toggleEditPlayer(playerId, autoPoints, adjustment, totalPoints) {
+            const editRow = document.getElementById(`edit-player-row-${playerId}`);
+            if (editRow.style.display === 'none') {
+                // Hide all other open edit forms first
+                document.querySelectorAll('.edit-row[id^="edit-player-row-"]').forEach(row => {
+                    row.style.display = 'none';
+                });
+                // Show this edit form
+                editRow.style.display = 'table-row';
+            } else {
+                // Hide this edit form
+                editRow.style.display = 'none';
+            }
+        }
+
         // Tournament edit toggle function
         async function toggleEditTournament(tournamentId) {
             const editRow = document.getElementById(`edit-row-${tournamentId}`);
@@ -340,7 +421,7 @@
             if (editRow.style.display === 'none') {
                 // Show edit form
                 editRow.style.display = 'table-row';
-                editBtn.textContent = 'Cancel';
+                editBtn.textContent = 'Peruuta';
 
                 // Fetch player names for this tournament
                 const playersTextarea = document.getElementById(`players-${tournamentId}`);
@@ -355,7 +436,7 @@
             } else {
                 // Hide edit form
                 editRow.style.display = 'none';
-                editBtn.textContent = 'Edit';
+                editBtn.textContent = 'Muokkaa';
             }
         }
 
