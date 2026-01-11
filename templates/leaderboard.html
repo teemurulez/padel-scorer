@@ -6,107 +6,238 @@
     <title>Tulokset - {{ tournament['name'] }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        .tournament-header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f9f9f9;
-            border-radius: 8px;
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
         }
-        .tournament-header h1 {
-            margin: 0 0 10px 0;
-            color: #333;
+        body::before {
+            display: none;
+        }
+        .page-watermark {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background-image: url('/static/images/padel-paroni-logo.png');
+            background-repeat: repeat;
+            background-size: 200px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+            transform: rotate(-15deg);
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 1rem;
+            background: white;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .page-header {
+            background: white;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            margin: -1rem -1rem 1.5rem -1rem;
+        }
+        .page-header img {
+            height: 40px;
+            width: auto;
+            margin-bottom: 0.75rem;
+        }
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0 0 0.5rem 0;
+            letter-spacing: -0.5px;
         }
         .status-badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: bold;
-            margin: 10px 0;
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
         }
         .status-badge.active {
-            background-color: #22c55e;
-            color: white;
+            background: #d4edda;
+            color: #155724;
         }
         .status-badge.completed {
-            background-color: #6b7280;
-            color: white;
+            background: #e9ecef;
+            color: #495057;
         }
         .tournament-meta {
             color: #666;
-            font-size: 14px;
-            margin-top: 10px;
+            font-size: 0.9rem;
+            margin-top: 0.75rem;
         }
         .tournament-meta span {
-            margin: 0 15px;
+            margin: 0 0.5rem;
         }
+
+        /* Messages */
+        .messages {
+            margin: 0 0 1rem 0;
+        }
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            text-align: center;
+        }
+
+        /* Leaderboard table */
         .leaderboard {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 0 0 1.5rem 0;
         }
         .leaderboard th {
-            background: #2196F3;
+            background: #1a1a1a;
             color: white;
-            padding: 12px;
+            padding: 0.75rem 0.5rem;
             text-align: left;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .leaderboard td {
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
+            padding: 0.75rem 0.5rem;
+            border-bottom: 1px solid #eee;
+            font-size: 0.95rem;
         }
-        .leaderboard tr:hover {
-            background: #f5f5f5;
+        .leaderboard tbody tr:hover {
+            background: #f9f9f9;
         }
-        .rank {
-            font-weight: bold;
-            color: #2196F3;
-            width: 60px;
+        .leaderboard .rank {
+            font-weight: 700;
+            color: #1a1a1a;
+            width: 50px;
             text-align: center;
         }
-        .player-name {
+        .leaderboard .rank-1 {
+            color: #FFD700;
+        }
+        .leaderboard .rank-2 {
+            color: #C0C0C0;
+        }
+        .leaderboard .rank-3 {
+            color: #CD7F32;
+        }
+        .leaderboard .player-name {
             font-weight: 500;
         }
-        .wins, .matches, .win-rate {
+        .leaderboard .wins,
+        .leaderboard .matches,
+        .leaderboard .win-rate {
             text-align: center;
-            width: 100px;
+            width: 70px;
         }
+        .leaderboard .wins {
+            font-weight: 700;
+            color: #22c55e;
+        }
+
+        /* Empty state */
         .empty-state {
             text-align: center;
-            padding: 40px;
+            padding: 3rem 1rem;
             color: #999;
         }
-        .admin-footer {
-            margin-top: 3rem;
-            padding-top: 2rem;
+
+        /* Buttons */
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .btn-primary-action {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            min-height: 56px;
+            background: #FFD700;
+            color: #1a1a1a;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-primary-action:active {
+            transform: scale(0.98);
+            background: #e6c200;
+        }
+        .btn-secondary-action {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            min-height: 48px;
+            background: white;
+            color: #666;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-secondary-action:active {
+            background: #f5f5f5;
+        }
+
+        /* Footer */
+        .page-footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
             border-top: 1px solid #e0e0e0;
             text-align: center;
         }
-        .admin-footer a {
-            color: #3498db;
+        .page-footer .admin-link {
+            color: #999;
             text-decoration: none;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
         }
-        .admin-footer a:hover {
+        .page-footer .admin-link:hover {
+            color: #666;
             text-decoration: underline;
+        }
+        .page-footer .copyright {
+            margin-top: 1rem;
+            color: #bbb;
+            font-size: 0.75rem;
         }
     </style>
 </head>
 <body>
+    <div class="page-watermark"></div>
     <div class="container">
-        <div class="tournament-header">
+        <div class="page-header">
+            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
             <h1>{{ tournament['name'] }}</h1>
             <span class="status-badge {% if tournament['status'] == 'completed' %}completed{% else %}active{% endif %}">
                 {% if tournament['status'] == 'completed' %}Päättynyt{% else %}Käynnissä{% endif %}
             </span>
             <div class="tournament-meta">
-                <span>📅 {{ tournament['created_at'][:10] }}</span>
-                <span>🎾 {{ tournament_stats['total_rounds'] }} kierros{{ 'ta' if tournament_stats['total_rounds'] != 1 else '' }}</span>
-                <span>🏟️ {{ tournament['num_courts'] }} kenttä{{ 'ä' if tournament['num_courts'] != 1 else '' }}</span>
+                <span>{{ tournament_stats['total_rounds'] }} kierros{% if tournament_stats['total_rounds'] != 1 %}ta{% endif %}</span>
+                <span>&bull;</span>
+                <span>{{ tournament['num_courts'] }} kenttä{% if tournament['num_courts'] != 1 %}ä{% endif %}</span>
             </div>
         </div>
 
@@ -127,14 +258,14 @@
                     <th class="rank">Sija</th>
                     <th>Pelaaja</th>
                     <th class="wins">Voitot</th>
-                    <th class="matches">Ottelut</th>
-                    <th class="win-rate">Voitto-%</th>
+                    <th class="matches">Pelit</th>
+                    <th class="win-rate">%</th>
                 </tr>
             </thead>
             <tbody>
                 {% for player in players %}
                 <tr>
-                    <td class="rank">#{{ player['rank'] }}</td>
+                    <td class="rank {% if player['rank'] <= 3 %}rank-{{ player['rank'] }}{% endif %}">#{{ player['rank'] }}</td>
                     <td class="player-name">{{ player['first_name'] }} {{ player['last_name'] }}</td>
                     <td class="wins">{{ player['wins'] }}</td>
                     <td class="matches">{{ player['matches_played'] }}</td>
@@ -157,16 +288,20 @@
 
         <div class="actions">
             {% if tournament['status'] != 'completed' %}
-            <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}"
-               class="btn btn-primary">Takaisin turnaukseen</a>
+            <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-primary-action">
+                Takaisin turnaukseen
+            </a>
             {% else %}
-            <a href="/" class="btn btn-secondary">Takaisin etusivulle</a>
+            <a href="{{ url_for('index') }}" class="btn-secondary-action">
+                ← Takaisin etusivulle
+            </a>
             {% endif %}
         </div>
-    </div>
 
-    <div class="admin-footer">
-        <a href="{{ url_for('admin_dashboard') }}">Ylläpito</a>
+        <div class="page-footer">
+            <a href="{{ url_for('admin_dashboard') }}" target="_blank" class="admin-link">Ylläpito</a>
+            <div class="copyright">© 2026 Padel Paroni. Kaikki oikeudet pidätetään.</div>
+        </div>
     </div>
 </body>
 </html>

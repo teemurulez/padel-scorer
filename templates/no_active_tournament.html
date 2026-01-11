@@ -3,118 +3,226 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ei aktiivista turnausta - Padel Kentän Kuningas</title>
+    <title>Ei aktiivista turnausta - Padel Paroni</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        .message-container {
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+        body::before {
+            display: none;
+        }
+        .page-watermark {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background-image: url('/static/images/padel-paroni-logo.png');
+            background-repeat: repeat;
+            background-size: 200px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+            transform: rotate(-15deg);
+        }
+        .container {
             max-width: 600px;
-            margin: 4rem auto;
-            padding: 2rem;
+            margin: 0 auto;
+            padding: 1rem;
+            background: white;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .page-header {
+            background: white;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            margin: -1rem -1rem 1.5rem -1rem;
+        }
+        .page-header img {
+            height: 40px;
+            width: auto;
+            margin-bottom: 0.75rem;
+        }
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0 0 0.25rem 0;
+            letter-spacing: -0.5px;
+        }
+        .page-header p {
+            color: #666;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
+        /* Messages */
+        .messages {
+            margin: 0 0 1rem 0;
+        }
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
             text-align: center;
         }
-        .message-box {
+        .message.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        /* Content box */
+        .content-box {
             background: #f9f9f9;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 3rem 2rem;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
         }
-        .message-icon {
+        .content-box .icon {
+            font-size: 3rem;
             margin-bottom: 1rem;
         }
-        .message-icon img {
-            width: 120px;
-            height: auto;
+        .content-box h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 0 0 0.75rem 0;
         }
-        .message-title {
-            color: #2c3e50;
-            font-size: 1.8rem;
-            margin-bottom: 1rem;
-        }
-        .message-text {
+        .content-box p {
             color: #666;
-            margin-bottom: 2rem;
+            font-size: 0.95rem;
             line-height: 1.6;
+            margin: 0;
         }
+
+        /* Season info */
         .season-info {
             background: white;
+            border: 1px solid #eee;
+            border-radius: 8px;
             padding: 1rem;
-            border-radius: 4px;
-            margin-bottom: 2rem;
-            color: #555;
-        }
-        .footer-link {
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 1px solid #e0e0e0;
-        }
-        .footer-link a {
-            color: #3498db;
-            text-decoration: none;
-            font-size: 0.95rem;
-        }
-        .footer-link a:hover {
-            text-decoration: underline;
-        }
-        .flash-messages {
-            max-width: 600px;
-            margin: 1rem auto;
-            padding: 0 2rem;
-        }
-        .flash {
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 4px;
+            margin: 1.5rem 0;
             text-align: center;
         }
-        .flash.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .season-info strong {
+            color: #1a1a1a;
+            display: block;
+            margin-bottom: 0.25rem;
         }
-        .flash.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .season-info span {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Buttons */
+        .btn-primary-action {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            min-height: 56px;
+            background: #FFD700;
+            color: #1a1a1a;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-primary-action:active {
+            transform: scale(0.98);
+            background: #e6c200;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Footer */
+        .page-footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        .page-footer .admin-link {
+            color: #999;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .page-footer .admin-link:hover {
+            color: #666;
+            text-decoration: underline;
+        }
+        .page-footer .copyright {
+            margin-top: 1rem;
+            color: #bbb;
+            font-size: 0.75rem;
         }
     </style>
 </head>
 <body>
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-messages">
-                {% for category, message in messages %}
-                    <div class="flash {{ category }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
+    <div class="page-watermark"></div>
+    <div class="container">
+        <div class="page-header">
+            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            <h1>Padel Paroni</h1>
+            <p>{% if season %}{{ season.name }}{% endif %}</p>
+        </div>
 
-    <div class="message-container">
-        <div class="message-box">
-            <div class="message-icon">
-                <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
-            </div>
-            <h1 class="message-title">Ei aktiivista turnausta</h1>
-            <p class="message-text">
-                Turnaus ei ole käynnissä.<br>
-                Tarkista myöhemmin tai ota yhteyttä järjestäjään!
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="messages">
+                    {% for category, message in messages %}
+                        <div class="message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="content-box">
+            <div class="icon">🎾</div>
+            <h2>Ei aktiivista turnausta</h2>
+            <p>
+                Turnaus ei ole kaynnissa.<br>
+                Tarkista myohemmin tai ota yhteytta jarjestajaan!
             </p>
 
             {% if season %}
             <div class="season-info">
-                <strong>{{ season.name }}</strong><br>
-                {{ season.tournament_count }} turnaus{{ 'ta' if season.tournament_count != 1 else '' }} tällä kaudella
+                <strong>{{ season.name }}</strong>
+                <span>{{ season.tournament_count }} turnaus{{ 'ta' if season.tournament_count != 1 else '' }} talla kaudella</span>
             </div>
             {% endif %}
+        </div>
 
-            <a href="{{ url_for('season_leaderboard') }}" class="btn btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
-                📊 Näytä tulokset
+        <div class="actions">
+            <a href="{{ url_for('season_leaderboard') }}" class="btn-primary-action">
+                Nayta tulokset
             </a>
+        </div>
 
-            <div class="footer-link">
-                <a href="/admin">Ylläpito</a>
-            </div>
+        <div class="page-footer">
+            <a href="{{ url_for('admin_dashboard') }}" target="_blank" class="admin-link">Yllapito</a>
+            <div class="copyright">© 2026 Padel Paroni. Kaikki oikeudet pidatetaan.</div>
         </div>
     </div>
 </body>

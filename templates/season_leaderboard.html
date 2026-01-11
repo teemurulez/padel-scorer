@@ -6,108 +6,304 @@
     <title>{{ season_name }} - Tulokset</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        .season-header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f9f9f9;
-            border-radius: 8px;
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
         }
-        .season-meta {
-            color: #666;
-            font-size: 14px;
-            margin: 5px 0;
+        body::before {
+            display: none;
         }
-        .tournaments-section {
-            margin-top: 40px;
+        .page-watermark {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background-image: url('/static/images/padel-paroni-logo.png');
+            background-repeat: repeat;
+            background-size: 200px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+            transform: rotate(-15deg);
         }
-        .tournament-card {
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 1rem;
             background: white;
-            border: 2px solid #ddd;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .page-header {
+            background: white;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            margin: -1rem -1rem 1.5rem -1rem;
+        }
+        .page-header img {
+            height: 40px;
+            width: auto;
+            margin-bottom: 0.75rem;
+        }
+        .page-header h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0 0 0.25rem 0;
+            letter-spacing: -0.5px;
+        }
+        .page-header .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        /* Messages */
+        .messages {
+            margin: 0 0 1rem 0;
+        }
+        .message {
+            padding: 1rem;
             border-radius: 8px;
-            margin-bottom: 15px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            text-align: center;
+        }
+
+        /* Section headers */
+        .section-header {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 1.5rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #FFD700;
+        }
+
+        /* Leaderboard table */
+        .leaderboard {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 0 1.5rem 0;
+        }
+        .leaderboard th {
+            background: #1a1a1a;
+            color: white;
+            padding: 0.75rem 0.5rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .leaderboard td {
+            padding: 0.75rem 0.5rem;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+        .leaderboard tbody tr:hover {
+            background: #f9f9f9;
+        }
+        .leaderboard .rank {
+            font-weight: 700;
+            color: #1a1a1a;
+            width: 45px;
+            text-align: center;
+        }
+        .leaderboard .rank-1 { color: #FFD700; }
+        .leaderboard .rank-2 { color: #C0C0C0; }
+        .leaderboard .rank-3 { color: #CD7F32; }
+        .leaderboard .player-name {
+            font-weight: 500;
+        }
+        .leaderboard .player-name a {
+            color: #1a1a1a;
+            text-decoration: none;
+        }
+        .leaderboard .player-name a:hover {
+            color: #FFD700;
+        }
+        .leaderboard .points {
+            text-align: center;
+            width: 55px;
+            font-weight: 700;
+            color: #22c55e;
+        }
+        .leaderboard .tournaments,
+        .leaderboard .matches,
+        .leaderboard .win-rate {
+            text-align: center;
+            width: 50px;
+        }
+
+        /* Tournament cards */
+        .tournament-card {
+            background: #f9f9f9;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            margin-bottom: 1rem;
             overflow: hidden;
         }
         .tournament-header {
-            padding: 15px;
-            background: #f8f9fa;
+            padding: 1rem;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 0.5rem;
             flex-wrap: wrap;
         }
         .tournament-header:hover {
-            background: #e9ecef;
+            background: #f0f0f0;
+        }
+        .tournament-header:active {
+            background: #e8e8e8;
         }
         .toggle-icon {
-            font-size: 14px;
-            transition: transform 0.2s;
+            font-size: 0.8rem;
+            color: #999;
             min-width: 15px;
+            transition: transform 0.2s;
         }
         .toggle-icon.expanded {
             transform: rotate(90deg);
         }
+        .tournament-name {
+            font-weight: 700;
+            color: #1a1a1a;
+            flex: 1;
+        }
+        .tournament-meta {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .badge.completed {
+            background: #e9ecef;
+            color: #495057;
+        }
         .tournament-details {
-            padding: 15px;
+            padding: 0 1rem 1rem 1rem;
             display: none;
         }
         .tournament-details.show {
             display: block;
         }
-        .badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: auto;
+        .tournament-details .leaderboard {
+            margin-bottom: 0;
         }
-        .badge.active {
-            background: #22c55e;
-            color: white;
-        }
-        .badge.completed {
-            background: #6b7280;
-            color: white;
-        }
+
+        /* Empty state */
         .empty-state {
             text-align: center;
-            padding: 40px;
+            padding: 2rem 1rem;
             color: #999;
         }
-        .player-name a {
-            color: #2563eb;
+        .no-season-message {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: #666;
+        }
+        .no-season-message a {
+            color: #FFD700;
+            font-weight: 600;
+        }
+
+        /* Buttons */
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .btn-primary-action {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            min-height: 56px;
+            background: #FFD700;
+            color: #1a1a1a;
             text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            box-sizing: border-box;
         }
-        .player-name a:hover {
-            text-decoration: underline;
-            color: #1d4ed8;
+        .btn-primary-action:active {
+            transform: scale(0.98);
+            background: #e6c200;
         }
-        .admin-footer {
-            margin-top: 3rem;
-            padding-top: 2rem;
+        .btn-secondary-action {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            min-height: 48px;
+            background: white;
+            color: #666;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-secondary-action:active {
+            background: #f5f5f5;
+        }
+
+        /* Footer */
+        .page-footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
             border-top: 1px solid #e0e0e0;
             text-align: center;
         }
-        .admin-footer a {
-            color: #3498db;
+        .page-footer .admin-link {
+            color: #999;
             text-decoration: none;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
         }
-        .admin-footer a:hover {
+        .page-footer .admin-link:hover {
+            color: #666;
             text-decoration: underline;
+        }
+        .page-footer .copyright {
+            margin-top: 1rem;
+            color: #bbb;
+            font-size: 0.75rem;
         }
     </style>
 </head>
 <body>
+    <div class="page-watermark"></div>
     <div class="container">
-        <div class="season-header">
-            <h1>{{ season_name }} - Tulokset</h1>
+        <div class="page-header">
+            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            <h1>{{ season_name }}</h1>
             {% if not no_season %}
-            <div class="season-meta">{{ tournament_count }} turnaus{{ 'ta' if tournament_count != 1 else '' }}</div>
+            <p class="subtitle">{{ tournament_count }} turnaus{% if tournament_count != 1 %}ta{% endif %}</p>
             {% endif %}
-
         </div>
 
         {% with messages = get_flashed_messages() %}
@@ -122,42 +318,39 @@
 
         {% if no_season %}
         <div class="no-season-message">
-            <p>Ei aktiivista kautta. <a href="{{ url_for('admin_dashboard') }}">Siirry ylläpitoon</a> luodaksesi tai aktivoidaksesi kauden.</p>
+            <p>Ei aktiivista kautta.</p>
+            <p><a href="{{ url_for('admin_dashboard') }}">Siirry ylläpitoon</a> luodaksesi tai aktivoidaksesi kauden.</p>
         </div>
         {% else %}
 
         <!-- Season-Wide Standings -->
-        <h2>Kauden tilanne</h2>
+        <h2 class="section-header">Kauden tilanne</h2>
         {% if season_stats %}
         <table class="leaderboard">
             <thead>
                 <tr>
                     <th class="rank">Sija</th>
                     <th>Pelaaja</th>
-                    <th class="points">Pisteet</th>
-                    <th class="tournaments" style="text-align: center;">Turnaukset</th>
-                    <th class="matches">Ottelut</th>
-                    <th class="win-rate">Voitto-%</th>
+                    <th class="points">Pist.</th>
+                    <th class="tournaments">Turn.</th>
+                    <th class="matches">Pelit</th>
+                    <th class="win-rate">%</th>
                 </tr>
             </thead>
             <tbody>
                 {% for player in season_stats %}
                 <tr>
-                    <td class="rank">#{{ player['rank'] }}</td>
+                    <td class="rank {% if player['rank'] <= 3 %}rank-{{ player['rank'] }}{% endif %}">#{{ player['rank'] }}</td>
                     <td class="player-name">
                         <a href="{{ url_for('player_profile', player_id=player['id']) }}">
                             {{ player['first_name'] }} {{ player['last_name'] }}
                         </a>
                     </td>
                     <td class="points">{{ player['total_points'] }}</td>
-                    <td class="tournaments" style="text-align: center;">{{ player['total_tournaments'] }}</td>
+                    <td class="tournaments">{{ player['total_tournaments'] }}</td>
                     <td class="matches">{{ player['total_matches'] }}</td>
                     <td class="win-rate">
-                        {% if player['win_rate'] %}
-                            {{ player['win_rate'] }}%
-                        {% else %}
-                            -
-                        {% endif %}
+                        {% if player['win_rate'] %}{{ player['win_rate'] }}%{% else %}-{% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -171,76 +364,69 @@
 
         <!-- Individual Tournaments -->
         {% if tournaments %}
-        <div class="tournaments-section">
-            <h2>Turnaukset</h2>
-            {% for item in tournaments %}
-            {% set tournament = item['tournament'] %}
-            {% set stats = item['stats'] %}
-            <div class="tournament-card">
-                <div class="tournament-header" onclick="toggleTournament({{ tournament['id'] }})">
-                    <span class="toggle-icon" id="icon-{{ tournament['id'] }}">▶</span>
-                    <span><strong>{{ tournament['name'] }}</strong></span>
-                    <span>{{ tournament['created_at'][:10] }}</span>
-                    <span>{{ stats['rounds'] }} kierros{{ 'ta' if stats['rounds'] != 1 else '' }}</span>
-                    <span>{{ tournament['num_courts'] }} kenttä{{ 'ä' if tournament['num_courts'] != 1 else '' }}</span>
-                    <span class="badge {{ 'active' if tournament['status'] == 'active' else 'completed' }}">
-                        {% if tournament['status'] == 'active' %}Käynnissä{% else %}Päättynyt{% endif %}
-                    </span>
-                </div>
-                <div id="tournament-{{ tournament['id'] }}" class="tournament-details">
-                    {% if stats['players'] %}
-                    <table class="leaderboard">
-                        <thead>
-                            <tr>
-                                <th class="rank">Sija</th>
-                                <th>Pelaaja</th>
-                                <th class="wins">Voitot</th>
-                                <th class="matches">Ottelut</th>
-                                <th class="win-rate">Voitto-%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for player in stats['players'] %}
-                            <tr>
-                                <td class="rank">#{{ player['rank'] }}</td>
-                                <td class="player-name">
-                                    <a href="{{ url_for('player_profile', player_id=player['id']) }}">
-                                        {{ player['first_name'] }} {{ player['last_name'] }}
-                                    </a>
-                                </td>
-                                <td class="wins">{{ player['wins'] }}</td>
-                                <td class="matches">{{ player['matches_played'] }}</td>
-                                <td class="win-rate">
-                                    {% if player['win_rate'] %}
-                                        {{ player['win_rate'] }}%
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                    <div class="empty-state">Ei pelattuja otteluita tässä turnauksessa.</div>
-                    {% endif %}
-                </div>
+        <h2 class="section-header">Turnaukset</h2>
+        {% for item in tournaments %}
+        {% set tournament = item['tournament'] %}
+        {% set stats = item['stats'] %}
+        <div class="tournament-card">
+            <div class="tournament-header" onclick="toggleTournament({{ tournament['id'] }})">
+                <span class="toggle-icon" id="icon-{{ tournament['id'] }}">▶</span>
+                <span class="tournament-name">{{ tournament['name'] }}</span>
+                <span class="tournament-meta">{{ stats['rounds'] }} kier.</span>
+                <span class="badge {{ 'active' if tournament['status'] == 'active' else 'completed' }}">
+                    {% if tournament['status'] == 'active' %}Käynnissä{% else %}Päättynyt{% endif %}
+                </span>
             </div>
-            {% endfor %}
+            <div id="tournament-{{ tournament['id'] }}" class="tournament-details">
+                {% if stats['players'] %}
+                <table class="leaderboard">
+                    <thead>
+                        <tr>
+                            <th class="rank">Sija</th>
+                            <th>Pelaaja</th>
+                            <th class="wins">Voitot</th>
+                            <th class="matches">Pelit</th>
+                            <th class="win-rate">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in stats['players'] %}
+                        <tr>
+                            <td class="rank {% if player['rank'] <= 3 %}rank-{{ player['rank'] }}{% endif %}">#{{ player['rank'] }}</td>
+                            <td class="player-name">
+                                <a href="{{ url_for('player_profile', player_id=player['id']) }}">
+                                    {{ player['first_name'] }} {{ player['last_name'] }}
+                                </a>
+                            </td>
+                            <td class="wins">{{ player['wins'] }}</td>
+                            <td class="matches">{{ player['matches_played'] }}</td>
+                            <td class="win-rate">
+                                {% if player['win_rate'] %}{{ player['win_rate'] }}%{% else %}-{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">Ei pelattuja otteluita.</div>
+                {% endif %}
+            </div>
         </div>
+        {% endfor %}
         {% endif %}
 
         <div class="actions">
             {% if has_previous_seasons %}
-            <a href="{{ url_for('season_history') }}" class="btn btn-secondary">Näytä aiemmat kaudet</a>
+            <a href="{{ url_for('season_history') }}" class="btn-secondary-action">Näytä aiemmat kaudet</a>
             {% endif %}
-            <a href="/" class="btn btn-secondary">Takaisin etusivulle</a>
+            <a href="{{ url_for('index') }}" class="btn-secondary-action">← Takaisin etusivulle</a>
         </div>
         {% endif %}
-    </div>
 
-    <div class="admin-footer">
-        <a href="{{ url_for('admin_dashboard') }}">Ylläpito</a>
+        <div class="page-footer">
+            <a href="{{ url_for('admin_dashboard') }}" target="_blank" class="admin-link">Ylläpito</a>
+            <div class="copyright">© 2026 Padel Paroni. Kaikki oikeudet pidätetään.</div>
+        </div>
     </div>
 
     <script>

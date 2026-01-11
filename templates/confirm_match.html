@@ -217,21 +217,26 @@
             text-decoration: underline;
         }
 
-        /* Admin footer */
-        .admin-footer {
+        /* Footer */
+        .page-footer {
             margin-top: 2rem;
             padding-top: 1.5rem;
             border-top: 1px solid #e0e0e0;
             text-align: center;
         }
-        .admin-footer a {
+        .page-footer .admin-link {
             color: #999;
             text-decoration: none;
             font-size: 0.85rem;
         }
-        .admin-footer a:hover {
+        .page-footer .admin-link:hover {
             color: #666;
             text-decoration: underline;
+        }
+        .page-footer .copyright {
+            margin-top: 1rem;
+            color: #bbb;
+            font-size: 0.75rem;
         }
 
         /* Mobile */
@@ -319,8 +324,9 @@
             <a href="{{ url_for('active_round', tournament_id=tournament.id, round_id=round.id) }}">← Takaisin</a>
         </div>
 
-        <div class="admin-footer">
-            <a href="{{ url_for('admin_dashboard') }}" target="_blank">Ylläpito</a>
+        <div class="page-footer">
+            <a href="{{ url_for('admin_dashboard') }}" target="_blank" class="admin-link">Ylläpito</a>
+            <div class="copyright">© 2026 Padel Paroni. Kaikki oikeudet pidätetään.</div>
         </div>
     </div>
 
