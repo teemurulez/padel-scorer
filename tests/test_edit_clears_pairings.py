@@ -60,8 +60,8 @@ def client(tmp_path):
     if os.path.exists(db_path):
         os.remove(db_path)
 
-def test_edit_players_clears_saved_pairings(client):
-    """Test editing player list clears saved Round 1 pairings"""
+def test_edit_players_updates_pairings_by_position(client):
+    """Test editing player list updates pairings by position mapping (preserves structure)"""
     client_obj, tournament_id = client
 
     # Verify pairings exist before edit
@@ -75,7 +75,8 @@ def test_edit_players_clears_saved_pairings(client):
 
     assert pairings_before == 2
 
-    # Edit tournament with different player list
+    # Edit tournament with different player list (same count = 8)
+    # This simulates changing some player names
     new_players = "Player1 Last1\nPlayer2 Last2\nPlayer3 Last3\nPlayer4 Last4\nPlayer9 New9\nPlayer10 New10\nPlayer11 New11\nPlayer12 New12"
 
     response = client_obj.post(
@@ -90,7 +91,7 @@ def test_edit_players_clears_saved_pairings(client):
 
     assert response.status_code == 200
 
-    # Verify pairings cleared
+    # Pairings are preserved (updated with new player IDs by position mapping)
     with app.app_context():
         db = get_db()
         pairings_after = db.execute(
@@ -98,7 +99,8 @@ def test_edit_players_clears_saved_pairings(client):
             (tournament_id,)
         ).fetchone()['count']
 
-    assert pairings_after == 0
+    # Same count - pairings preserved with ID mapping
+    assert pairings_after == 2
 
 def test_edit_num_courts_clears_saved_pairings(client):
     """Test changing number of courts clears saved pairings"""

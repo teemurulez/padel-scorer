@@ -83,7 +83,7 @@
                         </thead>
                         <tbody>
                             {% for tournament in current_season_tournaments %}
-                            <tr>
+                            <tr id="tournament-{{ tournament['id'] }}">
                                 <td>{{ tournament['name'] }}</td>
                                 <td>{{ tournament['created_at'][:10] }}</td>
                                 <td>
@@ -97,7 +97,9 @@
                                 </td>
                                 <td>
                                     {% if tournament['status'] == 'setup' %}
-                                    <a href="{{ url_for('start_round', tournament_id=tournament['id']) }}" class="btn-primary">Aloita</a>
+                                    <form method="POST" action="{{ url_for('start_round', tournament_id=tournament['id']) }}" style="display: inline;">
+                                        <button type="submit" class="btn-primary">Aloita</button>
+                                    </form>
                                     <button onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary" id="edit-btn-{{ tournament['id'] }}">Muokkaa</button>
                                     {% elif tournament['status'] == 'active' %}
                                     <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-secondary">Näytä</a>
@@ -457,6 +459,16 @@
                     // Form will submit normally with pairings data included
                 });
             });
+
+            // Auto-open edit form if edit_tournament_id is set
+            {% if edit_tournament_id %}
+            const editTournamentId = {{ edit_tournament_id }};
+            toggleEditTournament(editTournamentId);
+            // Also load the Round 1 preview if pairings exist
+            setTimeout(() => {
+                previewRound1(editTournamentId);
+            }, 500);
+            {% endif %}
         });
     </script>
 

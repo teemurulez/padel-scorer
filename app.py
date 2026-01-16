@@ -1843,6 +1843,9 @@ def admin_dashboard():
     """Admin dashboard main page with season management"""
     db = get_db()
 
+    # Check if we should keep a tournament edit form open
+    edit_tournament_id = request.args.get('edit', type=int)
+
     # Get current season
     current_season = get_current_season(db)
 
@@ -1907,7 +1910,8 @@ def admin_dashboard():
                           current_season_tournaments=current_season_tournaments,
                           players=players,
                           archived_seasons=archived_seasons,
-                          active_tab='seasons')
+                          active_tab='seasons',
+                          edit_tournament_id=edit_tournament_id)
 
 
 @app.route('/admin/players')
@@ -2283,14 +2287,19 @@ def admin_edit_tournament(tournament_id):
         (tournament_id,)
     ).fetchone()
 
-    current_players = db.execute(
-        'SELECT player_id FROM tournament_players WHERE tournament_id = ? ORDER BY player_id',
+    # Get current players in alphabetical order (same as shown in edit textarea)
+    current_players_ordered = db.execute(
+        '''SELECT tp.player_id, pr.first_name, pr.last_name
+           FROM tournament_players tp
+           JOIN player_registry pr ON tp.player_id = pr.id
+           WHERE tp.tournament_id = ?
+           ORDER BY pr.first_name, pr.last_name''',
         (tournament_id,)
     ).fetchall()
-    current_player_ids = {p['player_id'] for p in current_players}
+    current_player_ids = {p['player_id'] for p in current_players_ordered}
 
-    # Parse new player list to get player IDs
-    new_player_ids = set()
+    # Parse new player list to get player IDs (in form order)
+    new_player_ids_ordered = []
     for name in player_names:
         parts = name.strip().split(' ', 1)
         first_name = parts[0] if len(parts) > 0 else ''
@@ -2302,23 +2311,39 @@ def admin_edit_tournament(tournament_id):
         ).fetchone()
 
         if player:
-            new_player_ids.add(player['id'])
+            new_player_ids_ordered.append(player['id'])
+        else:
+            new_player_ids_ordered.append(None)  # Will be created later
+
+    new_player_ids = set(pid for pid in new_player_ids_ordered if pid is not None)
 
     # Check if player list or court count changed
     players_changed = current_player_ids != new_player_ids
     courts_changed = current_tournament['num_courts'] != num_courts
+    count_changed = len(player_names) != len(current_players_ordered)
 
-    if players_changed or courts_changed:
-        # Clear saved Round 1 pairings
+    # Build player ID mapping (old -> new) for pairings update
+    player_id_mapping = {}
+
+    if courts_changed or count_changed:
+        # Court count or player count changed - clear pairings
         db.execute(
             'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
             (tournament_id,)
         )
-
-        if players_changed:
-            flash('⚠️ Player list changed - Round 1 pairings have been reset', 'warning')
         if courts_changed:
             flash('⚠️ Number of courts changed - Round 1 pairings have been reset', 'warning')
+        elif count_changed:
+            flash('⚠️ Player count changed - Round 1 pairings have been reset', 'warning')
+    elif players_changed:
+        # Same count but different players - map old IDs to new IDs by position
+        # This preserves the user's manual pairing arrangements
+        for i, old_player in enumerate(current_players_ordered):
+            if i < len(new_player_ids_ordered):
+                old_id = old_player['player_id']
+                new_id = new_player_ids_ordered[i]
+                if new_id is not None and old_id != new_id:
+                    player_id_mapping[old_id] = new_id
 
     # Update tournament
     db.execute(
@@ -2329,7 +2354,8 @@ def admin_edit_tournament(tournament_id):
     # Remove existing player assignments
     db.execute('DELETE FROM tournament_players WHERE tournament_id = ?', (tournament_id,))
 
-    # Add updated player list
+    # Add updated player list and track the actual IDs (in form order)
+    final_player_ids_ordered = []
     for name in player_names:
         parts = name.strip().split(' ', 1)
         first_name = parts[0] if len(parts) > 0 else ''
@@ -2350,6 +2376,8 @@ def admin_edit_tournament(tournament_id):
             )
             player_id = cursor.lastrowid
 
+        final_player_ids_ordered.append(player_id)
+
         # Link player to tournament
         try:
             db.execute(
@@ -2359,9 +2387,42 @@ def admin_edit_tournament(tournament_id):
         except sqlite3.IntegrityError:
             pass  # Player already linked
 
-    # Save Round 1 pairings if provided
+    # Build final player ID mapping now that all players exist
+    # Map old IDs to new IDs by position (for name changes)
+    if players_changed and not (courts_changed or count_changed):
+        for i, old_player in enumerate(current_players_ordered):
+            if i < len(final_player_ids_ordered):
+                old_id = old_player['player_id']
+                new_id = final_player_ids_ordered[i]
+                if old_id != new_id:
+                    player_id_mapping[old_id] = new_id
+
+    # Update existing pairings if we have a player ID mapping (name changes)
+    if player_id_mapping:
+        # Get existing pairings
+        existing_pairings = db.execute(
+            'SELECT * FROM round1_preview_pairings WHERE tournament_id = ?',
+            (tournament_id,)
+        ).fetchall()
+
+        for pairing in existing_pairings:
+            updates = {}
+            for col in ['team1_player1_id', 'team1_player2_id', 'team2_player1_id', 'team2_player2_id']:
+                old_id = pairing[col]
+                if old_id in player_id_mapping:
+                    updates[col] = player_id_mapping[old_id]
+
+            if updates:
+                set_clause = ', '.join(f'{col} = ?' for col in updates.keys())
+                values = list(updates.values()) + [pairing['id']]
+                db.execute(
+                    f'UPDATE round1_preview_pairings SET {set_clause} WHERE id = ?',
+                    values
+                )
+
+    # Save Round 1 pairings if provided (skip if we already did ID mapping - form has old IDs)
     round1_pairings_json = request.form.get('round1_pairings', '').strip()
-    if round1_pairings_json:
+    if round1_pairings_json and not player_id_mapping:
         try:
             pairings = json.loads(round1_pairings_json)
             if pairings:
@@ -2397,7 +2458,7 @@ def admin_edit_tournament(tournament_id):
     db.commit()
 
     flash(f'Tournament "{tournament_name}" updated successfully!')
-    return redirect('/admin')
+    return redirect(f'/admin?edit={tournament_id}#tournament-{tournament_id}')
 
 
 @app.route('/admin/tournaments/<int:tournament_id>/delete', methods=['POST'])
