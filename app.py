@@ -2017,6 +2017,45 @@ def admin_edit_player_points(player_id):
     return redirect('/admin/players')
 
 
+@app.route('/admin/validate-players', methods=['POST'])
+def admin_validate_players():
+    """Validate player names against registry (AJAX endpoint)"""
+    from player_validation import validate_player_names
+
+    data = request.get_json()
+    if not data or 'players' not in data:
+        return jsonify({'error': 'No players provided'}), 400
+
+    players_text = data['players']
+    player_names = [line.strip() for line in players_text.split('\n') if line.strip()]
+
+    # Get all players from registry
+    db = get_db_connection()
+    registry = db.execute(
+        'SELECT id, first_name, last_name FROM player_registry ORDER BY first_name, last_name'
+    ).fetchall()
+
+    # Convert to list of dicts for validation
+    registry_list = [dict(p) for p in registry]
+
+    # Validate
+    results = validate_player_names(player_names, registry_list)
+
+    # Build summary
+    summary = {
+        'exact': sum(1 for r in results if r['status'] == 'exact'),
+        'similar': sum(1 for r in results if r['status'] == 'similar'),
+        'new': sum(1 for r in results if r['status'] == 'new'),
+        'duplicate': sum(1 for r in results if r['status'] == 'duplicate'),
+        'total': len(results)
+    }
+
+    return jsonify({
+        'results': results,
+        'summary': summary
+    })
+
+
 @app.route('/admin/tournaments/create', methods=['POST'])
 def admin_create_tournament():
     """Create new tournament from admin dashboard (ADMIN)"""
