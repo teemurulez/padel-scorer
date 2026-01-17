@@ -45,10 +45,23 @@ The `seasons` table schema has changed - tests reference a `year` column that no
 - Tournament edit page UX improvements
 - Finnish character fixes
 - Court Hub feature attempted and rolled back (list view better for mobile)
+- Documentation cleanup: updated README, removed outdated docs, fixed references
+
+## Documentation Status
+
+| File | Status |
+|------|--------|
+| `README.md` | ✅ Updated - current with all features |
+| `TODO.md` | ✅ Current - tracking next steps |
+| `docs/COURT_MOVEMENT.md` | ✅ Updated - fixed broken reference |
+| `docs/daily-summaries/` | ✅ Clean - dated files only |
+| `docs/plans/` | 📁 Historical - design documents |
 
 ## Key Files
 
+- `README.md` - Project overview and setup instructions
+- `TODO.md` - Current status and next steps (this file)
 - `docs/daily-summaries/` - Daily work logs
-- `docs/plans/` - Design and implementation plans
+- `docs/plans/` - Historical design documents
 - `config.py` - App configuration (security settings)
 - `app.py` - Main Flask application

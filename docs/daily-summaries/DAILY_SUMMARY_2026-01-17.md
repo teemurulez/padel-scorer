@@ -168,6 +168,26 @@ Key commits from today:
 - `feat: make change history collapsible, hidden by default`
 - `fix: correct Finnish special characters in templates`
 - `feat: add security hardening for production deployment`
+- `docs: update README with current project status`
+- `docs: remove outdated documentation files`
+- `chore: update .gitignore with common excludes`
+- `docs: add TODO.md for tracking project status`
+
+### Documentation Cleanup
+
+Updated and organized project documentation:
+
+- **README.md** - Complete rewrite with current features, security section, deployment instructions
+- **TODO.md** - Created persistent file for tracking next steps (visible on session start)
+- **docs/COURT_MOVEMENT.md** - Fixed broken reference to deleted test-results.md
+- **.gitignore** - Added .DS_Store, *.log, *.code-workspace
+
+Removed outdated files:
+- `docs/test-results.md` - Dec 2025 Phase 2 results (obsolete)
+- `docs/daily-summaries/DAILY_SUMMARY.md` - Generic file (confusing)
+
+Renamed for consistency:
+- `2025-12-20-phase-3-implementation.md` → `DAILY_SUMMARY_2025-12-20-phase3.md`
 
 ## Test Status
 

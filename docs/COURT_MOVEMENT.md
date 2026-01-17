@@ -291,5 +291,4 @@ else:
 ## References
 
 - Implementation Plan: `docs/plans/2025-12-19-phase-2-court-movement.md`
-- Test Results: `docs/test-results.md`
-- Daily Summary: `DAILY_SUMMARY_2025-12-19.md`
+- Daily Summary: `docs/daily-summaries/DAILY_SUMMARY_2025-12-19.md`
