@@ -37,14 +37,23 @@ async function validatePlayers() {
         return;
     }
 
-    // Check player count
+    // Check player count - must be divisible by 4
     const lines = playersText.split('\n').filter(l => l.trim());
-    const requiredPlayers = numCourts * 4;
 
-    if (lines.length !== requiredPlayers) {
-        alert(`Tarvitaan ${requiredPlayers} pelaajaa ${numCourts} kentälle. Syötit ${lines.length} pelaajaa.`);
+    if (lines.length < 4) {
+        alert('Vähintään 4 pelaajaa tarvitaan (1 kenttä).');
         return;
     }
+
+    if (lines.length % 4 !== 0) {
+        const nearestLower = Math.floor(lines.length / 4) * 4;
+        const nearestHigher = nearestLower + 4;
+        alert(`Pelaajien määrän täytyy olla jaollinen 4:llä. Syötit ${lines.length} pelaajaa. Lisää ${nearestHigher - lines.length} tai poista ${lines.length - nearestLower} pelaajaa.`);
+        return;
+    }
+
+    // Calculate new number of courts from player count
+    const newNumCourts = lines.length / 4;
 
     try {
         const response = await fetch('/admin/validate-players', {
@@ -242,8 +251,14 @@ function saveTournament() {
         document.getElementById('tournament-name').value;
 
     // Players
-    document.getElementById('form-players').value =
-        document.getElementById('players-textarea').value;
+    const playersText = document.getElementById('players-textarea').value;
+    document.getElementById('form-players').value = playersText;
+
+    // Calculate and update num_courts from player count
+    const lines = playersText.split('\n').filter(l => l.trim());
+    if (lines.length >= 4 && lines.length % 4 === 0) {
+        document.getElementById('form-num-courts').value = lines.length / 4;
+    }
 
     // Pairings
     if (pairingsModified) {

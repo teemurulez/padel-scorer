@@ -42,7 +42,7 @@
     <div class="change-history" id="change-history">
         <div class="history-header">
             <h3>Viimeisimmät muutokset ({{ edit_history[0].changed_at[:16] }})</h3>
-            <button type="button" onclick="toggleHistory()" class="btn-link">Piilota</button>
+            <button type="button" onclick="toggleHistory()" class="btn-link">Sulje</button>
         </div>
         <div class="history-content">
             {% for change in edit_history[:10] %}
@@ -178,7 +178,7 @@
     <!-- Hidden form for saving -->
     <form id="save-form" method="POST" action="{{ url_for('admin_edit_tournament', tournament_id=tournament.id) }}" style="display: none;">
         <input type="hidden" name="tournament_name" id="form-tournament-name">
-        <input type="hidden" name="num_courts" value="{{ tournament.num_courts }}">
+        <input type="hidden" name="num_courts" id="form-num-courts" value="{{ tournament.num_courts }}">
         <input type="hidden" name="players" id="form-players">
         <input type="hidden" name="round1_pairings" id="form-pairings">
     </form>
