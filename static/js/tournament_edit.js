@@ -331,11 +331,14 @@ async function startTournament() {
     }
 }
 
-// History toggle
+// History toggle (expand/collapse)
 function toggleHistory() {
-    const history = document.getElementById('change-history');
-    if (history) {
-        history.style.display = history.style.display === 'none' ? 'block' : 'none';
+    const content = document.getElementById('history-content');
+    const icon = document.getElementById('history-toggle-icon');
+    if (content && icon) {
+        const isHidden = content.style.display === 'none';
+        content.style.display = isHidden ? 'block' : 'none';
+        icon.textContent = isHidden ? '▼' : '▶';
     }
 }
 

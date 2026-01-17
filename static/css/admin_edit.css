@@ -86,6 +86,15 @@ body.edit-page {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.history-header:hover {
+    background: rgba(0,0,0,0.05);
+    margin: -0.5rem;
+    padding: 0.5rem;
+    border-radius: 4px;
 }
 
 .history-header h3 {
@@ -93,6 +102,11 @@ body.edit-page {
     font-size: 1rem;
     color: #3d3100;
     font-weight: 600;
+}
+
+.toggle-icon {
+    margin-right: 0.5rem;
+    font-size: 0.75rem;
 }
 
 .history-item {

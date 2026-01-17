@@ -40,11 +40,10 @@
     <!-- Change History (if any) -->
     {% if edit_history %}
     <div class="change-history" id="change-history">
-        <div class="history-header">
-            <h3>Viimeisimmät muutokset ({{ edit_history[0].changed_at[:16] }})</h3>
-            <button type="button" onclick="toggleHistory()" class="btn-link">Sulje</button>
+        <div class="history-header" onclick="toggleHistory()">
+            <h3><span id="history-toggle-icon" class="toggle-icon">▶</span> Viimeisimmät muutokset ({{ edit_history[0].changed_at[:16] }})</h3>
         </div>
-        <div class="history-content">
+        <div class="history-content" id="history-content" style="display: none;">
             {% for change in edit_history[:10] %}
             <div class="history-item {{ change.change_type }}">
                 {% if change.change_type == 'player_added' %}
