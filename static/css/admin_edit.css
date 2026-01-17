@@ -175,7 +175,15 @@ body.edit-page {
 .editor-actions {
     margin-top: 1rem;
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
+}
+
+.editor-actions button {
+    flex: 1;
+    min-width: 100px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
 }
 
 /* Validation Results */
