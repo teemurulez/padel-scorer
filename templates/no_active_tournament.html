@@ -202,27 +202,27 @@
             <div class="icon">🎾</div>
             <h2>Ei aktiivista turnausta</h2>
             <p>
-                Turnaus ei ole kaynnissa.<br>
-                Tarkista myohemmin tai ota yhteytta jarjestajaan!
+                Turnaus ei ole käynnissä.<br>
+                Tarkista myöhemmin tai ota yhteyttä järjestäjään!
             </p>
 
             {% if season %}
             <div class="season-info">
                 <strong>{{ season.name }}</strong>
-                <span>{{ season.tournament_count }} turnaus{{ 'ta' if season.tournament_count != 1 else '' }} talla kaudella</span>
+                <span>{{ season.tournament_count }} turnaus{{ 'ta' if season.tournament_count != 1 else '' }} tällä kaudella</span>
             </div>
             {% endif %}
         </div>
 
         <div class="actions">
             <a href="{{ url_for('season_leaderboard') }}" class="btn-primary-action">
-                Nayta tulokset
+                Näytä tulokset
             </a>
         </div>
 
         <div class="page-footer">
             <a href="{{ url_for('admin_dashboard') }}" target="_blank" class="admin-link">Ylläpito</a>
-            <div class="copyright">© 2026 Padel Paroni. Kaikki oikeudet pidatetaan.</div>
+            <div class="copyright">© 2026 Padel Paroni. Kaikki oikeudet pidätetään.</div>
         </div>
     </div>
 </body>
