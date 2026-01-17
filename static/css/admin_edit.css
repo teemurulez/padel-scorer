@@ -153,6 +153,25 @@ body.edit-page {
 .player-list {
     max-height: 400px;
     overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.player-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.player-list::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 4px;
+}
+
+.player-list::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+.player-list::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
 }
 
 .player-item {
@@ -170,6 +189,25 @@ body.edit-page {
     border-radius: 4px;
     resize: vertical;
     box-sizing: border-box;
+    scrollbar-width: thin;
+}
+
+.player-editor textarea::-webkit-scrollbar {
+    width: 8px;
+}
+
+.player-editor textarea::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 4px;
+}
+
+.player-editor textarea::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+.player-editor textarea::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
 }
 
 .editor-actions {
