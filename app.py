@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify, abort
 import os
 import sqlite3
 import json
@@ -2277,6 +2277,83 @@ def admin_get_tournament_players(tournament_id):
     player_names = [f"{p['first_name']} {p['last_name']}" for p in players]
 
     return {'players': player_names}
+
+
+@app.route('/admin/tournaments/<int:tournament_id>/edit', methods=['GET'])
+def admin_tournament_edit_page(tournament_id):
+    """Full-screen tournament edit page (ADMIN)"""
+    db = get_db_connection()
+
+    # Get tournament (must be in setup mode)
+    tournament = db.execute(
+        'SELECT * FROM tournaments WHERE id = ? AND status = ?',
+        (tournament_id, 'setup')
+    ).fetchone()
+
+    if not tournament:
+        abort(404)
+
+    # Get players
+    players = db.execute('''
+        SELECT pr.id, pr.first_name, pr.last_name
+        FROM player_registry pr
+        JOIN tournament_players tp ON pr.id = tp.player_id
+        WHERE tp.tournament_id = ?
+        ORDER BY pr.first_name, pr.last_name
+    ''', (tournament_id,)).fetchall()
+
+    # Get pairings with player names
+    pairings_raw = db.execute('''
+        SELECT p.*,
+               p1.first_name || ' ' || p1.last_name as team1_player1_name,
+               p2.first_name || ' ' || p2.last_name as team1_player2_name,
+               p3.first_name || ' ' || p3.last_name as team2_player1_name,
+               p4.first_name || ' ' || p4.last_name as team2_player2_name
+        FROM round1_preview_pairings p
+        LEFT JOIN player_registry p1 ON p.team1_player1_id = p1.id
+        LEFT JOIN player_registry p2 ON p.team1_player2_id = p2.id
+        LEFT JOIN player_registry p3 ON p.team2_player1_id = p3.id
+        LEFT JOIN player_registry p4 ON p.team2_player2_id = p4.id
+        WHERE p.tournament_id = ?
+        ORDER BY p.court_number
+    ''', (tournament_id,)).fetchall()
+
+    pairings = [dict(p) for p in pairings_raw] if pairings_raw else []
+
+    # Find unassigned players (in tournament but not in pairings)
+    assigned_player_ids = set()
+    for p in pairings:
+        assigned_player_ids.add(p['team1_player1_id'])
+        assigned_player_ids.add(p['team1_player2_id'])
+        assigned_player_ids.add(p['team2_player1_id'])
+        assigned_player_ids.add(p['team2_player2_id'])
+    assigned_player_ids.discard(None)
+
+    unassigned_players = [p for p in players if p['id'] not in assigned_player_ids]
+
+    # Check if tournament can start (all slots filled, no unassigned)
+    has_empty_slots = any(
+        p['team1_player1_id'] is None or p['team1_player2_id'] is None or
+        p['team2_player1_id'] is None or p['team2_player2_id'] is None
+        for p in pairings
+    )
+    can_start = pairings and not has_empty_slots and not unassigned_players
+
+    # Get edit history
+    edit_history = db.execute('''
+        SELECT * FROM tournament_edit_history
+        WHERE tournament_id = ?
+        ORDER BY changed_at DESC
+        LIMIT 20
+    ''', (tournament_id,)).fetchall()
+
+    return render_template('admin_tournament_edit.html',
+                          tournament=tournament,
+                          players=players,
+                          pairings=pairings,
+                          unassigned_players=unassigned_players,
+                          can_start=can_start,
+                          edit_history=edit_history)
 
 
 @app.route('/admin/tournaments/<int:tournament_id>/edit', methods=['POST'])
