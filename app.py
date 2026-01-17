@@ -2605,7 +2605,7 @@ def admin_edit_tournament(tournament_id):
     db.commit()
 
     flash(f'Tournament "{tournament_name}" updated successfully!')
-    return redirect(f'/admin?edit={tournament_id}#tournament-{tournament_id}')
+    return redirect(url_for('admin_tournament_edit_page', tournament_id=tournament_id))
 
 
 @app.route('/admin/tournaments/<int:tournament_id>/delete', methods=['POST'])
