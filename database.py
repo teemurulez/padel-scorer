@@ -265,6 +265,23 @@ def init_db():
         )
     ''')
 
+    # Tournament edit history table (for tracking changes across edit sessions)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tournament_edit_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tournament_id INTEGER NOT NULL,
+            changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            change_type TEXT NOT NULL,
+            change_data TEXT NOT NULL,
+            FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_edit_history_tournament
+        ON tournament_edit_history(tournament_id)
+    ''')
+
     conn.commit()
     conn.close()
     print("Database initialized successfully!")
