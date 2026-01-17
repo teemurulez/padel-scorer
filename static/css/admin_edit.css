@@ -77,8 +77,9 @@ body.edit-page {
     margin: 1rem 2rem;
     padding: 1rem;
     background: #fff9e6;
-    border: 1px solid #ffe066;
+    border: 1px solid #d4a800;
     border-radius: 8px;
+    color: #5c4a00;
 }
 
 .history-header {
@@ -90,6 +91,8 @@ body.edit-page {
 .history-header h3 {
     margin: 0;
     font-size: 1rem;
+    color: #3d3100;
+    font-weight: 600;
 }
 
 .history-item {
@@ -97,6 +100,7 @@ body.edit-page {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    color: #5c4a00;
 }
 
 .change-icon {
@@ -141,6 +145,8 @@ body.edit-page {
 .panel-header h2 {
     margin: 0;
     font-size: 1.25rem;
+    color: #1a1a2e;
+    font-weight: 600;
 }
 
 /* Player List */
@@ -226,10 +232,11 @@ body.edit-page {
 }
 
 .court-header {
-    background: #f0f0f0;
+    background: #e0e0e0;
     padding: 0.75rem;
     font-weight: bold;
     text-align: center;
+    color: #1a1a2e;
 }
 
 .court-teams {
@@ -244,7 +251,8 @@ body.edit-page {
 .team h4 {
     margin: 0 0 0.5rem 0;
     font-size: 0.875rem;
-    color: #666;
+    color: #333;
+    font-weight: 600;
 }
 
 .team1 { background: #e3f2fd; }
@@ -257,6 +265,8 @@ body.edit-page {
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
+    color: #1a1a2e;
+    font-weight: 500;
 }
 
 .player-slot:hover {
