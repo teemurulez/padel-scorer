@@ -114,11 +114,75 @@ const newNumCourts = lines.length / 4;
 document.getElementById('form-num-courts').value = lines.length / 4;
 ```
 
+### Security Hardening (Production Ready)
+
+Implemented comprehensive security fixes for production deployment:
+
+#### SECRET_KEY Protection (`config.py`)
+- Production now **requires** `SECRET_KEY` environment variable
+- Raises `RuntimeError` with helpful message if missing in production
+- Auto-generates random key in development mode (`FLASK_ENV=development`, `FLASK_DEBUG=1`, or `TESTING=1`)
+
+#### Session Cookie Security
+- `SESSION_COOKIE_SECURE=True` in production (HTTPS only)
+- `SESSION_COOKIE_HTTPONLY=True` (prevent JavaScript access)
+- `SESSION_COOKIE_SAMESITE='Lax'` (CSRF protection)
+
+#### Rate Limiting (`app.py`)
+- Login: **5 attempts per minute** - prevents brute force attacks
+- Password reset: **3 requests per hour** - prevents abuse
+- Global defaults: 200 requests/day, 50/hour per IP
+
+#### CSRF Protection
+- Flask-WTF CSRFProtect enabled globally
+- Added CSRF tokens to all 14 templates with POST forms
+- Created `tests/conftest.py` to disable CSRF during testing
+
+#### New Dependencies
+```
+Flask-WTF==1.2.1
+Flask-Limiter==3.5.0
+```
+
+## Files Changed
+
+- `static/css/admin_edit.css` - All contrast, scrollbar, search, and validation styling
+- `static/js/tournament_edit.js` - Auto-calculate courts, search functions, collapsible history
+- `templates/admin_tournament_edit.html` - Search bar, warning indicator, collapsible history markup
+- `app.py` - CSRF protection, rate limiting initialization
+- `config.py` - SECRET_KEY hardening, session cookie security
+- `requirements.txt` - Flask-WTF, Flask-Limiter
+- `tests/conftest.py` - Disable CSRF in tests
+- 14 templates - CSRF tokens added to all forms
+
+## Commits
+
+Key commits from today:
+- `fix: improve contrast and visibility in tournament edit page`
+- `fix: improve tournament edit UX` (auto-calculate courts, Sulje button)
+- `fix: make editor action buttons fit in narrow panel`
+- `fix: force scrollbar visibility on macOS`
+- `fix: improve validation results contrast and layout`
+- `feat: improve validation UX with warning indicator and reordered summary`
+- `feat: add player search bar in pairings area`
+- `feat: make change history collapsible, hidden by default`
+- `fix: correct Finnish special characters in templates`
+- `feat: add security hardening for production deployment`
+
+## Test Status
+
+- 142 passed, 10 failed (pre-existing schema issues), 3 skipped
+- Security changes don't affect test outcomes
+
 ## Next Steps
 
-1. **Push commits** - 21 commits ahead of origin/main
+1. **Fix pre-existing test failures** - Database schema issues with seasons table
 2. **Admin UI refresh** - Apply consistent design to other admin pages
-3. **Additional features** - Based on usage feedback
+3. **Production deployment** - Set `SECRET_KEY` environment variable
+4. **Additional security** (optional):
+   - Add Content-Security-Policy headers
+   - Add input validation for player names
+   - Consider database connection pooling
 
 ## Lessons Learned
 
