@@ -29,6 +29,7 @@
         {% endif %}
 
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn-primary">
                 {% if current_round %}
                     Aloita seuraava kierros

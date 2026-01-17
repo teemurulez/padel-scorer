@@ -20,6 +20,7 @@
     <div class="add-player-form">
         <h2>Lisää uusi pelaaja</h2>
         <form method="POST" action="/player/create">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Etunimi:</label>
             <input type="text" name="first_name" required>
 

@@ -123,6 +123,7 @@
         <div class="actions">
             {% if tournament.status == 'completed' %}
             <form action="{{ url_for('archive_tournament', tournament_id=tournament.id) }}" method="POST" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-warning">Arkistoi turnaus</button>
             </form>
             {% endif %}

@@ -168,6 +168,7 @@
         <div class="action-bar-left">
             <form method="POST" action="{{ url_for('admin_delete_tournament', tournament_id=tournament.id) }}"
                   onsubmit="return confirm('Haluatko varmasti poistaa turnauksen? Tätä ei voi perua.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn-danger">Poista turnaus</button>
             </form>
         </div>
@@ -182,6 +183,7 @@
 
     <!-- Hidden form for saving -->
     <form id="save-form" method="POST" action="{{ url_for('admin_edit_tournament', tournament_id=tournament.id) }}" style="display: none;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="tournament_name" id="form-tournament-name">
         <input type="hidden" name="num_courts" id="form-num-courts" value="{{ tournament.num_courts }}">
         <input type="hidden" name="players" id="form-players">

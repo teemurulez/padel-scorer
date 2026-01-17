@@ -239,6 +239,7 @@
                 </a>
                 {% else %}
                 <form method="POST" action="{{ url_for('start_round', tournament_id=tournament['id']) }}" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn-primary-action">
                         Aloita turnaus
                     </button>

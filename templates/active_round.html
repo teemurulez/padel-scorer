@@ -392,6 +392,7 @@
             </a>
 
             <form id="nextRoundForm" action="{{ url_for('start_round', tournament_id=tournament_id) }}" method="POST" style="margin: 0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% if all_completed %}
                 <button type="submit" class="btn-next-round">Aloita seuraava kierros</button>
                 {% else %}

@@ -205,6 +205,7 @@
         {% endwith %}
 
         <form id="scoreForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="version" value="{{ match.get('version', 1) }}">
             <div class="team-selection">
                 <label class="team-option">

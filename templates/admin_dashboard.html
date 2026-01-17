@@ -17,6 +17,7 @@
                 ← Etusivulle
             </a>
             <form method="POST" action="/admin/logout" style="margin: 0; display: inline-block;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="logout-btn">Kirjaudu ulos</button>
             </form>
         </div>
@@ -56,6 +57,7 @@
                     <p>Turnauksia: {{ current_tournament_count }}</p>
 
                     <form method="POST" action="/admin/seasons/end-current" onsubmit="return confirm('Lopeta {{ current_season.name }}? Voit aktivoida sen uudelleen tai luoda uuden kauden myöhemmin.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-warning">Lopeta nykyinen kausi</button>
                     </form>
                 </div>
@@ -98,18 +100,21 @@
                                 <td>
                                     {% if tournament['status'] == 'setup' %}
                                     <form method="POST" action="{{ url_for('start_round', tournament_id=tournament['id']) }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn-primary">Aloita</button>
                                     </form>
                                     <a href="{{ url_for('admin_tournament_edit_page', tournament_id=tournament['id']) }}" class="btn-secondary">Muokkaa</a>
                                     {% elif tournament['status'] == 'active' %}
                                     <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-secondary">Näytä</a>
                                     <form method="POST" action="{{ url_for('end_tournament', tournament_id=tournament['id']) }}" style="display: inline;" onsubmit="return confirm('Haluatko varmasti lopettaa turnauksen \'{{ tournament['name'] }}\'?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn-warning">Lopeta</button>
                                     </form>
                                     {% else %}
                                     <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary">Näytä</a>
                                     {% endif %}
                                     <form method="POST" action="{{ url_for('admin_delete_tournament', tournament_id=tournament['id']) }}" style="display: inline;" onsubmit="return confirm('⚠️ Haluatko varmasti poistaa turnauksen \'{{ tournament['name'] }}\'? Tämä poistaa pysyvästi kaikki kierrokset, ottelut ja tulokset. Tätä ei voi perua.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn-danger">Poista</button>
                                     </form>
                                 </td>
@@ -128,6 +133,7 @@
                 <div class="create-tournament-form">
                     <h3>Luo uusi turnaus</h3>
                     <form method="POST" action="/admin/tournaments/create">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="form-group">
                             <label for="tournament_name">Turnauksen nimi</label>
                             <input type="text" id="tournament_name" name="tournament_name" placeholder="esim. Perjantai-illan padel" maxlength="100" required>
@@ -183,6 +189,7 @@
                 <div class="create-season-form">
                     <h3>Luo uusi kausi</h3>
                     <form method="POST" action="/admin/seasons/create">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="text" name="season_name" placeholder="Kauden nimi (esim. Talvi 2025)" maxlength="100" required>
                         <button type="submit" class="btn-primary">Luo kausi</button>
                     </form>
@@ -211,6 +218,7 @@
                                 <td>{{ season.tournament_count }}</td>
                                 <td>
                                     <form method="POST" action="/admin/seasons/{{ season.id }}/activate" style="display:inline;" onsubmit="return confirm('Aseta {{ season.name }} nykyiseksi kaudeksi?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn-secondary">Aseta nykyiseksi</button>
                                     </form>
                                 </td>
@@ -275,6 +283,7 @@
                                 <div class="edit-form-container player-edit-form">
                                     <h4>Muokkaa pisteitä: {{ player.first_name }} {{ player.last_name }}</h4>
                                     <form method="POST" action="{{ url_for('admin_edit_player_points', player_id=player.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <div class="points-info">
                                             <p>Automaattiset pisteet: <strong id="auto-points-{{ player.id }}">{{ player.auto_points }}</strong></p>
                                             <p>Nykyinen korjaus: <strong id="current-adj-{{ player.id }}">{{ '+' if player.adjustment > 0 else '' }}{{ player.adjustment }}</strong></p>

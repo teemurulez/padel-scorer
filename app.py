@@ -1,4 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify, abort
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import os
 import sqlite3
 import json
@@ -29,6 +32,17 @@ def set_current_season(db, season_id):
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
+
+# Initialize rate limiter (uses in-memory storage by default)
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
 
 # Ensure instance folder exists
 os.makedirs('instance', exist_ok=True)
@@ -1658,6 +1672,7 @@ def admin_setup():
 
 
 @app.route('/admin/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", methods=["POST"])  # Brute force protection
 def admin_login():
     """Admin login page"""
     db = get_db()
@@ -1687,6 +1702,7 @@ def admin_login():
 
 
 @app.route('/admin/forgot-password', methods=['GET', 'POST'])
+@limiter.limit("3 per hour", methods=["POST"])  # Prevent password reset abuse
 def admin_forgot_password():
     """Handle forgot password - generate temp password and email it"""
     import secrets
