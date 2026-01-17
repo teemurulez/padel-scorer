@@ -2571,6 +2571,37 @@ def admin_edit_tournament(tournament_id):
         except (json.JSONDecodeError, KeyError, IndexError) as e:
             flash(f'⚠️ Invalid Round 1 pairings data: {str(e)}', 'warning')
 
+    # Log player changes to history
+    new_player_ids_set = set(final_player_ids_ordered)
+    added_players = new_player_ids_set - current_player_ids
+    removed_players = current_player_ids - new_player_ids_set
+
+    # Log additions
+    for player_id in added_players:
+        player = db.execute(
+            'SELECT first_name, last_name FROM player_registry WHERE id = ?',
+            (player_id,)
+        ).fetchone()
+        if player:
+            db.execute(
+                '''INSERT INTO tournament_edit_history (tournament_id, change_type, change_data)
+                   VALUES (?, ?, ?)''',
+                (tournament_id, 'player_added', f"{player['first_name']} {player['last_name']}")
+            )
+
+    # Log removals
+    for player_id in removed_players:
+        player = db.execute(
+            'SELECT first_name, last_name FROM player_registry WHERE id = ?',
+            (player_id,)
+        ).fetchone()
+        if player:
+            db.execute(
+                '''INSERT INTO tournament_edit_history (tournament_id, change_type, change_data)
+                   VALUES (?, ?, ?)''',
+                (tournament_id, 'player_removed', f"{player['first_name']} {player['last_name']}")
+            )
+
     db.commit()
 
     flash(f'Tournament "{tournament_name}" updated successfully!')
