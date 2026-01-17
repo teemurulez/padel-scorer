@@ -152,26 +152,27 @@ body.edit-page {
 /* Player List */
 .player-list {
     max-height: 400px;
-    overflow-y: auto;
-    scrollbar-width: thin;
+    overflow-y: scroll;
 }
 
 .player-list::-webkit-scrollbar {
-    width: 8px;
+    -webkit-appearance: none;
+    width: 10px;
 }
 
 .player-list::-webkit-scrollbar-track {
-    background: #f0f0f0;
-    border-radius: 4px;
+    background: #e0e0e0;
+    border-radius: 5px;
 }
 
 .player-list::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 4px;
+    background: #888;
+    border-radius: 5px;
+    border: 2px solid #e0e0e0;
 }
 
 .player-list::-webkit-scrollbar-thumb:hover {
-    background: #aaa;
+    background: #666;
 }
 
 .player-item {
@@ -189,25 +190,27 @@ body.edit-page {
     border-radius: 4px;
     resize: vertical;
     box-sizing: border-box;
-    scrollbar-width: thin;
+    overflow-y: scroll;
 }
 
 .player-editor textarea::-webkit-scrollbar {
-    width: 8px;
+    -webkit-appearance: none;
+    width: 10px;
 }
 
 .player-editor textarea::-webkit-scrollbar-track {
-    background: #f0f0f0;
-    border-radius: 4px;
+    background: #e0e0e0;
+    border-radius: 5px;
 }
 
 .player-editor textarea::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 4px;
+    background: #888;
+    border-radius: 5px;
+    border: 2px solid #e0e0e0;
 }
 
 .player-editor textarea::-webkit-scrollbar-thumb:hover {
-    background: #aaa;
+    background: #666;
 }
 
 .editor-actions {
