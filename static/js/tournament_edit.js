@@ -20,11 +20,17 @@ function cancelPlayerEdit() {
     document.getElementById('player-list-view').style.display = 'block';
     document.getElementById('player-editor').style.display = 'none';
     document.getElementById('edit-players-btn').style.display = 'inline-block';
+    // Hide warning indicator
+    const warningIndicator = document.getElementById('validation-warning');
+    if (warningIndicator) warningIndicator.style.display = 'none';
 }
 
 function backToEditor() {
     document.getElementById('validation-results').style.display = 'none';
     document.getElementById('player-editor').style.display = 'block';
+    // Hide warning indicator when going back to edit
+    const warningIndicator = document.getElementById('validation-warning');
+    if (warningIndicator) warningIndicator.style.display = 'none';
 }
 
 // Validation
@@ -133,6 +139,12 @@ function displayValidationResults(data) {
     const hasUnresolvedSimilar = data.results.some(r => r.status === 'similar');
     const hasDuplicates = data.summary.duplicate > 0;
     applyBtn.disabled = hasUnresolvedSimilar || hasDuplicates;
+
+    // Show/hide warning indicator in header
+    const warningIndicator = document.getElementById('validation-warning');
+    if (warningIndicator) {
+        warningIndicator.style.display = (hasUnresolvedSimilar || hasDuplicates) ? 'inline' : 'none';
+    }
 }
 
 function acceptSuggestion(index) {

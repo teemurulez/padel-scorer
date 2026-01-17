@@ -149,6 +149,12 @@ body.edit-page {
     font-weight: 600;
 }
 
+.validation-warning {
+    color: #e65100;
+    margin-left: 0.5rem;
+    font-size: 1.1rem;
+}
+
 /* Player List */
 .player-list {
     max-height: 400px;

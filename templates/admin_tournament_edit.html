@@ -67,7 +67,7 @@
         <!-- Left Column: Players -->
         <section class="players-panel">
             <div class="panel-header">
-                <h2>Pelaajat</h2>
+                <h2>Pelaajat <span id="validation-warning" class="validation-warning" style="display: none;">⚠</span></h2>
                 <button type="button" id="edit-players-btn" onclick="showPlayerEditor()" class="btn-secondary">Muokkaa</button>
             </div>
 
@@ -92,8 +92,8 @@
 
             <!-- Validation Results (hidden by default) -->
             <div id="validation-results" class="validation-results" style="display: none;">
-                <div id="validation-list"></div>
                 <div class="validation-summary" id="validation-summary"></div>
+                <div id="validation-list"></div>
                 <div class="validation-actions">
                     <button type="button" onclick="backToEditor()" class="btn-secondary">Takaisin muokkaukseen</button>
                     <button type="button" onclick="applyPlayerChanges()" class="btn-primary" id="apply-btn" disabled>Hyväksy ja jatka</button>
