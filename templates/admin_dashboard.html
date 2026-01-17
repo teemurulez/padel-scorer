@@ -100,7 +100,7 @@
                                     <form method="POST" action="{{ url_for('start_round', tournament_id=tournament['id']) }}" style="display: inline;">
                                         <button type="submit" class="btn-primary">Aloita</button>
                                     </form>
-                                    <button onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary" id="edit-btn-{{ tournament['id'] }}">Muokkaa</button>
+                                    <a href="{{ url_for('admin_tournament_edit_page', tournament_id=tournament['id']) }}" class="btn-secondary">Muokkaa</a>
                                     {% elif tournament['status'] == 'active' %}
                                     <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-secondary">Näytä</a>
                                     <form method="POST" action="{{ url_for('end_tournament', tournament_id=tournament['id']) }}" style="display: inline;" onsubmit="return confirm('Haluatko varmasti lopettaa turnauksen \'{{ tournament['name'] }}\'?');">
@@ -114,62 +114,6 @@
                                     </form>
                                 </td>
                             </tr>
-                            {% if tournament['status'] == 'setup' %}
-                            <tr id="edit-row-{{ tournament['id'] }}" class="edit-row" style="display: none;">
-                                <td colspan="4">
-                                    <div class="edit-form-container">
-                                        <h4>Muokkaa turnausta</h4>
-                                        <form method="POST" action="{{ url_for('admin_edit_tournament', tournament_id=tournament['id']) }}" id="edit-form-{{ tournament['id'] }}">
-                                            <div class="form-group">
-                                                <label>Turnauksen nimi:</label>
-                                                <input type="text" name="tournament_name" value="{{ tournament['name'] }}" required class="form-input">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Kenttien määrä:</label>
-                                                <input type="number" name="num_courts" value="{{ tournament['num_courts'] }}" min="1" max="10" required class="form-input">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Pelaajat (yksi per rivi, {{ tournament['num_courts'] * 4 }} vaaditaan):</label>
-                                                <textarea name="players" rows="12" required class="form-textarea" id="players-{{ tournament['id'] }}">Ladataan...</textarea>
-                                            </div>
-
-                                            <!-- Hidden field for round1 pairings data -->
-                                            <input type="hidden" name="round1_pairings" id="round1-pairings-data-{{ tournament['id'] }}" value="">
-
-                                            <!-- Round 1 Court Assignments Preview -->
-                                            <div class="round1-preview-section" id="round1-section-{{ tournament['id'] }}" style="margin-top: 2rem;">
-                                                <h4 style="margin-bottom: 1rem; color: #333;">Kierroksen 1 kenttäjaot</h4>
-
-                                                <div id="round1-controls-{{ tournament['id'] }}" style="margin-bottom: 1rem;">
-                                                    <button type="button"
-                                                            class="btn-primary"
-                                                            id="preview-round1-btn-{{ tournament['id'] }}"
-                                                            onclick="previewRound1({{ tournament['id'] }})">
-                                                        Esikatsele kierros 1
-                                                    </button>
-                                                    <button type="button"
-                                                            class="btn-secondary"
-                                                            id="reset-round1-btn-{{ tournament['id'] }}"
-                                                            onclick="resetRound1({{ tournament['id'] }})"
-                                                            style="display: none;">
-                                                        Palauta
-                                                    </button>
-                                                </div>
-
-                                                <div id="round1-courts-{{ tournament['id'] }}" style="display: none;">
-                                                    <!-- Courts will be rendered here by JavaScript -->
-                                                </div>
-                                            </div>
-
-                                            <div class="form-actions">
-                                                <button type="submit" class="btn-primary">Tallenna muutokset</button>
-                                                <button type="button" onclick="toggleEditTournament({{ tournament['id'] }})" class="btn-secondary">Peruuta</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
@@ -414,65 +358,6 @@
                 editRow.style.display = 'none';
             }
         }
-
-        // Tournament edit toggle function
-        async function toggleEditTournament(tournamentId) {
-            const editRow = document.getElementById(`edit-row-${tournamentId}`);
-            const editBtn = document.getElementById(`edit-btn-${tournamentId}`);
-
-            if (editRow.style.display === 'none') {
-                // Show edit form
-                editRow.style.display = 'table-row';
-                editBtn.textContent = 'Peruuta';
-
-                // Fetch player names for this tournament
-                const playersTextarea = document.getElementById(`players-${tournamentId}`);
-                try {
-                    const response = await fetch(`/admin/tournaments/${tournamentId}/players`);
-                    const data = await response.json();
-                    playersTextarea.value = data.players.join('\n');
-                } catch (error) {
-                    playersTextarea.value = '';
-                    console.error('Failed to load players:', error);
-                }
-            } else {
-                // Hide edit form
-                editRow.style.display = 'none';
-                editBtn.textContent = 'Muokkaa';
-            }
-        }
-
-        // Setup form submission handler for round1 pairings
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add submit handlers to all tournament edit forms
-            document.querySelectorAll('form[id^="edit-form-"]').forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    const tournamentId = form.id.replace('edit-form-', '');
-                    const hiddenInput = document.getElementById(`round1-pairings-data-${tournamentId}`);
-
-                    // Check if round1 state exists and has pairings
-                    const state = window.round1States && window.round1States[tournamentId];
-                    if (state && state.pairingsData && state.pairingsData.length > 0) {
-                        // Add pairings data to hidden field
-                        hiddenInput.value = JSON.stringify(state.pairingsData);
-                    }
-                    // Form will submit normally with pairings data included
-                });
-            });
-
-            // Auto-open edit form if edit_tournament_id is set
-            {% if edit_tournament_id %}
-            const editTournamentId = {{ edit_tournament_id }};
-            toggleEditTournament(editTournamentId);
-            // Also load the Round 1 preview if pairings exist
-            setTimeout(() => {
-                previewRound1(editTournamentId);
-            }, 500);
-            {% endif %}
-        });
     </script>
-
-    <!-- Round 1 Editor JavaScript -->
-    <script src="{{ url_for('static', filename='js/round1_editor.js') }}"></script>
 </body>
 </html>
