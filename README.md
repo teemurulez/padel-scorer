@@ -1,39 +1,42 @@
-# Padel King of the Court Scorer
+# Padel Paroni - King of the Court Tournament Manager
 
-A mobile-optimized web application for managing "King of the Court" style Padel tournaments. Features dynamic court movement based on match results, ensuring winners move up and losers move down while preventing previous teammates from being paired together.
+A mobile-optimized web application for managing "King of the Court" style Padel tournaments. Features dynamic court movement based on match results, season management, admin dashboard, and production-ready security.
 
 ## Features
 
-### Core Functionality
-- **Tournament Management** - Create tournaments with configurable number of courts
-- **Player Management** - Add and manage players for each tournament
-- **Round 1: Random Pairing** - Initial round with random player distribution
-- **Round 2+: Court Movement** - Automatic result-based court assignment
+### Tournament Management
+- **Multi-court tournaments** - Support for 1-10 courts (4 players per court)
+- **Round 1: Random pairing** - Initial round with random player distribution
+- **Round 2+: Court movement** - Automatic result-based court assignment
   - Winners move UP to higher courts
   - Losers move DOWN to lower courts
   - Previous teammates are separated when possible
-- **Real-time Scoring** - Mobile-optimized score entry interface
-- **Live Leaderboard** - Dynamic standings with match statistics
+- **Real-time scoring** - Mobile-optimized score entry interface
+- **Live leaderboard** - Dynamic standings with match statistics
+
+### Season & Player Management
+- **Season tracking** - Organize tournaments into seasons
+- **Season leaderboard** - Cumulative points across tournaments
+- **Player registry** - Persistent player database with name matching
+- **Player points adjustment** - Manual point corrections when needed
+
+### Admin Dashboard
+- **Password protected** - Secure admin area with session management
+- **Tournament lifecycle** - Create, edit, start, end, delete tournaments
+- **Full-screen tournament editor** - Edit players, preview pairings, search players
+- **Season management** - Create seasons, archive old ones, view history
+
+### Security (Production Ready)
+- **CSRF protection** - All forms protected against cross-site request forgery
+- **Rate limiting** - Brute force protection on login (5/min) and password reset (3/hr)
+- **Secure sessions** - HTTPOnly, SameSite, and Secure cookie flags
+- **SECRET_KEY enforcement** - Required environment variable in production
 
 ### User Experience
-- **Visual Indicators** - Clear movement notes ("Winners moved up • Losers moved down")
-- **Flash Messages** - Real-time feedback on round starts and actions
-- **Enhanced Statistics** - Leaderboard shows points, matches played, and win percentage
-- **Mobile-First Design** - Optimized for outdoor tournament use on phones/tablets
-
-### Technical Features
-- **Comprehensive Testing** - 8 unit tests covering all movement logic
-- **Edge Case Handling** - Validates incomplete matches before generating pairings
-- **Clean Architecture** - Separated algorithm module for testability
-- **Professional Setup** - pytest configuration, proper package structure
-
-## Screenshots
-
-> Add screenshots here of:
-> - Tournament setup
-> - Active round view
-> - Score entry
-> - Leaderboard
+- **Mobile-first design** - Optimized for outdoor tournament use
+- **Finnish UI** - Full Finnish language interface
+- **Visual indicators** - Clear movement notes, status badges
+- **Watermark branding** - Padel Paroni logo background
 
 ## Installation
 
@@ -43,82 +46,129 @@ A mobile-optimized web application for managing "King of the Court" style Padel 
 
 ### Setup
 
-1. Clone the repository:
 ```bash
+# Clone the repository
 git clone https://github.com/teemurulez/padel-scorer.git
 cd padel-scorer
-```
 
-2. Create and activate virtual environment:
-```bash
+# Create and activate virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
 
-3. Install dependencies:
-```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Run in development mode
+FLASK_DEBUG=1 python app.py
 ```
 
-4. Run the application:
+Open your browser to: `http://localhost:5001`
+
+### Production Deployment
+
 ```bash
+# Generate a secure secret key
+export SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+
+# Run the application
 python app.py
 ```
 
-5. Open your browser to:
-```
-http://localhost:5001
-```
+**Important:** In production, `SECRET_KEY` environment variable is required. The app will refuse to start without it.
 
 ## Usage
 
-### Setting Up a Tournament
+### First Time Setup
 
-1. **Create Tournament**
-   - Navigate to the home page
-   - Click "Setup New Tournament"
-   - Enter tournament name and number of courts
-   - Add players (minimum 4 per court)
+1. Navigate to `/admin/setup`
+2. Create admin password (minimum 8 characters)
+3. Log in at `/admin/login`
 
-2. **Start Round 1**
-   - Click "Start Round 1"
-   - Players are randomly paired across all courts
-   - Each court has 4 players (2 vs 2)
+### Running a Tournament
 
-3. **Enter Scores**
-   - Click "Enter Score" on each match
-   - Select winning team
-   - Click "Submit Score"
+1. **Create Season** (if needed) - Admin → Seasons tab → Create new season
+2. **Create Tournament** - Admin → Enter name, select courts, add players
+3. **Edit Tournament** (optional) - Adjust players, preview Round 1 pairings
+4. **Start Tournament** - Click "Aloita turnaus"
+5. **Enter Scores** - Players tap their court, select winner
+6. **Next Round** - Once all scores entered, start next round
+7. **End Tournament** - When finished, end and view final results
 
-4. **Start Round 2+**
-   - Once all matches are complete, click "Start Next Round"
-   - Winners automatically move to higher courts
-   - Losers move to lower courts
-   - Previous teammates are separated
+### Public Views
 
-5. **View Leaderboard**
-   - Click "Leaderboard" to see current standings
-   - View points, matches played, and win percentage
+- `/` - Tournament selection (for players)
+- `/tournament/<id>` - Active tournament view
+- `/season/leaderboard` - Current season standings
 
-## How Court Movement Works
+### Admin Views
 
-### Algorithm Overview
+- `/admin` - Dashboard with all management features
+- `/admin/tournament/<id>/edit` - Full-screen tournament editor
 
-The King of the Court movement system follows these rules:
+## Project Structure
 
-1. **Round 1:** Players are randomly distributed across courts
-2. **Round 2+:** Court assignments are based on previous round results
-
-#### Movement Logic
 ```
-For each completed round:
-1. Separate all winners and losers by court
-2. Sort: [All Winners] + [All Losers]
-3. Redistribute: Top 4 → Court 1, Next 4 → Court 2, etc.
-4. Within each court, avoid pairing previous teammates
+padel-scorer/
+├── app.py                      # Flask application (2700+ lines)
+├── database.py                 # Database schema and initialization
+├── config.py                   # Configuration with security settings
+├── court_movement.py           # Court movement algorithm
+├── migration.py                # Database migrations
+├── requirements.txt            # Python dependencies
+├── TODO.md                     # Current status and next steps
+│
+├── templates/                  # 17 Jinja2 templates
+│   ├── admin_*.html           # Admin pages (6)
+│   ├── active_round.html      # Match view
+│   ├── score_entry.html       # Score input
+│   ├── leaderboard.html       # Tournament standings
+│   ├── season_*.html          # Season pages (2)
+│   └── ...
+│
+├── static/
+│   ├── css/
+│   │   ├── style.css          # Main styles
+│   │   └── admin_edit.css     # Tournament editor styles
+│   ├── js/
+│   │   └── tournament_edit.js # Editor JavaScript
+│   └── images/
+│       └── padel-paroni-logo.png
+│
+├── tests/                      # 40 test files, 155 tests
+│   ├── conftest.py            # Test configuration
+│   ├── test_court_movement.py
+│   ├── test_admin_auth.py
+│   └── ...
+│
+├── docs/
+│   ├── COURT_MOVEMENT.md      # Algorithm documentation
+│   ├── daily-summaries/       # Development logs
+│   └── plans/                 # Design documents
+│
+└── instance/
+    └── padel.db               # SQLite database (auto-created)
 ```
 
-#### Example
+## Technologies
+
+- **Backend:** Python 3.9, Flask 3.1.2
+- **Database:** SQLite3
+- **Security:** Flask-WTF 1.2.1 (CSRF), Flask-Limiter 3.5.0 (rate limiting)
+- **Templates:** Jinja2
+- **Testing:** pytest 8.4.2
+- **Frontend:** Vanilla HTML/CSS/JS (mobile-first)
+
+## Court Movement Algorithm
+
+The King of the Court movement system:
+
+1. **Round 1:** Players randomly distributed across courts
+2. **Round 2+:** Based on previous results
+   - All winners collected, sorted by court (high to low)
+   - All losers collected, sorted by court (high to low)
+   - Players redistributed: top 4 → Court 1, next 4 → Court 2, etc.
+   - Within each court, previous teammates are separated
+
 ```
 Round 1 Results:
 Court 1: (A+B) beat (C+D)  →  Winners: A, B  |  Losers: C, D
@@ -129,172 +179,53 @@ Court 1: (A+G) vs (B+H)  ←  All winners, teammates separated
 Court 2: (C+E) vs (D+F)  ←  All losers, teammates separated
 ```
 
-### Teammate Separation
+For details, see [docs/COURT_MOVEMENT.md](docs/COURT_MOVEMENT.md)
 
-The system uses a simple swap strategy:
-- Check if p1 and p2 were previous teammates
-- If yes, swap p2 with p3
-- This works for the majority of tournament scenarios
-- Natural rotation over multiple rounds provides additional separation
-
-For more details, see [docs/COURT_MOVEMENT.md](docs/COURT_MOVEMENT.md)
-
-## Manual Team Shuffling
-
-Players can manually adjust team pairings before matches start.
-
-### User Flow
-
-1. Tournament organizer starts a round
-2. Players navigate to court selection screen
-3. Each player selects their court
-4. Pre-match confirmation screen shows algorithm's pairing
-5. Players can drag-and-drop to swap partners
-6. Click "Start Match" to confirm and proceed to scoring
-
-### Technical Details
-
-- New database columns track shuffle history:
-  - `teams_shuffled`: boolean flag
-  - `original_player1_id` through `original_player4_id`: original pairing
-- Court movement algorithm uses actual teams that played
-- Mobile-optimized drag-and-drop interface
-- Validation prevents invalid team configurations
-
-### Routes
-
-- `GET /tournament/<id>/round/<id>/courts` - Court selection
-- `GET /tournament/<id>/round/<id>/court/<n>/confirm` - Pre-match confirmation
-- `POST /tournament/<id>/round/<id>/court/<n>/confirm` - Save teams
-
-## Project Structure
-
-```
-padel-scorer/
-├── app.py                      # Flask application and routes
-├── database.py                 # Database initialization and schema
-├── config.py                   # Application configuration
-├── court_movement.py           # Court movement algorithm ⭐
-├── requirements.txt            # Python dependencies
-├── pytest.ini                  # Test configuration
-│
-├── templates/                  # Jinja2 HTML templates
-│   ├── index.html             # Landing page
-│   ├── setup.html             # Tournament setup
-│   ├── active_round.html      # Current round view
-│   ├── score_entry.html       # Score input form
-│   └── leaderboard.html       # Standings table
-│
-├── static/css/
-│   └── style.css              # Mobile-first styles
-│
-├── tests/
-│   ├── __init__.py
-│   └── test_court_movement.py # Unit tests (8 tests)
-│
-├── docs/
-│   ├── COURT_MOVEMENT.md      # Algorithm documentation
-│   ├── test-results.md        # Integration test results
-│   └── plans/
-│       └── 2025-12-19-phase-2-court-movement.md
-│
-└── instance/
-    └── padel.db               # SQLite database (auto-created)
-```
-
-## Technologies Used
-
-- **Backend:** Python 3.9, Flask 3.1.2
-- **Database:** SQLite3
-- **Templates:** Jinja2
-- **Testing:** pytest 8.4.2
-- **Frontend:** Vanilla HTML/CSS (mobile-first)
-
-## Development
-
-### Running Tests
+## Testing
 
 ```bash
 # Run all tests
-pytest
+TESTING=1 pytest
 
 # Run with verbose output
-pytest -v
+TESTING=1 pytest -v
 
 # Run specific test file
-pytest tests/test_court_movement.py
+TESTING=1 pytest tests/test_court_movement.py
 ```
 
-### Database
-
-The application uses SQLite with the following schema:
-
-- **tournaments** - Tournament metadata
-- **players** - Player information and total points
-- **rounds** - Round tracking
-- **matches** - Match records with court assignments
-- **scores** - Individual player scores per match
-
-Database is automatically initialized on first run.
+**Current status:** 142 passing, 10 failing (pre-existing schema issues), 3 skipped
 
 ## Development Phases
 
-### ✅ Phase 1 (Completed Dec 12, 2025)
-- Basic tournament setup
-- Player management
+### ✅ Phase 1 (Dec 2025)
+- Basic tournament setup, player management
 - Random pairing for Round 1
-- Score entry
-- Simple leaderboard
+- Score entry, simple leaderboard
 
-### ✅ Phase 2 (Completed Dec 20, 2025)
+### ✅ Phase 2 (Dec 2025)
 - Court movement algorithm
 - Winner/loser movement logic
 - Teammate separation
-- Visual indicators
 - Enhanced leaderboard with statistics
-- Comprehensive testing
-- Edge case handling
 
-### 🚧 Phase 3 (Planned)
-Potential future enhancements:
-- Match timer functionality
-- Tournament history/archive
-- CSV export for results
-- Admin password protection
-- Player check-in system
-- Advanced teammate separation (graph-based matching)
-- Multi-round history tracking
-- Weighted court movement based on score margin
+### ✅ Phase 3 (Dec 2025 - Jan 2026)
+- Admin dashboard with authentication
+- Season management
+- Player registry with name matching
+- Tournament editor with live preview
+- Finnish language UI
+- Mobile-optimized design refresh
+
+### ✅ Security Hardening (Jan 2026)
+- CSRF protection on all forms
+- Rate limiting on authentication
+- Secure session cookies
+- SECRET_KEY enforcement
 
 ## Contributing
 
 This is a personal project, but suggestions and bug reports are welcome! Please open an issue to discuss proposed changes.
-
-## Implementation Notes
-
-### Design Decisions
-
-**Simple Teammate Separation:**
-The algorithm uses a simple swap strategy rather than comprehensive graph-based matching. This is intentional - the King of the Court format naturally rotates players over multiple rounds, providing separation over time. For typical 8-16 player tournaments, this approach is sufficient.
-
-**Separate Algorithm Module:**
-Court movement logic is isolated in `court_movement.py` for:
-- Clean separation of concerns
-- Easy unit testing without Flask context
-- Potential reusability in other interfaces (CLI, API)
-
-**Mobile-First Design:**
-The interface is optimized for outdoor use on mobile devices, with large touch targets and high-contrast colors for sunlight visibility.
-
-## Testing
-
-The project includes comprehensive test coverage:
-
-- **Unit Tests:** 8 tests covering all court movement logic
-- **Integration Tests:** Manual test scenarios documented
-- **Edge Cases:** Incomplete match validation, empty rounds, multi-court scenarios
-
-All tests pass with 100% success rate.
 
 ## License
 
@@ -304,12 +235,7 @@ MIT License - See LICENSE file for details
 
 Created by Teemu
 
-## Acknowledgments
-
-Built with assistance from Claude (Anthropic) using:
-- Test-Driven Development (TDD)
-- Systematic implementation planning
-- Code review at each step
+Built with assistance from Claude (Anthropic)
 
 ---
 
