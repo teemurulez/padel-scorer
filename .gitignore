@@ -21,6 +21,13 @@ instance/
 .idea/
 *.swp
 *.swo
+*.code-workspace
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
 
 # Git worktrees
 .worktrees/
