@@ -339,6 +339,28 @@ function toggleHistory() {
     }
 }
 
+// Player search in pairings
+function searchPlayers(query) {
+    const slots = document.querySelectorAll('.player-slot, .unassigned-player');
+    const normalizedQuery = query.toLowerCase().trim();
+
+    slots.forEach(slot => {
+        slot.classList.remove('search-highlight');
+
+        if (normalizedQuery && slot.textContent.toLowerCase().includes(normalizedQuery)) {
+            slot.classList.add('search-highlight');
+        }
+    });
+}
+
+function clearSearch() {
+    const searchInput = document.getElementById('player-search');
+    if (searchInput) {
+        searchInput.value = '';
+        searchPlayers('');
+    }
+}
+
 // Initialize empty slots
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.player-slot').forEach(slot => {

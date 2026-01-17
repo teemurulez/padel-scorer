@@ -291,6 +291,44 @@ body.edit-page {
     justify-content: space-between;
 }
 
+/* Pairings Search */
+.pairings-search {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.pairings-search input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.pairings-search input:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: #999;
+    cursor: pointer;
+    padding: 0 0.25rem;
+}
+
+.search-clear:hover {
+    color: #333;
+}
+
 /* Courts Container */
 .courts-container {
     display: grid;
@@ -349,6 +387,12 @@ body.edit-page {
 .player-slot.selected {
     background: #007bff;
     color: white;
+}
+
+.player-slot.search-highlight {
+    background: #fff3cd;
+    box-shadow: 0 0 0 2px #ffc107;
+    font-weight: 600;
 }
 
 .player-slot.empty {

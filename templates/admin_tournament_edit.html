@@ -108,6 +108,12 @@
                 <button type="button" onclick="regeneratePairings()" class="btn-secondary">Luo uudet parit</button>
             </div>
 
+            <!-- Search Bar -->
+            <div class="pairings-search">
+                <input type="text" id="player-search" placeholder="Etsi pelaajaa..." oninput="searchPlayers(this.value)">
+                <button type="button" class="search-clear" onclick="clearSearch()" title="Tyhjennä">&times;</button>
+            </div>
+
             <!-- Courts Display -->
             <div id="courts-container" class="courts-container">
                 {% if pairings %}
