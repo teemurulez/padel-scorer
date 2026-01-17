@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Muokkaa turnausta - {{ tournament.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_edit.css') }}">
+</head>
+<body class="edit-page">
+    <!-- Header -->
+    <header class="edit-header">
+        <a href="{{ url_for('admin_dashboard') }}" class="back-link">← Takaisin</a>
+        <h1>Muokkaa turnausta</h1>
+        <div class="header-spacer"></div>
+    </header>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Tournament Info Bar -->
+    <div class="tournament-info-bar">
+        <div class="tournament-title">
+            <input type="text" id="tournament-name" value="{{ tournament.name }}" class="title-input">
+            <span class="status-badge setup-badge">Valmistelu</span>
+        </div>
+        <div class="tournament-meta">
+            {{ tournament.num_courts }} kenttää · {{ players|length }} pelaajaa · Luotu {{ tournament.created_at[:10] }}
+        </div>
+    </div>
+
+    <!-- Change History (if any) -->
+    {% if edit_history %}
+    <div class="change-history" id="change-history">
+        <div class="history-header">
+            <h3>Viimeisimmät muutokset ({{ edit_history[0].changed_at[:16] }})</h3>
+            <button type="button" onclick="toggleHistory()" class="btn-link">Piilota</button>
+        </div>
+        <div class="history-content">
+            {% for change in edit_history[:10] %}
+            <div class="history-item {{ change.change_type }}">
+                {% if change.change_type == 'player_added' %}
+                <span class="change-icon">+</span> {{ change.change_data }}
+                {% elif change.change_type == 'player_removed' %}
+                <span class="change-icon">−</span> {{ change.change_data }}
+                {% elif change.change_type == 'player_renamed' %}
+                <span class="change-icon">~</span> {{ change.change_data }}
+                {% elif change.change_type == 'pairing_changed' %}
+                <span class="change-icon">↔</span> {{ change.change_data }}
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Content: Two Column Layout -->
+    <main class="edit-container">
+        <!-- Left Column: Players -->
+        <section class="players-panel">
+            <div class="panel-header">
+                <h2>Pelaajat</h2>
+                <button type="button" id="edit-players-btn" onclick="showPlayerEditor()" class="btn-secondary">Muokkaa</button>
+            </div>
+
+            <!-- Player List View (read-only) -->
+            <div id="player-list-view" class="player-list">
+                {% for player in players %}
+                <div class="player-item">
+                    <span class="player-name">{{ player.first_name }} {{ player.last_name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Player Editor (hidden by default) -->
+            <div id="player-editor" class="player-editor" style="display: none;">
+                <textarea id="players-textarea" rows="16" placeholder="Liitä pelaajien nimet, yksi per rivi">{% for player in players %}{{ player.first_name }} {{ player.last_name }}
+{% endfor %}</textarea>
+                <div class="editor-actions">
+                    <button type="button" onclick="validatePlayers()" class="btn-primary">Tarkista nimet</button>
+                    <button type="button" onclick="cancelPlayerEdit()" class="btn-secondary">Peruuta</button>
+                </div>
+            </div>
+
+            <!-- Validation Results (hidden by default) -->
+            <div id="validation-results" class="validation-results" style="display: none;">
+                <div id="validation-list"></div>
+                <div class="validation-summary" id="validation-summary"></div>
+                <div class="validation-actions">
+                    <button type="button" onclick="backToEditor()" class="btn-secondary">Takaisin muokkaukseen</button>
+                    <button type="button" onclick="applyPlayerChanges()" class="btn-primary" id="apply-btn" disabled>Hyväksy ja jatka</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Pairings -->
+        <section class="pairings-panel">
+            <div class="panel-header">
+                <h2>Kierros 1 - Parit</h2>
+                <button type="button" onclick="regeneratePairings()" class="btn-secondary">Luo uudet parit</button>
+            </div>
+
+            <!-- Courts Display -->
+            <div id="courts-container" class="courts-container">
+                {% if pairings %}
+                    {% for court in pairings %}
+                    <div class="court-card" data-court="{{ court.court_number }}">
+                        <div class="court-header">Kenttä {{ court.court_number }}</div>
+                        <div class="court-teams">
+                            <div class="team team1">
+                                <h4>Tiimi 1</h4>
+                                <div class="player-slot {% if not court.team1_player1_id %}empty{% endif %}" data-player-id="{{ court.team1_player1_id or '' }}" onclick="selectPlayer(this)">
+                                    {{ court.team1_player1_name or '[TYHJÄ]' }}
+                                </div>
+                                <div class="player-slot {% if not court.team1_player2_id %}empty{% endif %}" data-player-id="{{ court.team1_player2_id or '' }}" onclick="selectPlayer(this)">
+                                    {{ court.team1_player2_name or '[TYHJÄ]' }}
+                                </div>
+                            </div>
+                            <div class="team team2">
+                                <h4>Tiimi 2</h4>
+                                <div class="player-slot {% if not court.team2_player1_id %}empty{% endif %}" data-player-id="{{ court.team2_player1_id or '' }}" onclick="selectPlayer(this)">
+                                    {{ court.team2_player1_name or '[TYHJÄ]' }}
+                                </div>
+                                <div class="player-slot {% if not court.team2_player2_id %}empty{% endif %}" data-player-id="{{ court.team2_player2_id or '' }}" onclick="selectPlayer(this)">
+                                    {{ court.team2_player2_name or '[TYHJÄ]' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-pairings">
+                        <p>Ei vielä pareja. Klikkaa "Luo uudet parit" luodaksesi kierros 1 parit.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Unassigned Players Pool -->
+            <div id="unassigned-pool" class="unassigned-pool" style="display: {% if unassigned_players %}block{% else %}none{% endif %};">
+                <h3>Sijoittamattomat pelaajat</h3>
+                <div class="unassigned-list">
+                    {% for player in unassigned_players %}
+                    <div class="unassigned-player" data-player-id="{{ player.id }}" onclick="selectPlayer(this)">
+                        {{ player.first_name }} {{ player.last_name }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <p class="hint">Klikkaa pelaajaa, sitten tyhjää paikkaa sijoittaaksesi</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Action Bar -->
+    <footer class="action-bar">
+        <div class="action-bar-left">
+            <form method="POST" action="{{ url_for('admin_delete_tournament', tournament_id=tournament.id) }}"
+                  onsubmit="return confirm('Haluatko varmasti poistaa turnauksen? Tätä ei voi perua.');">
+                <button type="submit" class="btn-danger">Poista turnaus</button>
+            </form>
+        </div>
+        <div class="action-bar-right">
+            <button type="button" onclick="saveTournament()" class="btn-secondary" id="save-btn">Tallenna</button>
+            <button type="button" onclick="startTournament()" class="btn-primary" id="start-btn"
+                    {% if not can_start %}disabled title="Täytä kaikki paikat ennen aloittamista"{% endif %}>
+                Aloita turnaus
+            </button>
+        </div>
+    </footer>
+
+    <!-- Hidden form for saving -->
+    <form id="save-form" method="POST" action="{{ url_for('admin_edit_tournament', tournament_id=tournament.id) }}" style="display: none;">
+        <input type="hidden" name="tournament_name" id="form-tournament-name">
+        <input type="hidden" name="num_courts" value="{{ tournament.num_courts }}">
+        <input type="hidden" name="players" id="form-players">
+        <input type="hidden" name="round1_pairings" id="form-pairings">
+    </form>
+
+    <script src="{{ url_for('static', filename='js/tournament_edit.js') }}"></script>
+    <script>
+        // Initialize with tournament data
+        const tournamentId = {{ tournament.id }};
+        const numCourts = {{ tournament.num_courts }};
+    </script>
+</body>
+</html>
