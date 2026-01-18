@@ -293,10 +293,10 @@ def get_tournament_leaderboard(tournament_id):
             pr.id,
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
+            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
             COUNT(DISTINCT m.id) as matches_played,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate
@@ -1019,10 +1019,10 @@ def leaderboard(tournament_id):
             pr.id,
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
+            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
             COUNT(DISTINCT m.id) as matches_played,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate
@@ -1092,11 +1092,11 @@ def season_leaderboard():
             pr.id,
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
+            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as total_wins,
             COUNT(DISTINCT m.id) as total_matches,
             COUNT(DISTINCT t.id) as total_tournaments,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate,
@@ -1187,10 +1187,10 @@ def season_history():
                 pr.id,
                 pr.first_name,
                 pr.last_name,
-                COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
+                COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as total_wins,
                 COUNT(DISTINCT m.id) as total_matches,
                 ROUND(
-                    CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                    CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
                     NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                     1
                 ) as win_rate,
@@ -1294,10 +1294,10 @@ def player_profile(player_id):
             pr.id,
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
+            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as total_wins,
             COUNT(DISTINCT m.id) as total_matches,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate,
@@ -1337,7 +1337,7 @@ def player_profile(player_id):
                 pr.id,
                 COALESCE(SUM(s.points), 0) as total_points,
                 ROUND(
-                    CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
+                    CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
                     NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                     1
                 ) as win_rate

@@ -80,11 +80,25 @@ def test_player_profile_with_season_data(client):
             )
             match_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
-            # Add scores (player won if i < 2)
-            points = 10 if i < 2 else 5
+            # Add scores for all players in the match
+            # Winners get 3 points, losers get 1 point
+            team1_won = i < 2
+            # Player is on team 1 (player1)
             db.execute(
                 'INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)',
-                (match_id, player_id, points)
+                (match_id, player_id, 3 if team1_won else 1)
+            )
+            db.execute(
+                'INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)',
+                (match_id, player_id+1, 3 if team1_won else 1)
+            )
+            db.execute(
+                'INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)',
+                (match_id, player_id+2, 1 if team1_won else 3)
+            )
+            db.execute(
+                'INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)',
+                (match_id, player_id+3, 1 if team1_won else 3)
             )
 
         db.commit()
@@ -197,6 +211,17 @@ def test_season_leaderboard_has_clickable_names(client):
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
             (round_id, 1, player1_id, player2_id, player1_id+2, player1_id+3, 1, 1)
         )
+        match_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Add scores - team 1 (Alice, Bob) wins
+        db.execute('INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)',
+                   (match_id, player1_id, 3))
+        db.execute('INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)',
+                   (match_id, player2_id, 3))
+        db.execute('INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)',
+                   (match_id, player1_id+2, 1))
+        db.execute('INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)',
+                   (match_id, player1_id+3, 1))
         db.commit()
 
     # Test: Visit season leaderboard
