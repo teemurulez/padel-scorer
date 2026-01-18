@@ -17,9 +17,9 @@ def test_get_current_season_returns_current():
     conn.commit()
 
     try:
-        # Setup: Create seasons (include year for backward compatibility with old schema)
-        cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season 1", 2099, 0))
-        cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season 2", 2100, 1))
+        # Setup: Create seasons
+        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season 1", 0))
+        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season 2", 1))
         conn.commit()
 
         # Test
@@ -51,8 +51,8 @@ def test_get_current_season_returns_none_when_no_current():
     conn.commit()
 
     try:
-        # Setup: Create only archived seasons (include year for backward compatibility)
-        cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season Archived", 2098, 0))
+        # Setup: Create only archived seasons
+        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season Archived", 0))
         conn.commit()
 
         # Test
@@ -75,9 +75,9 @@ def test_set_current_season_archives_previous():
     cursor.execute("DELETE FROM seasons WHERE name IN (?, ?)", ("Test Season A", "Test Season B"))
     conn.commit()
 
-    # Setup: Create two seasons, one current (include year for backward compatibility)
-    cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season A", 2097, 1))
-    cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season B", 2096, 0))
+    # Setup: Create two seasons, one current
+    cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season A", 1))
+    cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season B", 0))
     season2_id = cursor.lastrowid
     conn.commit()
 
@@ -106,10 +106,10 @@ def test_set_current_season_clears_ended_at():
     cursor.execute("DELETE FROM seasons WHERE name = ?", ("Test Season Ended",))
     conn.commit()
 
-    # Setup: Create archived season with ended_at (include year for backward compatibility)
+    # Setup: Create archived season with ended_at
     cursor.execute(
-        "INSERT INTO seasons (name, year, is_current, ended_at) VALUES (?, ?, ?, ?)",
-        ("Test Season Ended", 2095, 0, "2024-12-31 23:59:59")
+        "INSERT INTO seasons (name, is_current, ended_at) VALUES (?, ?, ?)",
+        ("Test Season Ended", 0, "2024-12-31 23:59:59")
     )
     season_id = cursor.lastrowid
     conn.commit()

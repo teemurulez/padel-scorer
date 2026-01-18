@@ -53,8 +53,8 @@ def test_tournament_players_composite_primary_key():
     season_id = None
 
     try:
-        # Create test season, tournament, and player (include year for backward compatibility)
-        cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season PK", 2092, 0))
+        # Create test season, tournament, and player
+        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season PK", 0))
         season_id = cursor.lastrowid
 
         cursor.execute("""

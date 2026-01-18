@@ -26,8 +26,8 @@ def test_tournament_status_default_value():
     season_id = None
 
     try:
-        # Create season (include year for backward compatibility)
-        cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season Status", 2091, 0))
+        # Create season
+        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season Status", 0))
         season_id = cursor.lastrowid
 
         # Create tournament without specifying status
@@ -60,8 +60,8 @@ def test_tournament_status_transitions():
     season_id = None
 
     try:
-        # Create season and tournament (include year for backward compatibility)
-        cursor.execute("INSERT INTO seasons (name, year, is_current) VALUES (?, ?, ?)", ("Test Season Trans", 2090, 0))
+        # Create season and tournament
+        cursor.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season Trans", 0))
         season_id = cursor.lastrowid
 
         cursor.execute("""
