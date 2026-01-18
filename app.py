@@ -1896,14 +1896,19 @@ def admin_dashboard():
         ).fetchall()
 
         # Fetch players with season wins for Players tab
-        # Counts wins (s.points = 3) and tournaments played
+        # Counts wins, tournaments, matches, and calculates averages
         players = db.execute('''
             SELECT
                 pr.id,
                 pr.first_name,
                 pr.last_name,
                 COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
-                COUNT(DISTINCT t.id) as tournaments_played
+                COUNT(DISTINCT t.id) as tournaments_played,
+                COUNT(DISTINCT m.id) as matches_played,
+                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                      NULLIF(COUNT(DISTINCT t.id), 0), 2) as wins_per_tournament,
+                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                      NULLIF(COUNT(DISTINCT m.id), 0), 2) as win_rate
             FROM player_registry pr
             LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
             LEFT JOIN rounds r ON m.round_id = r.id
@@ -1912,7 +1917,7 @@ def admin_dashboard():
             WHERE t.season_id = ? AND m.completed = 1
             GROUP BY pr.id, pr.first_name, pr.last_name
             HAVING tournaments_played > 0
-            ORDER BY wins DESC, tournaments_played DESC, pr.last_name ASC
+            ORDER BY wins DESC, win_rate DESC, pr.last_name ASC
         ''', (current_season['id'],)).fetchall()
 
     return render_template('admin_dashboard.html',
@@ -1941,7 +1946,12 @@ def admin_export_season_standings():
             pr.first_name,
             pr.last_name,
             COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
-            COUNT(DISTINCT t.id) as tournaments_played
+            COUNT(DISTINCT t.id) as tournaments_played,
+            COUNT(DISTINCT m.id) as matches_played,
+            ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                  NULLIF(COUNT(DISTINCT t.id), 0), 2) as wins_per_tournament,
+            ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                  NULLIF(COUNT(DISTINCT m.id), 0), 2) as win_rate
         FROM player_registry pr
         LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
         LEFT JOIN rounds r ON m.round_id = r.id
@@ -1950,7 +1960,7 @@ def admin_export_season_standings():
         WHERE t.season_id = ? AND m.completed = 1
         GROUP BY pr.id, pr.first_name, pr.last_name
         HAVING tournaments_played > 0
-        ORDER BY wins DESC, tournaments_played DESC, pr.last_name ASC
+        ORDER BY wins DESC, win_rate DESC, pr.last_name ASC
     ''', (current_season['id'],)).fetchall()
 
     # Create CSV in memory
@@ -1958,7 +1968,7 @@ def admin_export_season_standings():
     writer = csv.writer(output)
 
     # Header row
-    writer.writerow(['Sija', 'Pelaaja', 'Voitot', 'Turnauksia'])
+    writer.writerow(['Sija', 'Pelaaja', 'Voitot', 'Turnauksia', 'V/T', 'Otteluita', 'V/O'])
 
     # Data rows with ranking
     for rank, player in enumerate(players, 1):
@@ -1967,7 +1977,10 @@ def admin_export_season_standings():
             rank,
             full_name,
             player['wins'],
-            player['tournaments_played']
+            player['tournaments_played'],
+            f"{player['wins_per_tournament'] or 0:.2f}",
+            player['matches_played'],
+            f"{player['win_rate'] or 0:.2f}"
         ])
 
     # Prepare response

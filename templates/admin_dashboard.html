@@ -266,6 +266,9 @@
                             <th>Pelaaja</th>
                             <th>Voitot</th>
                             <th>Turnauksia</th>
+                            <th>V/T</th>
+                            <th>Otteluita</th>
+                            <th>V/O</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -275,6 +278,9 @@
                             <td>{{ player.first_name }} {{ player.last_name }}</td>
                             <td>{{ player.wins }}</td>
                             <td>{{ player.tournaments_played }}</td>
+                            <td>{{ "%.2f"|format(player.wins_per_tournament or 0) }}</td>
+                            <td>{{ player.matches_played }}</td>
+                            <td>{{ "%.2f"|format(player.win_rate or 0) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
