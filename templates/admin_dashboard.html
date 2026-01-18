@@ -246,7 +246,7 @@
         <!-- Players Tab -->
         <div id="players-tab" class="tab-content {{ 'active' if active_tab == 'players' else '' }}">
             <div class="tab-panel">
-                <h2>Pelaajien pisteet</h2>
+                <h2>Kauden tilanne</h2>
 
                 {% if current_season %}
                 <div class="season-header-row">
@@ -262,57 +262,25 @@
                 <table class="admin-table players-table">
                     <thead>
                         <tr>
+                            <th>#</th>
                             <th>Pelaaja</th>
-                            <th>Pisteet</th>
-                            <th>Toiminnot</th>
+                            <th>Voitot</th>
+                            <th>Turnauksia</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for player in players %}
-                        <tr id="player-row-{{ player.id }}">
+                        <tr>
+                            <td>{{ loop.index }}</td>
                             <td>{{ player.first_name }} {{ player.last_name }}</td>
-                            <td>
-                                <span id="player-points-{{ player.id }}">{{ player.total_points }}</span>
-                                {% if player.adjustment != 0 %}
-                                <span class="adjustment-indicator" title="Sisältää manuaalisen korjauksen: {{ '+' if player.adjustment > 0 else '' }}{{ player.adjustment }}">
-                                    ({{ '+' if player.adjustment > 0 else '' }}{{ player.adjustment }})
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <button type="button" class="btn-secondary" onclick="toggleEditPlayer({{ player.id }}, {{ player.auto_points }}, {{ player.adjustment }}, {{ player.total_points }})">
-                                    Muokkaa
-                                </button>
-                            </td>
-                        </tr>
-                        <tr id="edit-player-row-{{ player.id }}" class="edit-row" style="display: none;">
-                            <td colspan="3">
-                                <div class="edit-form-container player-edit-form">
-                                    <h4>Muokkaa pisteitä: {{ player.first_name }} {{ player.last_name }}</h4>
-                                    <form method="POST" action="{{ url_for('admin_edit_player_points', player_id=player.id) }}">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <div class="points-info">
-                                            <p>Automaattiset pisteet: <strong id="auto-points-{{ player.id }}">{{ player.auto_points }}</strong></p>
-                                            <p>Nykyinen korjaus: <strong id="current-adj-{{ player.id }}">{{ '+' if player.adjustment > 0 else '' }}{{ player.adjustment }}</strong></p>
-                                            <p>Yhteensä: <strong id="current-total-{{ player.id }}">{{ player.total_points }}</strong></p>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="new-total-{{ player.id }}">Uudet kokonaispisteet:</label>
-                                            <input type="number" name="new_total_points" id="new-total-{{ player.id }}" value="{{ player.total_points }}" class="form-input" min="0" required>
-                                        </div>
-                                        <div class="form-actions">
-                                            <button type="submit" class="btn-primary">Tallenna</button>
-                                            <button type="button" class="btn-secondary" onclick="toggleEditPlayer({{ player.id }})">Peruuta</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </td>
+                            <td>{{ player.wins }}</td>
+                            <td>{{ player.tournaments_played }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 {% else %}
-                <p class="empty-state-message">Ei pelaajia joilla olisi pisteitä tällä kaudella.</p>
+                <p class="empty-state-message">Ei pelaajia tällä kaudella.</p>
                 {% endif %}
 
                 {% else %}

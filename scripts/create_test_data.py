@@ -150,23 +150,25 @@ def create_tournament(db, season_id, player_ids, name, num_courts=2, match_resul
             )
             match_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
 
-            # Add scores (winners get 3 points, losers get 1)
-            db.execute(
-                "INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)",
-                (match_id, p1, 3 if team1_won else 1)
-            )
-            db.execute(
-                "INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)",
-                (match_id, p2, 3 if team1_won else 1)
-            )
-            db.execute(
-                "INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)",
-                (match_id, p3, 1 if team1_won else 3)
-            )
-            db.execute(
-                "INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)",
-                (match_id, p4, 1 if team1_won else 3)
-            )
+            # Add scores for winners only (3 points per win)
+            if team1_won:
+                db.execute(
+                    "INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)",
+                    (match_id, p1, 3)
+                )
+                db.execute(
+                    "INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)",
+                    (match_id, p2, 3)
+                )
+            else:
+                db.execute(
+                    "INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)",
+                    (match_id, p3, 3)
+                )
+                db.execute(
+                    "INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, ?)",
+                    (match_id, p4, 3)
+                )
 
     db.commit()
     return tournament_id
@@ -226,10 +228,6 @@ def main():
                                   num_courts=2, match_results=t2_results)
         print(f"  Tournament 2 ID: {t2_id}")
 
-        # Add a manual adjustment for one player
-        add_point_adjustment(db, season_id, player_ids[0], 5, "Bonus for organizing")
-        print(f"  Added +5 adjustment for {TEST_PLAYERS[0][0]} {TEST_PLAYERS[0][1]}")
-
         print()
         print("=" * 50)
         print("Test data created successfully!")
@@ -241,6 +239,7 @@ def main():
         print(f"  - Tournaments: 2 (completed)")
         print(f"  - Rounds per tournament: 3")
         print(f"  - Matches per round: 2")
+        print(f"  - Scoring: Wins only (no participation points)")
         print()
         print("You can now test at: http://127.0.0.1:5050/admin")
 

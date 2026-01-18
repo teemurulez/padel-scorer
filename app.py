@@ -1895,32 +1895,25 @@ def admin_dashboard():
             (current_season['id'],)
         ).fetchall()
 
-        # Fetch players with season points for Players tab
-        # Uses same query logic as season_leaderboard (scores table)
+        # Fetch players with season wins for Players tab
+        # Counts wins (s.points = 3) and tournaments played
         players = db.execute('''
             SELECT
                 pr.id,
                 pr.first_name,
                 pr.last_name,
-                COALESCE(auto.auto_points, 0) as auto_points,
-                COALESCE(adj.adjustment, 0) as adjustment,
-                COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) as total_points
+                COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
+                COUNT(DISTINCT t.id) as tournaments_played
             FROM player_registry pr
-            LEFT JOIN (
-                SELECT pr2.id as player_id, COALESCE(SUM(s.points), 0) as auto_points
-                FROM player_registry pr2
-                LEFT JOIN matches m ON (pr2.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
-                LEFT JOIN rounds r ON m.round_id = r.id
-                LEFT JOIN tournaments t ON r.tournament_id = t.id
-                LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr2.id)
-                WHERE t.season_id = ? AND m.completed = 1
-                GROUP BY pr2.id
-            ) auto ON pr.id = auto.player_id
-            LEFT JOIN player_points_adjustment adj
-                ON pr.id = adj.player_id AND adj.season_id = ?
-            WHERE auto.auto_points > 0 OR adj.adjustment IS NOT NULL
-            ORDER BY total_points DESC, pr.last_name ASC
-        ''', (current_season['id'], current_season['id'])).fetchall()
+            LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
+            LEFT JOIN rounds r ON m.round_id = r.id
+            LEFT JOIN tournaments t ON r.tournament_id = t.id
+            LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+            WHERE t.season_id = ? AND m.completed = 1
+            GROUP BY pr.id, pr.first_name, pr.last_name
+            HAVING tournaments_played > 0
+            ORDER BY wins DESC, tournaments_played DESC, pr.last_name ASC
+        ''', (current_season['id'],)).fetchall()
 
     return render_template('admin_dashboard.html',
                           current_season=current_season,
@@ -1942,37 +1935,30 @@ def admin_export_season_standings():
         flash('Ei aktiivista kautta vietäväksi')
         return redirect(url_for('admin_dashboard'))
 
-    # Get players with season points (same query as admin_dashboard)
+    # Get players with season wins (same query as admin_dashboard)
     players = db.execute('''
         SELECT
             pr.first_name,
             pr.last_name,
-            COALESCE(auto.auto_points, 0) as auto_points,
-            COALESCE(adj.adjustment, 0) as adjustment,
-            COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) as total_points
+            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
+            COUNT(DISTINCT t.id) as tournaments_played
         FROM player_registry pr
-        LEFT JOIN (
-            SELECT pr2.id as player_id, COALESCE(SUM(s.points), 0) as auto_points
-            FROM player_registry pr2
-            LEFT JOIN matches m ON (pr2.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
-            LEFT JOIN rounds r ON m.round_id = r.id
-            LEFT JOIN tournaments t ON r.tournament_id = t.id
-            LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr2.id)
-            WHERE t.season_id = ? AND m.completed = 1
-            GROUP BY pr2.id
-        ) auto ON pr.id = auto.player_id
-        LEFT JOIN player_points_adjustment adj
-            ON pr.id = adj.player_id AND adj.season_id = ?
-        WHERE auto.auto_points > 0 OR adj.adjustment IS NOT NULL
-        ORDER BY total_points DESC, pr.last_name ASC
-    ''', (current_season['id'], current_season['id'])).fetchall()
+        LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
+        LEFT JOIN rounds r ON m.round_id = r.id
+        LEFT JOIN tournaments t ON r.tournament_id = t.id
+        LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+        WHERE t.season_id = ? AND m.completed = 1
+        GROUP BY pr.id, pr.first_name, pr.last_name
+        HAVING tournaments_played > 0
+        ORDER BY wins DESC, tournaments_played DESC, pr.last_name ASC
+    ''', (current_season['id'],)).fetchall()
 
     # Create CSV in memory
     output = io.StringIO()
     writer = csv.writer(output)
 
     # Header row
-    writer.writerow(['Sija', 'Pelaaja', 'Pisteet', 'Korjaus'])
+    writer.writerow(['Sija', 'Pelaaja', 'Voitot', 'Turnauksia'])
 
     # Data rows with ranking
     for rank, player in enumerate(players, 1):
@@ -1980,8 +1966,8 @@ def admin_export_season_standings():
         writer.writerow([
             rank,
             full_name,
-            player['total_points'],
-            player['adjustment'] if player['adjustment'] != 0 else ''
+            player['wins'],
+            player['tournaments_played']
         ])
 
     # Prepare response
