@@ -1,4 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify, abort, Response
+import csv
+import io
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -1928,6 +1930,69 @@ def admin_dashboard():
                           archived_seasons=archived_seasons,
                           active_tab='seasons',
                           edit_tournament_id=edit_tournament_id)
+
+
+@app.route('/admin/export/season-standings.csv')
+def admin_export_season_standings():
+    """Export current season standings as CSV for Google Sheets"""
+    db = get_db()
+
+    current_season = get_current_season(db)
+    if not current_season:
+        flash('Ei aktiivista kautta vietäväksi')
+        return redirect(url_for('admin_dashboard'))
+
+    # Get players with season points (same query as admin_dashboard)
+    players = db.execute('''
+        SELECT
+            pr.first_name,
+            pr.last_name,
+            COALESCE(auto.auto_points, 0) as auto_points,
+            COALESCE(adj.adjustment, 0) as adjustment,
+            COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) as total_points
+        FROM player_registry pr
+        LEFT JOIN (
+            SELECT pr2.id as player_id, COALESCE(SUM(s.points), 0) as auto_points
+            FROM player_registry pr2
+            LEFT JOIN matches m ON (pr2.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
+            LEFT JOIN rounds r ON m.round_id = r.id
+            LEFT JOIN tournaments t ON r.tournament_id = t.id
+            LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr2.id)
+            WHERE t.season_id = ? AND m.completed = 1
+            GROUP BY pr2.id
+        ) auto ON pr.id = auto.player_id
+        LEFT JOIN player_points_adjustment adj
+            ON pr.id = adj.player_id AND adj.season_id = ?
+        WHERE auto.auto_points > 0 OR adj.adjustment IS NOT NULL
+        ORDER BY total_points DESC, pr.last_name ASC
+    ''', (current_season['id'], current_season['id'])).fetchall()
+
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow(['Sija', 'Pelaaja', 'Pisteet', 'Korjaus'])
+
+    # Data rows with ranking
+    for rank, player in enumerate(players, 1):
+        full_name = f"{player['first_name']} {player['last_name']}"
+        writer.writerow([
+            rank,
+            full_name,
+            player['total_points'],
+            player['adjustment'] if player['adjustment'] != 0 else ''
+        ])
+
+    # Prepare response
+    output.seek(0)
+    filename = f"{current_season['name'].replace(' ', '_')}_standings.csv"
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
 
 
 @app.route('/admin/players')

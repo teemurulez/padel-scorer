@@ -249,7 +249,14 @@
                 <h2>Pelaajien pisteet</h2>
 
                 {% if current_season %}
-                <p class="season-info">Kausi: <strong>{{ current_season.name }}</strong></p>
+                <div class="season-header-row">
+                    <p class="season-info">Kausi: <strong>{{ current_season.name }}</strong></p>
+                    {% if players %}
+                    <a href="{{ url_for('admin_export_season_standings') }}" class="btn-secondary btn-small">
+                        📥 Lataa CSV
+                    </a>
+                    {% endif %}
+                </div>
 
                 {% if players %}
                 <table class="admin-table players-table">

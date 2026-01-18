@@ -736,3 +736,16 @@ body {
     outline: none;
     border-color: var(--yellow);
 }
+
+/* Season header row with export button */
+.season-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.btn-small {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
