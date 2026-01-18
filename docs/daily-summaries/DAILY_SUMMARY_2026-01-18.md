@@ -4,6 +4,8 @@
 
 Fixed all pre-existing test failures, added CSV export for season standings, and completely redesigned the scoring system from points-based to wins-only. Also added comprehensive statistics columns to the season standings view.
 
+In the evening session: Added player name validation to tournament creation form, fixed CSRF issues, and cleaned up admin UI.
+
 ## Bug Fixes
 
 ### Test Suite Fixes
@@ -75,6 +77,35 @@ Sorting: Primary by wins, secondary by win rate
 ### Created
 - `scripts/create_test_data.py` - Test data generation script
 
+## Evening Session
+
+### Player Name Validation for Tournament Creation
+- Added "Tarkista nimet" (Check names) button to tournament creation form
+- Validates player names against registry before creating tournament
+- Shows validation results with icons:
+  - ✓ Known players (green) - exact matches
+  - ⚠ Similar names (orange) - possible typos with accept/reject buttons
+  - ★ New players (blue) - not in registry
+  - ✕ Duplicates (red) - repeated names
+- Reuses existing `/admin/validate-players` endpoint
+
+### CSRF Token Fixes
+- Added X-CSRFToken header to all AJAX fetch requests
+- Fixed in: `tournament_edit.js` (validatePlayers, regeneratePairings)
+- Fixed in: `admin_dashboard.html` (validateCreatePlayers)
+
+### UI Improvements
+- Validation suggestion links now blue instead of yellow
+- Links displayed below suggestion text (vertical layout)
+- Widened players panel in tournament edit view (300px → 350px)
+- Removed unused "Pisteet" tab from admin dashboard (simplified to 3 tabs: Kaudet, Pelaajat, Data)
+
+### Files Changed (Evening)
+- `templates/admin_dashboard.html` - Validation UI, JS, removed Pisteet tab
+- `static/js/tournament_edit.js` - CSRF token for fetch requests
+- `static/css/admin.css` - Validation result styles
+- `static/css/admin_edit.css` - Validation styles, wider players panel
+
 ## Commits Today
 1. `fix: resolve test failures from schema and security changes`
 2. `feat: add CSV export for season standings`
@@ -83,3 +114,4 @@ Sorting: Primary by wins, secondary by win rate
 5. `fix: correct win counting logic in leaderboards`
 6. `feat: change scoring system to wins-only (no participation points)`
 7. `feat: add statistics columns to season standings`
+8. `feat: add player validation to tournament creation, fix CSRF, cleanup admin UI`

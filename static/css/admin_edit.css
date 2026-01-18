@@ -131,7 +131,7 @@ body.edit-page {
 /* Main Container */
 .edit-container {
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: 350px 1fr;
     gap: 2rem;
     padding: 2rem;
     flex: 1;
@@ -280,14 +280,32 @@ body.edit-page {
 
 .validation-suggestion {
     margin-left: auto;
-    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
     color: #333;
     font-weight: 500;
 }
 
 .validation-suggestion .btn-link {
-    margin-left: 0.5rem;
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
     font-weight: 600;
+    text-decoration: underline;
+    padding: 0;
+    margin-left: 0.75rem;
+}
+
+.validation-suggestion .btn-link:hover {
+    color: #2563eb;
+}
+
+.suggestion-links {
+    display: flex;
+    gap: 0.5rem;
 }
 
 .validation-summary {

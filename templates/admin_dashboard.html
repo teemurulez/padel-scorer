@@ -38,7 +38,6 @@
     <nav class="tab-nav">
         <button class="tab-btn {{ 'active' if active_tab == 'seasons' or not active_tab else '' }}" data-tab="seasons">Kaudet</button>
         <button class="tab-btn {{ 'active' if active_tab == 'players' else '' }}" data-tab="players-tab">Pelaajat</button>
-        <button class="tab-btn" data-tab="points">Pisteet</button>
         <button class="tab-btn" data-tab="data">Data</button>
     </nav>
 
@@ -160,6 +159,13 @@
                             <label for="players">Pelaajien nimet (yksi per rivi)</label>
                             <textarea id="players" name="players" rows="12" placeholder="Syötä pelaajien nimet, yksi per rivi&#10;Esimerkki:&#10;Matti Meikäläinen&#10;Maija Meikäläinen&#10;..." required></textarea>
                             <p class="form-hint">Vähintään <span id="min_players">12</span> pelaajaa vaaditaan <span id="selected_courts">3</span> kentälle</p>
+                            <button type="button" onclick="validateCreatePlayers()" class="btn-secondary" style="margin-top: 8px;">Tarkista nimet</button>
+                        </div>
+
+                        <!-- Validation Results (hidden by default) -->
+                        <div id="create-validation-results" class="validation-results" style="display: none;">
+                            <div class="validation-summary" id="create-validation-summary"></div>
+                            <div id="create-validation-list" class="validation-list"></div>
                         </div>
 
                         <button type="submit" class="btn-primary">Luo turnaus</button>
@@ -183,6 +189,139 @@
                         });
                     }
                 });
+
+                // Player name validation for tournament creation
+                let createValidationResults = [];
+
+                async function validateCreatePlayers() {
+                    const textarea = document.getElementById('players');
+                    const playersText = textarea.value.trim();
+
+                    if (!playersText) {
+                        alert('Syötä pelaajien nimet');
+                        return;
+                    }
+
+                    const lines = playersText.split('\n').filter(l => l.trim());
+                    if (lines.length < 4) {
+                        alert('Vähintään 4 pelaajaa tarvitaan.');
+                        return;
+                    }
+
+                    try {
+                        // Get CSRF token from the form
+                        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+                        const response = await fetch('/admin/validate-players', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify({ players: playersText })
+                        });
+
+                        const data = await response.json();
+                        createValidationResults = data.results;
+                        displayCreateValidationResults(data);
+
+                    } catch (error) {
+                        console.error('Validation error:', error);
+                        alert('Virhe tarkistuksessa. Yritä uudelleen.');
+                    }
+                }
+
+                function displayCreateValidationResults(data) {
+                    const container = document.getElementById('create-validation-list');
+                    const summary = document.getElementById('create-validation-summary');
+                    const resultsDiv = document.getElementById('create-validation-results');
+
+                    container.innerHTML = '';
+                    resultsDiv.style.display = 'block';
+
+                    data.results.forEach((result, index) => {
+                        const item = document.createElement('div');
+                        item.className = `validation-item ${result.status}`;
+                        item.dataset.index = index;
+
+                        let icon, content;
+
+                        switch (result.status) {
+                            case 'exact':
+                                icon = '✓';
+                                content = `<span class="player-name">${result.name}</span>`;
+                                break;
+                            case 'similar':
+                                icon = '⚠';
+                                content = `
+                                    <span class="player-name">${result.name}</span>
+                                    <span class="validation-suggestion">
+                                        <span>→ ${result.suggestion}?</span>
+                                        <span class="suggestion-links">
+                                            <button type="button" onclick="acceptCreateSuggestion(${index})" class="btn-link">Kyllä</button>
+                                            <button type="button" onclick="rejectCreateSuggestion(${index})" class="btn-link">Ei, uusi</button>
+                                        </span>
+                                    </span>
+                                `;
+                                break;
+                            case 'new':
+                                icon = '★';
+                                content = `<span class="player-name">${result.name}</span> <span class="tag new-tag">uusi pelaaja</span>`;
+                                break;
+                            case 'duplicate':
+                                icon = '✕';
+                                content = `<span class="player-name">${result.name}</span> <span class="error">duplikaatti</span>`;
+                                break;
+                        }
+
+                        item.innerHTML = `<span class="validation-icon">${icon}</span>${content}`;
+                        container.appendChild(item);
+                    });
+
+                    summary.innerHTML = `
+                        <strong>Yhteenveto:</strong>
+                        ${data.summary.exact} tunnettua ·
+                        ${data.summary.similar} tarkistettavaa ·
+                        ${data.summary.new} uutta
+                        ${data.summary.duplicate > 0 ? ` · <span class="error">${data.summary.duplicate} duplikaattia</span>` : ''}
+                    `;
+                }
+
+                function acceptCreateSuggestion(index) {
+                    const textarea = document.getElementById('players');
+                    const lines = textarea.value.split('\n');
+                    const result = createValidationResults[index];
+
+                    let nonEmptyIndex = 0;
+                    for (let i = 0; i < lines.length; i++) {
+                        if (lines[i].trim()) {
+                            if (nonEmptyIndex === index) {
+                                lines[i] = result.suggestion;
+                                break;
+                            }
+                            nonEmptyIndex++;
+                        }
+                    }
+
+                    textarea.value = lines.join('\n');
+                    validateCreatePlayers();
+                }
+
+                function rejectCreateSuggestion(index) {
+                    createValidationResults[index].status = 'new';
+                    createValidationResults[index].confirmed_new = true;
+
+                    const data = {
+                        results: createValidationResults,
+                        summary: {
+                            exact: createValidationResults.filter(r => r.status === 'exact').length,
+                            similar: createValidationResults.filter(r => r.status === 'similar').length,
+                            new: createValidationResults.filter(r => r.status === 'new').length,
+                            duplicate: createValidationResults.filter(r => r.status === 'duplicate').length
+                        }
+                    };
+                    displayCreateValidationResults(data);
+                }
                 </script>
 
                 <!-- Create New Season Form -->
@@ -228,18 +367,6 @@
                     </table>
                 </div>
                 {% endif %}
-            </div>
-        </div>
-
-        <!-- Points Tab -->
-        <div id="points" class="tab-content">
-            <div class="tab-panel">
-                <h2>Pistejärjestelmän asetukset</h2>
-                <div class="placeholder-content">
-                    <div class="icon">📊</div>
-                    <h3>Tulossa vaiheessa 2</h3>
-                    <p>Määritä pistearvot voitoille, häviöille ja turnaussijoituksille.</p>
-                </div>
             </div>
         </div>
 

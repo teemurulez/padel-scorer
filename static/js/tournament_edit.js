@@ -62,9 +62,15 @@ async function validatePlayers() {
     const newNumCourts = lines.length / 4;
 
     try {
+        // Get CSRF token from the form
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
         const response = await fetch('/admin/validate-players', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
             body: JSON.stringify({ players: playersText })
         });
 
@@ -106,9 +112,11 @@ function displayValidationResults(data) {
                 content = `
                     <span class="player-name">${result.name}</span>
                     <span class="validation-suggestion">
-                        → ${result.suggestion}?
-                        <button onclick="acceptSuggestion(${index})" class="btn-link">Kyllä</button>
-                        <button onclick="rejectSuggestion(${index})" class="btn-link">Ei, uusi pelaaja</button>
+                        <span>→ ${result.suggestion}?</span>
+                        <span class="suggestion-links">
+                            <button onclick="acceptSuggestion(${index})" class="btn-link">Kyllä</button>
+                            <button onclick="rejectSuggestion(${index})" class="btn-link">Ei, uusi pelaaja</button>
+                        </span>
                     </span>
                 `;
                 break;
@@ -236,9 +244,14 @@ async function regeneratePairings() {
     }
 
     try {
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
         const response = await fetch(`/admin/tournaments/${tournamentId}/preview-round1`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
             body: JSON.stringify({ force: true })
         });
 
