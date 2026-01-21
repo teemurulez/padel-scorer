@@ -11,6 +11,9 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Fix pre-existing test failures (done 2026-01-18)
 - [x] Admin UI polish - light theme conversion (done 2026-01-21)
 - [x] Player name validation for tournament creation (done 2026-01-18)
+- [x] Database restore functionality (done 2026-01-21)
+- [x] Prevent orphaned tournaments when changing seasons (done 2026-01-21)
+- [x] Extended player profile statistics (done 2026-01-21)
 
 ## Next Steps
 
@@ -31,10 +34,20 @@ The app is **production-ready** with security hardening complete. Core features 
 
 ## Recent Changes (2026-01-21)
 
+**Admin UI:**
 - Converted admin UI from dark theme to light theme with gold accents
-- Extracted inline styles from auth pages to shared CSS classes
-- Updated tournament edit page accents from blue to gold
-- All admin pages now have consistent styling
+- Added tournament creation modal popup
+- Added Data tab with JSON database export and restore
+- Added validation to prevent orphaned tournaments when changing seasons
+
+**Player Profile Statistics:**
+- Added "Paritilastot" section: Paras pari, Yleisin pari, Yleisin vastustaja, Vaikein vastustaja
+- Added "Turnaukset" section: Pisin voittoputki, Paras/Huonoin turnaus, Comeback-%, kierroskohtaiset voittoprosentit
+- Added court statistics bar chart (ottelut per kenttä)
+- Added season progress chart (voitot turnauksissa)
+- Added current form display (viimeiset 10 ottelua)
+- Added medal emojis for top 3 rankings
+- Fixed points calculation (3 -> 1 point per win)
 
 ## Recent Changes (2026-01-18)
 

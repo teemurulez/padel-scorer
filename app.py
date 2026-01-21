@@ -300,10 +300,10 @@ def get_tournament_leaderboard(tournament_id):
             pr.id,
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
             COUNT(DISTINCT m.id) as matches_played,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate
@@ -1026,10 +1026,10 @@ def leaderboard(tournament_id):
             pr.id,
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
             COUNT(DISTINCT m.id) as matches_played,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate
@@ -1099,11 +1099,11 @@ def season_leaderboard():
             pr.id,
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as total_wins,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
             COUNT(DISTINCT m.id) as total_matches,
             COUNT(DISTINCT t.id) as total_tournaments,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate,
@@ -1194,10 +1194,10 @@ def season_history():
                 pr.id,
                 pr.first_name,
                 pr.last_name,
-                COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as total_wins,
+                COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
                 COUNT(DISTINCT m.id) as total_matches,
                 ROUND(
-                    CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                    CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                     NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                     1
                 ) as win_rate,
@@ -1301,10 +1301,10 @@ def player_profile(player_id):
             pr.id,
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as total_wins,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
             COUNT(DISTINCT m.id) as total_matches,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate,
@@ -1344,7 +1344,7 @@ def player_profile(player_id):
                 pr.id,
                 COALESCE(SUM(s.points), 0) as total_points,
                 ROUND(
-                    CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                    CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                     NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                     1
                 ) as win_rate
@@ -1482,6 +1482,206 @@ def player_profile(player_id):
                 worst = tournament_wins[-1]
                 worst_tournament = {'name': worst['name'], 'wins': worst['wins']}
 
+    # Additional stats (even if no wins, some of these can still be calculated)
+    nemesis = None
+    easiest_opponent = None
+    current_form = []
+    comeback_rate = None
+    first_round_winrate = None
+    later_rounds_winrate = None
+    most_common_partner = None
+    most_common_opponent = None
+    court_stats = []
+    progress_data = []
+
+    if season_stats and season_stats['total_matches'] > 0:
+        # Get all matches for this player in current season with details
+        all_player_matches = db.execute("""
+            SELECT
+                m.id,
+                m.winning_team,
+                m.court_number,
+                m.player1_id, m.player2_id, m.player3_id, m.player4_id,
+                r.round_number,
+                t.id as tournament_id,
+                t.name as tournament_name,
+                CASE
+                    WHEN m.player1_id = ? OR m.player2_id = ? THEN 1
+                    ELSE 2
+                END as player_team
+            FROM matches m
+            JOIN rounds r ON m.round_id = r.id
+            JOIN tournaments t ON r.tournament_id = t.id
+            WHERE t.season_id = ?
+              AND m.completed = 1
+              AND (m.player1_id = ? OR m.player2_id = ? OR m.player3_id = ? OR m.player4_id = ?)
+            ORDER BY t.created_at, r.round_number, m.id
+        """, (player_id, player_id, current_season['id'],
+              player_id, player_id, player_id, player_id)).fetchall()
+
+        # 5. Current form - last 10 matches
+        for match in all_player_matches[-10:]:
+            won = match['winning_team'] == match['player_team']
+            current_form.append('✓' if won else '✗')
+
+        # 6. Comeback rate - win after a loss
+        comebacks = 0
+        comeback_opportunities = 0
+        prev_won = None
+        for match in all_player_matches:
+            won = match['winning_team'] == match['player_team']
+            if prev_won is False:  # Previous was a loss
+                comeback_opportunities += 1
+                if won:
+                    comebacks += 1
+            prev_won = won
+        if comeback_opportunities > 0:
+            comeback_rate = round(comebacks / comeback_opportunities * 100)
+
+        # 7. First round vs later rounds win rate
+        first_round_wins = 0
+        first_round_total = 0
+        later_round_wins = 0
+        later_round_total = 0
+        for match in all_player_matches:
+            won = match['winning_team'] == match['player_team']
+            if match['round_number'] == 1:
+                first_round_total += 1
+                if won:
+                    first_round_wins += 1
+            else:
+                later_round_total += 1
+                if won:
+                    later_round_wins += 1
+        if first_round_total > 0:
+            first_round_winrate = round(first_round_wins / first_round_total * 100)
+        if later_round_total > 0:
+            later_rounds_winrate = round(later_round_wins / later_round_total * 100)
+
+        # 8. Most common partner
+        partner_counts = {}
+        for match in all_player_matches:
+            if match['player_team'] == 1:
+                partner_id = match['player2_id'] if match['player1_id'] == player_id else match['player1_id']
+            else:
+                partner_id = match['player4_id'] if match['player3_id'] == player_id else match['player3_id']
+            partner_counts[partner_id] = partner_counts.get(partner_id, 0) + 1
+
+        if partner_counts:
+            most_common_partner_id = max(partner_counts, key=partner_counts.get)
+            partner = db.execute(
+                'SELECT first_name, last_name FROM player_registry WHERE id = ?',
+                (most_common_partner_id,)
+            ).fetchone()
+            if partner:
+                most_common_partner = {
+                    'name': f"{partner['first_name']} {partner['last_name']}",
+                    'matches': partner_counts[most_common_partner_id]
+                }
+
+        # 9. Most common opponent & opponent stats (nemesis/easiest)
+        opponent_stats = {}  # opponent_id -> {'wins': 0, 'losses': 0, 'total': 0}
+        for match in all_player_matches:
+            won = match['winning_team'] == match['player_team']
+            if match['player_team'] == 1:
+                opponents = [match['player3_id'], match['player4_id']]
+            else:
+                opponents = [match['player1_id'], match['player2_id']]
+            for opp_id in opponents:
+                if opp_id not in opponent_stats:
+                    opponent_stats[opp_id] = {'wins': 0, 'losses': 0, 'total': 0}
+                opponent_stats[opp_id]['total'] += 1
+                if won:
+                    opponent_stats[opp_id]['wins'] += 1
+                else:
+                    opponent_stats[opp_id]['losses'] += 1
+
+        if opponent_stats:
+            # Most common opponent
+            most_common_opp_id = max(opponent_stats, key=lambda x: opponent_stats[x]['total'])
+            opp = db.execute(
+                'SELECT first_name, last_name FROM player_registry WHERE id = ?',
+                (most_common_opp_id,)
+            ).fetchone()
+            if opp:
+                most_common_opponent = {
+                    'name': f"{opp['first_name']} {opp['last_name']}",
+                    'matches': opponent_stats[most_common_opp_id]['total']
+                }
+
+            # Nemesis - most losses against (min 1 match)
+            nemesis_candidates = [(k, v) for k, v in opponent_stats.items() if v['losses'] >= 1]
+            if nemesis_candidates:
+                nemesis_id = max(nemesis_candidates, key=lambda x: x[1]['losses'])[0]
+                nem = db.execute(
+                    'SELECT first_name, last_name FROM player_registry WHERE id = ?',
+                    (nemesis_id,)
+                ).fetchone()
+                if nem:
+                    nemesis = {
+                        'name': f"{nem['first_name']} {nem['last_name']}",
+                        'losses': opponent_stats[nemesis_id]['losses']
+                    }
+
+            # Easiest opponent - most wins against (min 2 matches)
+            easy_candidates = [(k, v) for k, v in opponent_stats.items() if v['wins'] >= 2]
+            if easy_candidates:
+                easy_id = max(easy_candidates, key=lambda x: x[1]['wins'])[0]
+                easy = db.execute(
+                    'SELECT first_name, last_name FROM player_registry WHERE id = ?',
+                    (easy_id,)
+                ).fetchone()
+                if easy:
+                    easiest_opponent = {
+                        'name': f"{easy['first_name']} {easy['last_name']}",
+                        'wins': opponent_stats[easy_id]['wins']
+                    }
+
+        # 10. Win rate per court
+        court_data = {}
+        for match in all_player_matches:
+            court = match['court_number']
+            won = match['winning_team'] == match['player_team']
+            if court not in court_data:
+                court_data[court] = {'wins': 0, 'total': 0}
+            court_data[court]['total'] += 1
+            if won:
+                court_data[court]['wins'] += 1
+
+        for court in sorted(court_data.keys()):
+            data = court_data[court]
+            winrate = round(data['wins'] / data['total'] * 100) if data['total'] > 0 else 0
+            court_stats.append({
+                'court': court,
+                'winrate': winrate,
+                'matches': data['total']
+            })
+
+        # 11. Progress data - wins per tournament for graph
+        tournament_progress = {}
+        for match in all_player_matches:
+            t_id = match['tournament_id']
+            t_name = match['tournament_name']
+            won = match['winning_team'] == match['player_team']
+            if t_id not in tournament_progress:
+                tournament_progress[t_id] = {'name': t_name, 'wins': 0}
+            if won:
+                tournament_progress[t_id]['wins'] += 1
+
+        # Get tournaments in order
+        tournaments_ordered = db.execute("""
+            SELECT id, name FROM tournaments
+            WHERE season_id = ? AND status = 'completed'
+            ORDER BY created_at
+        """, (current_season['id'],)).fetchall()
+
+        for t in tournaments_ordered:
+            if t['id'] in tournament_progress:
+                progress_data.append({
+                    'name': t['name'],
+                    'wins': tournament_progress[t['id']]['wins']
+                })
+
     return render_template(
         'player_profile.html',
         player=player,
@@ -1493,7 +1693,17 @@ def player_profile(player_id):
         best_partner=best_partner,
         longest_streak=longest_streak,
         best_tournament=best_tournament,
-        worst_tournament=worst_tournament
+        worst_tournament=worst_tournament,
+        nemesis=nemesis,
+        easiest_opponent=easiest_opponent,
+        current_form=current_form,
+        comeback_rate=comeback_rate,
+        first_round_winrate=first_round_winrate,
+        later_rounds_winrate=later_rounds_winrate,
+        most_common_partner=most_common_partner,
+        most_common_opponent=most_common_opponent,
+        court_stats=court_stats,
+        progress_data=progress_data
     )
 
 @app.route('/tournament/<int:tournament_id>/complete', methods=['POST'])
@@ -2039,12 +2249,12 @@ def admin_dashboard():
                 pr.id,
                 pr.first_name,
                 pr.last_name,
-                COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
+                COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
                 COUNT(DISTINCT t.id) as tournaments_played,
                 COUNT(DISTINCT m.id) as matches_played,
-                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                       NULLIF(COUNT(DISTINCT t.id), 0), 2) as wins_per_tournament,
-                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                       NULLIF(COUNT(DISTINCT m.id), 0), 2) as win_rate
             FROM player_registry pr
             LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
@@ -2091,12 +2301,12 @@ def admin_export_season_standings():
         SELECT
             pr.first_name,
             pr.last_name,
-            COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) as wins,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
             COUNT(DISTINCT t.id) as tournaments_played,
             COUNT(DISTINCT m.id) as matches_played,
-            ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+            ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                   NULLIF(COUNT(DISTINCT t.id), 0), 2) as wins_per_tournament,
-            ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points = 3 THEN m.id END) AS FLOAT) /
+            ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                   NULLIF(COUNT(DISTINCT m.id), 0), 2) as win_rate
         FROM player_registry pr
         LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))

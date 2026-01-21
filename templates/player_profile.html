@@ -65,6 +65,23 @@
             font-size: 1.2rem;
             color: #666;
         }
+        .stat-card-emoji {
+            position: relative;
+            overflow: hidden;
+        }
+        .card-emoji {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            font-size: 2.5rem;
+            opacity: 0.25;
+            pointer-events: none;
+        }
+        @media (min-width: 769px) {
+            .stat-card-wide {
+                grid-column: span 3;
+            }
+        }
         .profile-actions {
             text-align: center;
             margin-top: 2rem;
@@ -94,6 +111,115 @@
         .admin-footer a:hover {
             text-decoration: underline;
         }
+        /* Court Stats Chart */
+        .court-chart {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .court-chart-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.75rem;
+        }
+        .court-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .court-bar-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .court-bar-label {
+            width: 70px;
+            font-size: 0.85rem;
+            color: #666;
+            flex-shrink: 0;
+        }
+        .court-bar {
+            height: 24px;
+            background: linear-gradient(90deg, #ffc107, #ffdb58);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            min-width: 30px;
+            transition: width 0.3s ease;
+        }
+        .court-bar-value {
+            font-weight: bold;
+            font-size: 0.85rem;
+            color: #333;
+        }
+        /* Progress Chart */
+        .progress-chart {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .progress-chart-title {
+            font-size: 0.9rem;
+            color: #666;
+            text-align: center;
+            margin-bottom: 0.75rem;
+        }
+        .progress-chart-bars {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 0.5rem;
+            height: 150px;
+        }
+        .progress-bar-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            flex: 1;
+            max-width: 60px;
+            height: 100%;
+        }
+        .progress-bar {
+            width: 100%;
+            background: linear-gradient(to top, #ffc107, #ffdb58);
+            border-radius: 4px 4px 0 0;
+            min-height: 20px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            transition: height 0.3s ease;
+        }
+        .bar-value {
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #333;
+            padding-top: 4px;
+        }
+        .bar-label {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .progress-chart-bars {
+                height: 120px;
+                gap: 0.3rem;
+            }
+            .progress-bar-container {
+                max-width: 40px;
+            }
+            .bar-value {
+                font-size: 0.75rem;
+            }
+            .bar-label {
+                font-size: 0.6rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -105,20 +231,19 @@
                 <p class="season-label">{{ season_name }}</p>
             </div>
 
-            {% if season_stats and season_stats.total_wins > 0 %}
+            {% if season_stats and season_stats.total_matches > 0 %}
                 <!-- Season Statistics -->
                 <div class="stats-grid">
                     {% if rank %}
-                    <div class="stat-card rank">
+                    <div class="stat-card rank stat-card-emoji">
+                        {% if rank == 1 %}<span class="card-emoji" style="opacity: 0.4;">🥇</span>
+                        {% elif rank == 2 %}<span class="card-emoji" style="opacity: 0.4;">🥈</span>
+                        {% elif rank == 3 %}<span class="card-emoji" style="opacity: 0.4;">🥉</span>
+                        {% endif %}
                         <span class="label">Kauden sijoitus</span>
                         <span class="value">#{{ rank }}</span>
                     </div>
                     {% endif %}
-
-                    <div class="stat-card primary">
-                        <span class="label">Otteluvoitot</span>
-                        <span class="value">{{ season_stats.total_wins }}</span>
-                    </div>
 
                     <div class="stat-card">
                         <span class="label">Turnauksia</span>
@@ -127,14 +252,19 @@
 
                     {% if wins_per_tournament %}
                     <div class="stat-card">
-                        <span class="label">Voitot/turnaus</span>
+                        <span class="label">Voittoja/turnaus</span>
                         <span class="value">{{ wins_per_tournament }}</span>
                     </div>
                     {% endif %}
 
+                    <div class="stat-card primary">
+                        <span class="label">Voitot</span>
+                        <span class="value">{{ season_stats.total_wins }}</span>
+                    </div>
+
                     <div class="stat-card">
-                        <span class="label">Pisteet yhteensä</span>
-                        <span class="value">{{ season_stats.total_points or 0 }}</span>
+                        <span class="label">Otteluita</span>
+                        <span class="value">{{ season_stats.total_matches }}</span>
                     </div>
 
                     {% if season_stats.win_rate %}
@@ -145,18 +275,64 @@
                     {% endif %}
                 </div>
 
-                <!-- Additional Stats -->
-                {% if best_partner or longest_streak > 0 or best_tournament %}
-                <h3 style="margin: 2rem 0 1rem 0; color: #666;">Lisätilastot</h3>
+                <!-- Current Form -->
+                {% if current_form %}
+                <div style="margin: 2rem 0; text-align: center;">
+                    <h3 style="color: #666; margin-bottom: 0.5rem;">Viimeiset {{ current_form|length }} ottelua</h3>
+                    <div style="font-size: 1.5rem; letter-spacing: 0.3rem;">
+                        {% for result in current_form %}
+                        <span style="color: {{ '#28a745' if result == '✓' else '#dc3545' }};">{{ result }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Paritilastot -->
+                {% if best_partner or most_common_partner or most_common_opponent or nemesis %}
+                <h3 style="margin: 2rem 0 1rem 0; color: #666;">Paritilastot</h3>
                 <div class="stats-grid">
                     {% if best_partner %}
-                    <div class="stat-card">
+                    <div class="stat-card stat-card-emoji" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
+                        <span class="card-emoji">💪</span>
                         <span class="label">Paras pari</span>
                         <span class="value" style="font-size: 1.2rem;">{{ best_partner.name }}</span>
                         <span class="label" style="margin-top: 0.5rem;">{{ best_partner.wins }} voittoa yhdessä</span>
                     </div>
                     {% endif %}
 
+                    {% if most_common_partner %}
+                    <div class="stat-card stat-card-emoji" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+                        <span class="card-emoji">👥</span>
+                        <span class="label">Yleisin pari</span>
+                        <span class="value" style="font-size: 1.2rem;">{{ most_common_partner.name }}</span>
+                        <span class="label" style="margin-top: 0.5rem;">{{ most_common_partner.matches }} ottelua yhdessä</span>
+                    </div>
+                    {% endif %}
+
+                    {% if most_common_opponent %}
+                    <div class="stat-card stat-card-emoji" style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);">
+                        <span class="card-emoji">⚔️</span>
+                        <span class="label">Yleisin vastustaja</span>
+                        <span class="value" style="font-size: 1.2rem;">{{ most_common_opponent.name }}</span>
+                        <span class="label" style="margin-top: 0.5rem;">{{ most_common_opponent.matches }} ottelua vastaan</span>
+                    </div>
+                    {% endif %}
+
+                    {% if nemesis %}
+                    <div class="stat-card stat-card-emoji stat-card-wide" style="background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%); color: #fff;">
+                        <span class="card-emoji" style="opacity: 0.5; font-size: 3.5rem;">😈</span>
+                        <span class="label" style="color: #ccc;">Vaikein vastustaja</span>
+                        <span class="value" style="font-size: 1.4rem; color: #fff;">{{ nemesis.name }}</span>
+                        <span class="label" style="margin-top: 0.5rem; color: #ccc;">{{ nemesis.losses }} häviötä vastaan</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Turnaukset -->
+                {% if longest_streak > 0 or comeback_rate is not none or best_tournament or worst_tournament or first_round_winrate is not none %}
+                <h3 style="margin: 2rem 0 1rem 0; color: #666;">Turnaukset</h3>
+                <div class="stats-grid">
                     {% if longest_streak > 0 %}
                     <div class="stat-card">
                         <span class="label">Pisin voittoputki</span>
@@ -180,6 +356,67 @@
                         <span class="label" style="margin-top: 0.5rem;">{{ worst_tournament.wins }} voittoa</span>
                     </div>
                     {% endif %}
+
+                    {% if comeback_rate is not none %}
+                    <div class="stat-card">
+                        <span class="label">Comeback-%</span>
+                        <span class="value">{{ comeback_rate }}%</span>
+                        <span class="label" style="margin-top: 0.5rem;">voitto häviön jälkeen</span>
+                    </div>
+                    {% endif %}
+
+                    {% if first_round_winrate is not none %}
+                    <div class="stat-card">
+                        <span class="label">1. kierros</span>
+                        <span class="value">{{ first_round_winrate }}%</span>
+                        <span class="label" style="margin-top: 0.5rem;">voittoprosentti</span>
+                    </div>
+                    {% endif %}
+
+                    {% if later_rounds_winrate is not none %}
+                    <div class="stat-card">
+                        <span class="label">Myöhemmät kierrokset</span>
+                        <span class="value">{{ later_rounds_winrate }}%</span>
+                        <span class="label" style="margin-top: 0.5rem;">voittoprosentti</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Court Stats Bar Chart -->
+                {% if court_stats %}
+                <div class="court-chart">
+                    <div class="court-chart-label">Ottelut per kenttä</div>
+                    {% set max_matches = court_stats|map(attribute='matches')|max %}
+                    <div class="court-bars">
+                        {% for court in court_stats %}
+                        <div class="court-bar-group">
+                            <div class="court-bar" style="width: {{ (court.matches / max_matches * 100) if max_matches > 0 else 0 }}%;">
+                                <span class="court-bar-value">{{ court.matches }}</span>
+                            </div>
+                            <span class="court-bar-label">Kenttä {{ court.court }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <!-- Progress Graph -->
+                {% if progress_data and progress_data|length > 1 %}
+                <h3 style="margin: 2rem 0 1rem 0; color: #666;">Kauden kehitys</h3>
+                <div class="progress-chart">
+                    <div class="progress-chart-title">Voitot turnauksissa kaudella</div>
+                    <div class="progress-chart-bars">
+                        {% set max_wins = progress_data|map(attribute='wins')|max %}
+                        {% for tournament in progress_data %}
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="height: {{ (tournament.wins / max_wins * 100) if max_wins > 0 else 0 }}%;">
+                                <span class="bar-value">{{ tournament.wins }}</span>
+                            </div>
+                            <span class="bar-label">{{ tournament.name[:3] }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
                 {% endif %}
             {% else %}
