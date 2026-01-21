@@ -64,7 +64,7 @@ body.edit-page {
 
 .title-input:focus {
     outline: none;
-    border-bottom-color: #007bff;
+    border-bottom-color: #FFD700;
 }
 
 .tournament-meta {
@@ -300,7 +300,7 @@ body.edit-page {
 }
 
 .validation-suggestion .btn-link:hover {
-    color: #2563eb;
+    color: #b8960a;
 }
 
 .suggestion-links {
@@ -341,7 +341,7 @@ body.edit-page {
 
 .pairings-search input:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: #FFD700;
 }
 
 .search-clear {
@@ -417,8 +417,8 @@ body.edit-page {
 }
 
 .player-slot.selected {
-    background: #007bff;
-    color: white;
+    background: #FFD700;
+    color: #1a1a2e;
 }
 
 .player-slot.search-highlight {
@@ -462,13 +462,13 @@ body.edit-page {
 }
 
 .unassigned-player:hover {
-    border-color: #007bff;
+    border-color: #FFD700;
 }
 
 .unassigned-player.selected {
-    background: #007bff;
-    color: white;
-    border-color: #007bff;
+    background: #FFD700;
+    color: #1a1a2e;
+    border-color: #FFD700;
 }
 
 .hint {
@@ -501,8 +501,8 @@ body.edit-page {
 
 /* Buttons - override admin.css if needed */
 .edit-page .btn-primary {
-    background: #007bff;
-    color: white;
+    background: #FFD700;
+    color: #1a1a2e;
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 4px;
@@ -510,7 +510,7 @@ body.edit-page {
     font-size: 1rem;
 }
 
-.edit-page .btn-primary:hover { background: #0056b3; }
+.edit-page .btn-primary:hover { background: #e6c200; }
 .edit-page .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
 
 .edit-page .btn-secondary {
@@ -540,7 +540,7 @@ body.edit-page {
 .btn-link {
     background: none;
     border: none;
-    color: #007bff;
+    color: #b8960a;
     cursor: pointer;
     text-decoration: underline;
 }
