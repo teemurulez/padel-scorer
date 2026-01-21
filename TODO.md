@@ -1,43 +1,48 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-01-17
+> **Last updated:** 2026-01-21
 
 ## Project Status
 
-The app is **production-ready** with security hardening complete. Core features work well.
+The app is **production-ready** with security hardening complete. Core features work well. All 155 tests pass.
 
-## Immediate Next Steps
+## Completed Items
 
-### 1. Fix Pre-existing Test Failures (10 tests)
-The `seasons` table schema has changed - tests reference a `year` column that no longer exists.
+- [x] Fix pre-existing test failures (done 2026-01-18)
+- [x] Admin UI polish - light theme conversion (done 2026-01-21)
+- [x] Player name validation for tournament creation (done 2026-01-18)
 
-**Files to fix:**
-- `tests/test_season_helpers.py` - 4 failures
-- `tests/test_tournament_players_schema.py` - 1 failure
-- `tests/test_tournament_status.py` - 2 failures
-- `tests/test_admin_auth.py` - 3 failures (redirect issues)
+## Next Steps
 
-**Fix approach:** Update test fixtures to use current schema (remove `year` column references).
-
-### 2. Production Deployment Checklist
+### 1. Production Deployment Checklist
 - [ ] Set `SECRET_KEY` environment variable
 - [ ] Ensure HTTPS is configured (for secure cookies)
 - [ ] Test rate limiting works as expected
 
-### 3. Optional Improvements
-
-**Admin UI Polish:**
-- Apply consistent design to other admin pages
-- Match the tournament edit page styling
+### 2. Optional Improvements
 
 **Additional Security (lower priority):**
 - Add Content-Security-Policy headers
-- Add input validation for player names
 - Consider database connection pooling
 
 **UX Ideas:**
 - Mobile-optimized views
 - Real-time score updates (WebSocket)
+
+## Recent Changes (2026-01-21)
+
+- Converted admin UI from dark theme to light theme with gold accents
+- Extracted inline styles from auth pages to shared CSS classes
+- Updated tournament edit page accents from blue to gold
+- All admin pages now have consistent styling
+
+## Recent Changes (2026-01-18)
+
+- Fixed all test failures (152 passed, 3 skipped)
+- Changed scoring system to wins-only
+- Added statistics columns to season standings
+- Added CSV export for season standings
+- Added player name validation with typo detection
 
 ## Recent Changes (2026-01-17)
 
