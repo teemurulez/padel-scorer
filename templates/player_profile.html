@@ -144,6 +144,44 @@
                     </div>
                     {% endif %}
                 </div>
+
+                <!-- Additional Stats -->
+                {% if best_partner or longest_streak > 0 or best_tournament %}
+                <h3 style="margin: 2rem 0 1rem 0; color: #666;">Lisätilastot</h3>
+                <div class="stats-grid">
+                    {% if best_partner %}
+                    <div class="stat-card">
+                        <span class="label">Paras pari</span>
+                        <span class="value" style="font-size: 1.2rem;">{{ best_partner.name }}</span>
+                        <span class="label" style="margin-top: 0.5rem;">{{ best_partner.wins }} voittoa yhdessä</span>
+                    </div>
+                    {% endif %}
+
+                    {% if longest_streak > 0 %}
+                    <div class="stat-card">
+                        <span class="label">Pisin voittoputki</span>
+                        <span class="value">{{ longest_streak }}</span>
+                        <span class="label" style="margin-top: 0.5rem;">peräkkäistä voittoa</span>
+                    </div>
+                    {% endif %}
+
+                    {% if best_tournament %}
+                    <div class="stat-card">
+                        <span class="label">Paras turnaus</span>
+                        <span class="value" style="font-size: 1.2rem;">{{ best_tournament.name }}</span>
+                        <span class="label" style="margin-top: 0.5rem;">{{ best_tournament.wins }} voittoa</span>
+                    </div>
+                    {% endif %}
+
+                    {% if worst_tournament %}
+                    <div class="stat-card">
+                        <span class="label">Huonoin turnaus</span>
+                        <span class="value" style="font-size: 1.2rem;">{{ worst_tournament.name }}</span>
+                        <span class="label" style="margin-top: 0.5rem;">{{ worst_tournament.wins }} voittoa</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
             {% else %}
                 <!-- No Data Message -->
                 <div class="no-data">

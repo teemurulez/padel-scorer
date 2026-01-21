@@ -1381,6 +1381,107 @@ def player_profile(player_id):
     # Handle both old schema (year) and new schema (name)
     season_name = current_season['name'] if 'name' in current_season.keys() else f"Season {current_season['year']}"
 
+    # Calculate additional stats
+    best_partner = None
+    longest_streak = 0
+    best_tournament = None
+    worst_tournament = None
+
+    if season_stats and season_stats['total_wins'] > 0:
+        # 1. Best partner - find who they won most matches with
+        partner_wins = db.execute("""
+            SELECT
+                CASE
+                    WHEN m.player1_id = ? THEN m.player2_id
+                    WHEN m.player2_id = ? THEN m.player1_id
+                    WHEN m.player3_id = ? THEN m.player4_id
+                    WHEN m.player4_id = ? THEN m.player3_id
+                END as partner_id,
+                COUNT(*) as wins_together
+            FROM matches m
+            JOIN rounds r ON m.round_id = r.id
+            JOIN tournaments t ON r.tournament_id = t.id
+            WHERE t.season_id = ?
+              AND m.completed = 1
+              AND (
+                  (m.winning_team = 1 AND (m.player1_id = ? OR m.player2_id = ?))
+                  OR
+                  (m.winning_team = 2 AND (m.player3_id = ? OR m.player4_id = ?))
+              )
+            GROUP BY partner_id
+            ORDER BY wins_together DESC
+            LIMIT 1
+        """, (player_id, player_id, player_id, player_id, current_season['id'],
+              player_id, player_id, player_id, player_id)).fetchone()
+
+        if partner_wins and partner_wins['partner_id']:
+            partner = db.execute(
+                'SELECT first_name, last_name FROM player_registry WHERE id = ?',
+                (partner_wins['partner_id'],)
+            ).fetchone()
+            if partner:
+                best_partner = {
+                    'name': f"{partner['first_name']} {partner['last_name']}",
+                    'wins': partner_wins['wins_together']
+                }
+
+        # 2. Longest win streak - consecutive wins
+        all_matches = db.execute("""
+            SELECT
+                m.id,
+                m.winning_team,
+                CASE
+                    WHEN m.player1_id = ? OR m.player2_id = ? THEN 1
+                    ELSE 2
+                END as player_team
+            FROM matches m
+            JOIN rounds r ON m.round_id = r.id
+            JOIN tournaments t ON r.tournament_id = t.id
+            WHERE t.season_id = ?
+              AND m.completed = 1
+              AND (m.player1_id = ? OR m.player2_id = ? OR m.player3_id = ? OR m.player4_id = ?)
+            ORDER BY t.created_at, r.round_number, m.id
+        """, (player_id, player_id, current_season['id'],
+              player_id, player_id, player_id, player_id)).fetchall()
+
+        current_streak = 0
+        for match in all_matches:
+            if match['winning_team'] == match['player_team']:
+                current_streak += 1
+                if current_streak > longest_streak:
+                    longest_streak = current_streak
+            else:
+                current_streak = 0
+
+        # 3. Best tournament - most wins in a single tournament
+        tournament_wins = db.execute("""
+            SELECT
+                t.id,
+                t.name,
+                COUNT(*) as wins
+            FROM matches m
+            JOIN rounds r ON m.round_id = r.id
+            JOIN tournaments t ON r.tournament_id = t.id
+            WHERE t.season_id = ?
+              AND m.completed = 1
+              AND (
+                  (m.winning_team = 1 AND (m.player1_id = ? OR m.player2_id = ?))
+                  OR
+                  (m.winning_team = 2 AND (m.player3_id = ? OR m.player4_id = ?))
+              )
+            GROUP BY t.id
+            ORDER BY wins DESC
+        """, (current_season['id'], player_id, player_id, player_id, player_id)).fetchall()
+
+        if tournament_wins:
+            best = tournament_wins[0]
+            best_tournament = {'name': best['name'], 'wins': best['wins']}
+
+            # 4. Worst tournament - only if more than 1 tournament played
+            if len(tournament_wins) > 1:
+                worst = tournament_wins[-1]
+                worst_tournament = {'name': worst['name'], 'wins': worst['wins']}
+
     return render_template(
         'player_profile.html',
         player=player,
@@ -1388,7 +1489,11 @@ def player_profile(player_id):
         season_name=season_name,
         current_year=current_year,
         rank=rank,
-        wins_per_tournament=wins_per_tournament
+        wins_per_tournament=wins_per_tournament,
+        best_partner=best_partner,
+        longest_streak=longest_streak,
+        best_tournament=best_tournament,
+        worst_tournament=worst_tournament
     )
 
 @app.route('/tournament/<int:tournament_id>/complete', methods=['POST'])
