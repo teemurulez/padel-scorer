@@ -331,14 +331,15 @@ body {
 }
 
 .btn-secondary {
-    background-color: var(--medium-gray);
-    color: var(--yellow);
-    border: 2px solid var(--yellow);
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+    border: 2px solid var(--border-strong);
 }
 
 .btn-secondary:hover {
-    background-color: var(--yellow);
-    color: var(--black);
+    background-color: var(--accent);
+    color: var(--text-primary);
+    border-color: var(--accent);
 }
 
 .btn-warning {
