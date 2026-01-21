@@ -361,9 +361,8 @@ def test_admin_dashboard_shows_tabs(client):
     response = client.get('/admin')
     assert response.status_code == 200
 
-    # Check for all 4 tab names (Finnish)
+    # Check for all 3 tab names (Finnish)
     assert b'Kaudet' in response.data  # Finnish: "Seasons"
-    assert b'Pisteet' in response.data  # Finnish: "Points"
     assert b'Pelaajat' in response.data  # Finnish: "Players"
     assert b'Data' in response.data
 
