@@ -252,6 +252,26 @@
                     </a>
                 </div>
 
+                <!-- Restore Section -->
+                <div class="data-section" style="margin-top: 2rem;">
+                    <h3>Palauta varmuuskopiosta</h3>
+                    <p style="color: var(--error); margin-bottom: 1rem; font-weight: 500;">
+                        Varoitus: Tämä korvaa KAIKEN nykyisen datan. Toimintoa ei voi peruuttaa.
+                    </p>
+                    <form id="restore-form" action="{{ url_for('admin_restore_database') }}" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div style="margin-bottom: 1rem;">
+                            <label for="restore-file" style="display: block; margin-bottom: 0.5rem;">Valitse JSON-tiedosto:</label>
+                            <input type="file" id="restore-file" name="backup_file" accept=".json" style="padding: 0.5rem;">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label for="restore-confirm" style="display: block; margin-bottom: 0.5rem;">Kirjoita PALAUTA vahvistaaksesi:</label>
+                            <input type="text" id="restore-confirm" autocomplete="off" style="padding: 0.5rem; width: 200px;">
+                        </div>
+                        <button type="submit" id="restore-btn" class="btn-danger" disabled>Palauta tietokanta</button>
+                    </form>
+                </div>
+
                 <!-- Database Stats -->
                 <div class="data-section" style="margin-top: 2rem;">
                     <h3>Tietokannan tiedot</h3>
@@ -498,6 +518,53 @@
             };
             displayCreateValidationResults(data);
         }
+
+        // Database restore functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const restoreFile = document.getElementById('restore-file');
+            const restoreConfirm = document.getElementById('restore-confirm');
+            const restoreBtn = document.getElementById('restore-btn');
+            const restoreForm = document.getElementById('restore-form');
+
+            if (restoreFile && restoreConfirm && restoreBtn) {
+                function updateRestoreButton() {
+                    const hasFile = restoreFile.files.length > 0;
+                    const hasConfirm = restoreConfirm.value.trim().toUpperCase() === 'PALAUTA';
+                    restoreBtn.disabled = !(hasFile && hasConfirm);
+                }
+
+                restoreFile.addEventListener('change', updateRestoreButton);
+                restoreConfirm.addEventListener('input', updateRestoreButton);
+
+                restoreForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+
+                    // Download automatic backup first
+                    try {
+                        const backupResponse = await fetch('{{ url_for("admin_export_database_json") }}');
+                        if (!backupResponse.ok) {
+                            alert('Automaattinen varmuuskopio epäonnistui. Palautusta ei suoritettu.');
+                            return;
+                        }
+                        const backupBlob = await backupResponse.blob();
+                        const backupUrl = URL.createObjectURL(backupBlob);
+                        const backupLink = document.createElement('a');
+                        backupLink.href = backupUrl;
+                        backupLink.download = `backup-before-restore-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+                        backupLink.click();
+                        URL.revokeObjectURL(backupUrl);
+
+                        // Wait a moment for download to start, then submit the form
+                        setTimeout(() => {
+                            restoreForm.submit();
+                        }, 500);
+                    } catch (error) {
+                        console.error('Backup error:', error);
+                        alert('Automaattinen varmuuskopio epäonnistui. Palautusta ei suoritettu.');
+                    }
+                });
+            }
+        });
     </script>
 
     <!-- Create Tournament Modal -->

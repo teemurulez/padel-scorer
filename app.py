@@ -2082,6 +2082,119 @@ def admin_export_database_json():
     )
 
 
+@app.route('/admin/restore/database', methods=['POST'])
+def admin_restore_database():
+    """Restore database from JSON backup"""
+    db = get_db()
+
+    # Check if file was uploaded
+    if 'backup_file' not in request.files:
+        flash('Valitse JSON-tiedosto')
+        return redirect('/admin')
+
+    file = request.files['backup_file']
+    if file.filename == '':
+        flash('Valitse JSON-tiedosto')
+        return redirect('/admin')
+
+    # Parse JSON
+    try:
+        data = json.load(file)
+    except json.JSONDecodeError:
+        flash('Virheellinen JSON-tiedosto')
+        return redirect('/admin')
+
+    # Validate structure
+    if 'tables' not in data:
+        flash('Varmuuskopio on puutteellinen: "tables" puuttuu')
+        return redirect('/admin')
+
+    required_tables = ['seasons', 'tournaments', 'player_registry']
+    for table in required_tables:
+        if table not in data['tables']:
+            flash(f'Varmuuskopio on puutteellinen: puuttuu {table}')
+            return redirect('/admin')
+
+    # Tables in deletion order (children first to respect foreign keys)
+    delete_order = [
+        'player_points_adjustment',
+        'round1_preview_pairings',
+        'tournament_edit_history',
+        'scores',
+        'matches',
+        'rounds',
+        'tournament_players',
+        'player_seeding',
+        'players',
+        'tournaments',
+        'seasons',
+        'player_registry'
+    ]
+
+    # Tables in insertion order (parents first)
+    insert_order = [
+        'seasons',
+        'player_registry',
+        'tournaments',
+        'players',
+        'player_seeding',
+        'tournament_players',
+        'rounds',
+        'matches',
+        'scores',
+        'tournament_edit_history',
+        'round1_preview_pairings',
+        'player_points_adjustment'
+    ]
+
+    try:
+        # Delete all data
+        for table in delete_order:
+            try:
+                db.execute(f'DELETE FROM {table}')
+            except Exception:
+                pass  # Table might not exist
+
+        # Insert new data
+        stats = {'seasons': 0, 'tournaments': 0, 'players': 0}
+        for table in insert_order:
+            if table in data['tables'] and data['tables'][table]:
+                rows = data['tables'][table]
+                if rows:
+                    # Get column names from first row
+                    columns = list(rows[0].keys())
+                    placeholders = ', '.join(['?' for _ in columns])
+                    columns_str = ', '.join(columns)
+
+                    for row in rows:
+                        values = [row.get(col) for col in columns]
+                        try:
+                            db.execute(
+                                f'INSERT INTO {table} ({columns_str}) VALUES ({placeholders})',
+                                values
+                            )
+                        except Exception as e:
+                            # Log but continue - some rows might fail due to constraints
+                            print(f"Error inserting into {table}: {e}")
+
+                    # Track stats
+                    if table == 'seasons':
+                        stats['seasons'] = len(rows)
+                    elif table == 'tournaments':
+                        stats['tournaments'] = len(rows)
+                    elif table == 'player_registry':
+                        stats['players'] = len(rows)
+
+        db.commit()
+        flash(f"Tietokanta palautettu onnistuneesti. Palautettu: {stats['seasons']} kautta, {stats['tournaments']} turnausta, {stats['players']} pelaajaa.")
+
+    except Exception as e:
+        db.rollback()
+        flash(f'Palautus epäonnistui: {str(e)}')
+
+    return redirect('/admin')
+
+
 @app.route('/admin/players')
 def admin_players():
     """Admin players tab - view and edit player season points"""
