@@ -363,14 +363,15 @@ body {
 
 /* Create Season Form */
 .create-season-form {
-    background-color: var(--medium-gray);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 2rem;
 }
 
 .create-season-form h3 {
-    color: var(--yellow);
+    color: var(--text-primary);
     margin-bottom: 1rem;
     font-size: 1.3rem;
 }
@@ -384,16 +385,17 @@ body {
 .create-season-form input[type="text"] {
     flex: 1;
     padding: 0.75rem;
-    background-color: var(--light-gray);
-    border: 2px solid var(--light-gray);
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    color: var(--text-light);
+    color: var(--text-body);
     font-size: 1rem;
 }
 
 .create-season-form input[type="text"]:focus {
     outline: none;
-    border-color: var(--yellow);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
 }
 
 /* Shared Admin Table Styles */
@@ -506,7 +508,7 @@ body {
 
 .create-tournament-form label {
     display: block;
-    color: var(--yellow);
+    color: var(--text-primary);
     font-weight: 600;
     margin-bottom: 0.5rem;
 }
@@ -517,10 +519,10 @@ body {
     width: 100%;
     padding: 1rem;
     font-size: 1rem;
-    background-color: var(--medium-gray);
-    border: 2px solid var(--light-gray);
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    color: var(--white);
+    color: var(--text-body);
     min-height: 48px;
     font-family: inherit;
 }
@@ -534,7 +536,8 @@ body {
 .create-tournament-form select:focus,
 .create-tournament-form textarea:focus {
     outline: none;
-    border-color: var(--yellow);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
 }
 
 .create-tournament-form .form-hint {
