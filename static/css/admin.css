@@ -278,11 +278,12 @@ body {
 
 /* Season Card Styles */
 .season-card {
-    background-color: var(--medium-gray);
+    background-color: var(--bg-surface);
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 2rem;
-    border-left: 4px solid var(--yellow);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent);
 }
 
 .season-card.current {
@@ -294,7 +295,7 @@ body {
 }
 
 .season-card h3 {
-    color: var(--yellow);
+    color: var(--text-primary);
     margin-bottom: 1rem;
     font-size: 1.3rem;
 }
@@ -399,33 +400,34 @@ body {
 .admin-table {
     width: 100%;
     border-collapse: collapse;
-    background-color: var(--medium-gray);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
 }
 
 .admin-table thead {
-    background-color: var(--light-gray);
+    background-color: var(--bg-surface-alt);
 }
 
 .admin-table th,
 .admin-table td {
     padding: 1rem;
     text-align: left;
-    border-bottom: 1px solid var(--light-gray);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .admin-table th {
-    color: var(--yellow);
+    color: var(--text-primary);
     font-weight: 600;
 }
 
 .admin-table td {
-    color: var(--text-light);
+    color: var(--text-body);
 }
 
 .admin-table tbody tr:hover {
-    background-color: var(--light-gray);
+    background-color: var(--bg-surface-alt);
 }
 
 .admin-table tbody tr:last-child td {
