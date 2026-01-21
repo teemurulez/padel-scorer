@@ -240,10 +240,41 @@
         <div id="data" class="tab-content">
             <div class="tab-panel">
                 <h2>Datan hallinta</h2>
-                <div class="placeholder-content">
-                    <div class="icon">💾</div>
-                    <h3>Tulossa vaiheessa 3</h3>
-                    <p>Varmuuskopiointi, palautus ja tietokannan nollaus.</p>
+
+                <!-- Export Section -->
+                <div class="data-section">
+                    <h3>Varmuuskopiointi</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                        Lataa kaikki tiedot JSON-muodossa. Sisältää kaudet, turnaukset, pelaajat ja tulokset.
+                    </p>
+                    <a href="{{ url_for('admin_export_database_json') }}" class="btn-primary">
+                        Lataa varmuuskopio (JSON)
+                    </a>
+                </div>
+
+                <!-- Database Stats -->
+                <div class="data-section" style="margin-top: 2rem;">
+                    <h3>Tietokannan tiedot</h3>
+                    <table class="admin-table" style="max-width: 400px;">
+                        <tbody>
+                            <tr>
+                                <td>Kaudet</td>
+                                <td>{{ db_stats.seasons }}</td>
+                            </tr>
+                            <tr>
+                                <td>Turnaukset</td>
+                                <td>{{ db_stats.tournaments }}</td>
+                            </tr>
+                            <tr>
+                                <td>Rekisteröidyt pelaajat</td>
+                                <td>{{ db_stats.players }}</td>
+                            </tr>
+                            <tr>
+                                <td>Ottelut</td>
+                                <td>{{ db_stats.matches }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

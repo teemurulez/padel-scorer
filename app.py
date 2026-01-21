@@ -1920,6 +1920,14 @@ def admin_dashboard():
             ORDER BY wins DESC, win_rate DESC, pr.last_name ASC
         ''', (current_season['id'],)).fetchall()
 
+    # Get database statistics for Data tab
+    db_stats = {
+        'seasons': db.execute('SELECT COUNT(*) as count FROM seasons').fetchone()['count'],
+        'tournaments': db.execute('SELECT COUNT(*) as count FROM tournaments').fetchone()['count'],
+        'players': db.execute('SELECT COUNT(*) as count FROM player_registry').fetchone()['count'],
+        'matches': db.execute('SELECT COUNT(*) as count FROM matches').fetchone()['count']
+    }
+
     return render_template('admin_dashboard.html',
                           current_season=current_season,
                           current_tournament_count=current_tournament_count,
@@ -1927,7 +1935,8 @@ def admin_dashboard():
                           players=players,
                           archived_seasons=archived_seasons,
                           active_tab='seasons',
-                          edit_tournament_id=edit_tournament_id)
+                          edit_tournament_id=edit_tournament_id,
+                          db_stats=db_stats)
 
 
 @app.route('/admin/export/season-standings.csv')
@@ -1990,6 +1999,53 @@ def admin_export_season_standings():
     return Response(
         output.getvalue(),
         mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
+
+
+@app.route('/admin/export/database.json')
+def admin_export_database_json():
+    """Export entire database as JSON backup"""
+    db = get_db()
+
+    # Define tables to export (excluding admin_users for security)
+    tables = [
+        'seasons',
+        'tournaments',
+        'rounds',
+        'matches',
+        'scores',
+        'players',
+        'player_registry',
+        'player_seeding',
+        'tournament_players',
+        'tournament_edit_history',
+        'round1_preview_pairings',
+        'player_points_adjustment'
+    ]
+
+    export_data = {
+        'export_date': datetime.now().isoformat(),
+        'version': '1.0',
+        'tables': {}
+    }
+
+    for table in tables:
+        try:
+            rows = db.execute(f'SELECT * FROM {table}').fetchall()
+            # Convert sqlite3.Row objects to dicts
+            export_data['tables'][table] = [dict(row) for row in rows]
+        except Exception as e:
+            # Table might not exist, skip it
+            export_data['tables'][table] = []
+
+    # Create JSON response
+    json_output = json.dumps(export_data, indent=2, ensure_ascii=False, default=str)
+    filename = f"padel_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+    return Response(
+        json_output,
+        mimetype='application/json',
         headers={'Content-Disposition': f'attachment; filename="{filename}"'}
     )
 

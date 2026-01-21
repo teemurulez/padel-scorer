@@ -1171,3 +1171,18 @@ body.auth-page {
     padding-top: 1rem;
     border-top: 1px solid var(--border-color);
 }
+
+/* Data Management Section */
+.data-section {
+    background-color: var(--bg-surface-alt);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.data-section h3 {
+    color: var(--text-primary);
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+}
