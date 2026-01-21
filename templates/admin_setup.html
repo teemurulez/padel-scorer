@@ -4,89 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ylläpidon asennus</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        body {
-            background-color: #000;
-            color: #fff;
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .setup-container {
-            background-color: #1a1a1a;
-            border: 2px solid #FFD700;
-            border-radius: 8px;
-            padding: 40px;
-            max-width: 400px;
-            width: 100%;
-        }
-        h1 {
-            color: #FFD700;
-            margin-top: 0;
-            text-align: center;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #FFD700;
-            font-weight: bold;
-        }
-        input[type="password"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #FFD700;
-            background-color: #000;
-            color: #fff;
-            border-radius: 4px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        input[type="password"]:focus {
-            outline: none;
-            border-color: #fff;
-            box-shadow: 0 0 5px #FFD700;
-        }
-        .btn-primary {
-            width: 100%;
-            padding: 12px;
-            background-color: #FFD700;
-            color: #000;
-            border: none;
-            border-radius: 4px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .btn-primary:hover {
-            background-color: #FFC700;
-        }
-        .help-text {
-            color: #999;
-            font-size: 14px;
-            margin-top: 5px;
-        }
-        .flash-messages {
-            margin-bottom: 20px;
-        }
-        .flash-error {
-            background-color: #DC2626;
-            color: #fff;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
-<body>
-    <div class="setup-container">
+<body class="auth-page">
+    <div class="auth-container">
         <h1>Ylläpidon asennus</h1>
 
         {% with messages = get_flashed_messages() %}
@@ -99,11 +20,11 @@
             {% endif %}
         {% endwith %}
 
-        <p style="color: #999; text-align: center; margin-bottom: 30px;">
+        <p class="subtitle">
             Luo ylläpidon salasana suojataksesi ylläpitonäkymän.
         </p>
 
-        <form method="POST" action="/admin/setup">
+        <form method="POST" action="/admin/setup" class="auth-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="password">Salasana</label>
