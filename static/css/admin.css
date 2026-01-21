@@ -129,8 +129,8 @@ body {
 
 /* Tab Navigation */
 .tab-nav {
-    background-color: var(--dark-gray);
-    border-bottom: 2px solid var(--medium-gray);
+    background-color: var(--bg-surface);
+    border-bottom: 2px solid var(--border-color);
     padding: 0 2rem;
     display: flex;
     gap: 0.5rem;
@@ -138,7 +138,7 @@ body {
 
 .tab-btn {
     background-color: transparent;
-    color: var(--text-light);
+    color: var(--text-muted);
     border: none;
     padding: 1rem 2rem;
     cursor: pointer;
@@ -150,14 +150,15 @@ body {
 }
 
 .tab-btn:hover {
-    background-color: var(--medium-gray);
-    color: var(--yellow);
+    background-color: var(--bg-surface-alt);
+    color: var(--text-primary);
 }
 
 .tab-btn.active {
-    color: var(--yellow);
-    border-bottom-color: var(--yellow);
-    background-color: var(--medium-gray);
+    color: var(--text-primary);
+    border-bottom-color: var(--accent);
+    background-color: var(--bg-surface);
+    font-weight: 600;
 }
 
 /* Main Content Area */
@@ -177,14 +178,15 @@ body {
 
 /* Tab Content Sections */
 .tab-panel {
-    background-color: var(--dark-gray);
+    background-color: var(--bg-surface);
     border-radius: 8px;
     padding: 2rem;
     min-height: 400px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .tab-panel h2 {
-    color: var(--yellow);
+    color: var(--text-primary);
     margin-bottom: 1.5rem;
     font-size: 1.8rem;
 }
