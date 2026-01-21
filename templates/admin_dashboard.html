@@ -127,202 +127,13 @@
                 </div>
                 {% endif %}
 
-                <!-- Create Tournament Form -->
+                <!-- Create Tournament Button -->
                 {% if current_season %}
-                <div class="create-tournament-form">
-                    <h3>Luo uusi turnaus</h3>
-                    <form method="POST" action="/admin/tournaments/create">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="form-group">
-                            <label for="tournament_name">Turnauksen nimi</label>
-                            <input type="text" id="tournament_name" name="tournament_name" placeholder="esim. Perjantai-illan padel" maxlength="100" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="num_courts">Kenttien määrä</label>
-                            <select id="num_courts" name="num_courts" required>
-                                <option value="">Valitse kentät...</option>
-                                <option value="1">1 kenttä (4 pelaajaa)</option>
-                                <option value="2">2 kenttää (8 pelaajaa)</option>
-                                <option value="3">3 kenttää (12 pelaajaa)</option>
-                                <option value="4">4 kenttää (16 pelaajaa)</option>
-                                <option value="5">5 kenttää (20 pelaajaa)</option>
-                                <option value="6">6 kenttää (24 pelaajaa)</option>
-                                <option value="7">7 kenttää (28 pelaajaa)</option>
-                                <option value="8">8 kenttää (32 pelaajaa)</option>
-                                <option value="9">9 kenttää (36 pelaajaa)</option>
-                                <option value="10">10 kenttää (40 pelaajaa)</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="players">Pelaajien nimet (yksi per rivi)</label>
-                            <textarea id="players" name="players" rows="12" placeholder="Syötä pelaajien nimet, yksi per rivi&#10;Esimerkki:&#10;Matti Meikäläinen&#10;Maija Meikäläinen&#10;..." required></textarea>
-                            <p class="form-hint">Vähintään <span id="min_players">12</span> pelaajaa vaaditaan <span id="selected_courts">3</span> kentälle</p>
-                            <button type="button" onclick="validateCreatePlayers()" class="btn-secondary" style="margin-top: 8px;">Tarkista nimet</button>
-                        </div>
-
-                        <!-- Validation Results (hidden by default) -->
-                        <div id="create-validation-results" class="validation-results" style="display: none;">
-                            <div class="validation-summary" id="create-validation-summary"></div>
-                            <div id="create-validation-list" class="validation-list"></div>
-                        </div>
-
-                        <button type="submit" class="btn-primary">Luo turnaus</button>
-                    </form>
+                <div style="margin-bottom: 2rem;">
+                    <button type="button" onclick="openCreateTournamentModal()" class="btn-primary">+ Luo uusi turnaus</button>
                 </div>
                 {% endif %}
 
-                <script>
-                // Update player count hint when courts selection changes
-                document.addEventListener('DOMContentLoaded', function() {
-                    const courtsSelect = document.getElementById('num_courts');
-                    const minPlayersSpan = document.getElementById('min_players');
-                    const selectedCourtsSpan = document.getElementById('selected_courts');
-
-                    if (courtsSelect) {
-                        courtsSelect.addEventListener('change', function() {
-                            const courts = parseInt(this.value) || 0;
-                            const minPlayers = courts * 4;
-                            minPlayersSpan.textContent = minPlayers;
-                            selectedCourtsSpan.textContent = courts;
-                        });
-                    }
-                });
-
-                // Player name validation for tournament creation
-                let createValidationResults = [];
-
-                async function validateCreatePlayers() {
-                    const textarea = document.getElementById('players');
-                    const playersText = textarea.value.trim();
-
-                    if (!playersText) {
-                        alert('Syötä pelaajien nimet');
-                        return;
-                    }
-
-                    const lines = playersText.split('\n').filter(l => l.trim());
-                    if (lines.length < 4) {
-                        alert('Vähintään 4 pelaajaa tarvitaan.');
-                        return;
-                    }
-
-                    try {
-                        // Get CSRF token from the form
-                        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-
-                        const response = await fetch('/admin/validate-players', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': csrfToken
-                            },
-                            body: JSON.stringify({ players: playersText })
-                        });
-
-                        const data = await response.json();
-                        createValidationResults = data.results;
-                        displayCreateValidationResults(data);
-
-                    } catch (error) {
-                        console.error('Validation error:', error);
-                        alert('Virhe tarkistuksessa. Yritä uudelleen.');
-                    }
-                }
-
-                function displayCreateValidationResults(data) {
-                    const container = document.getElementById('create-validation-list');
-                    const summary = document.getElementById('create-validation-summary');
-                    const resultsDiv = document.getElementById('create-validation-results');
-
-                    container.innerHTML = '';
-                    resultsDiv.style.display = 'block';
-
-                    data.results.forEach((result, index) => {
-                        const item = document.createElement('div');
-                        item.className = `validation-item ${result.status}`;
-                        item.dataset.index = index;
-
-                        let icon, content;
-
-                        switch (result.status) {
-                            case 'exact':
-                                icon = '✓';
-                                content = `<span class="player-name">${result.name}</span>`;
-                                break;
-                            case 'similar':
-                                icon = '⚠';
-                                content = `
-                                    <span class="player-name">${result.name}</span>
-                                    <span class="validation-suggestion">
-                                        <span>→ ${result.suggestion}?</span>
-                                        <span class="suggestion-links">
-                                            <button type="button" onclick="acceptCreateSuggestion(${index})" class="btn-link">Kyllä</button>
-                                            <button type="button" onclick="rejectCreateSuggestion(${index})" class="btn-link">Ei, uusi</button>
-                                        </span>
-                                    </span>
-                                `;
-                                break;
-                            case 'new':
-                                icon = '★';
-                                content = `<span class="player-name">${result.name}</span> <span class="tag new-tag">uusi pelaaja</span>`;
-                                break;
-                            case 'duplicate':
-                                icon = '✕';
-                                content = `<span class="player-name">${result.name}</span> <span class="error">duplikaatti</span>`;
-                                break;
-                        }
-
-                        item.innerHTML = `<span class="validation-icon">${icon}</span>${content}`;
-                        container.appendChild(item);
-                    });
-
-                    summary.innerHTML = `
-                        <strong>Yhteenveto:</strong>
-                        ${data.summary.exact} tunnettua ·
-                        ${data.summary.similar} tarkistettavaa ·
-                        ${data.summary.new} uutta
-                        ${data.summary.duplicate > 0 ? ` · <span class="error">${data.summary.duplicate} duplikaattia</span>` : ''}
-                    `;
-                }
-
-                function acceptCreateSuggestion(index) {
-                    const textarea = document.getElementById('players');
-                    const lines = textarea.value.split('\n');
-                    const result = createValidationResults[index];
-
-                    let nonEmptyIndex = 0;
-                    for (let i = 0; i < lines.length; i++) {
-                        if (lines[i].trim()) {
-                            if (nonEmptyIndex === index) {
-                                lines[i] = result.suggestion;
-                                break;
-                            }
-                            nonEmptyIndex++;
-                        }
-                    }
-
-                    textarea.value = lines.join('\n');
-                    validateCreatePlayers();
-                }
-
-                function rejectCreateSuggestion(index) {
-                    createValidationResults[index].status = 'new';
-                    createValidationResults[index].confirmed_new = true;
-
-                    const data = {
-                        results: createValidationResults,
-                        summary: {
-                            exact: createValidationResults.filter(r => r.status === 'exact').length,
-                            similar: createValidationResults.filter(r => r.status === 'similar').length,
-                            new: createValidationResults.filter(r => r.status === 'new').length,
-                            duplicate: createValidationResults.filter(r => r.status === 'duplicate').length
-                        }
-                    };
-                    displayCreateValidationResults(data);
-                }
-                </script>
 
                 <!-- Create New Season Form -->
                 <div class="create-season-form">
@@ -475,6 +286,244 @@
                 editRow.style.display = 'none';
             }
         }
+
+        // Modal functions
+        function openCreateTournamentModal() {
+            document.getElementById('create-tournament-modal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeCreateTournamentModal() {
+            document.getElementById('create-tournament-modal').classList.remove('active');
+            document.body.style.overflow = '';
+            // Reset form and validation
+            document.getElementById('create-tournament-form').reset();
+            document.getElementById('create-validation-results').style.display = 'none';
+            document.getElementById('min_players').textContent = '12';
+            document.getElementById('selected_courts').textContent = '3';
+        }
+
+        // Close modal on overlay click
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('create-tournament-modal');
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeCreateTournamentModal();
+                    }
+                });
+            }
+
+            // Update player count hint when courts selection changes
+            const courtsSelect = document.getElementById('num_courts');
+            const minPlayersSpan = document.getElementById('min_players');
+            const selectedCourtsSpan = document.getElementById('selected_courts');
+
+            if (courtsSelect) {
+                courtsSelect.addEventListener('change', function() {
+                    const courts = parseInt(this.value) || 0;
+                    const minPlayers = courts * 4;
+                    minPlayersSpan.textContent = minPlayers;
+                    selectedCourtsSpan.textContent = courts;
+                });
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeCreateTournamentModal();
+            }
+        });
+
+        // Player name validation for tournament creation
+        let createValidationResults = [];
+
+        async function validateCreatePlayers() {
+            const textarea = document.getElementById('players');
+            const playersText = textarea.value.trim();
+
+            if (!playersText) {
+                alert('Syötä pelaajien nimet');
+                return;
+            }
+
+            const lines = playersText.split('\n').filter(l => l.trim());
+            if (lines.length < 4) {
+                alert('Vähintään 4 pelaajaa tarvitaan.');
+                return;
+            }
+
+            try {
+                const csrfToken = document.querySelector('#create-tournament-form input[name="csrf_token"]').value;
+
+                const response = await fetch('/admin/validate-players', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ players: playersText })
+                });
+
+                const data = await response.json();
+                createValidationResults = data.results;
+                displayCreateValidationResults(data);
+
+            } catch (error) {
+                console.error('Validation error:', error);
+                alert('Virhe tarkistuksessa. Yritä uudelleen.');
+            }
+        }
+
+        function displayCreateValidationResults(data) {
+            const container = document.getElementById('create-validation-list');
+            const summary = document.getElementById('create-validation-summary');
+            const resultsDiv = document.getElementById('create-validation-results');
+
+            container.innerHTML = '';
+            resultsDiv.style.display = 'block';
+
+            data.results.forEach((result, index) => {
+                const item = document.createElement('div');
+                item.className = `validation-item ${result.status}`;
+                item.dataset.index = index;
+
+                let icon, content;
+
+                switch (result.status) {
+                    case 'exact':
+                        icon = '✓';
+                        content = `<span class="player-name">${result.name}</span>`;
+                        break;
+                    case 'similar':
+                        icon = '⚠';
+                        content = `
+                            <span class="player-name">${result.name}</span>
+                            <span class="validation-suggestion">
+                                <span>→ ${result.suggestion}?</span>
+                                <span class="suggestion-links">
+                                    <button type="button" onclick="acceptCreateSuggestion(${index})" class="btn-link">Kyllä</button>
+                                    <button type="button" onclick="rejectCreateSuggestion(${index})" class="btn-link">Ei, uusi</button>
+                                </span>
+                            </span>
+                        `;
+                        break;
+                    case 'new':
+                        icon = '★';
+                        content = `<span class="player-name">${result.name}</span> <span class="tag new-tag">uusi pelaaja</span>`;
+                        break;
+                    case 'duplicate':
+                        icon = '✕';
+                        content = `<span class="player-name">${result.name}</span> <span class="error">duplikaatti</span>`;
+                        break;
+                }
+
+                item.innerHTML = `<span class="validation-icon">${icon}</span>${content}`;
+                container.appendChild(item);
+            });
+
+            summary.innerHTML = `
+                <strong>Yhteenveto:</strong>
+                ${data.summary.exact} tunnettua ·
+                ${data.summary.similar} tarkistettavaa ·
+                ${data.summary.new} uutta
+                ${data.summary.duplicate > 0 ? ` · <span class="error">${data.summary.duplicate} duplikaattia</span>` : ''}
+            `;
+        }
+
+        function acceptCreateSuggestion(index) {
+            const textarea = document.getElementById('players');
+            const lines = textarea.value.split('\n');
+            const result = createValidationResults[index];
+
+            let nonEmptyIndex = 0;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    if (nonEmptyIndex === index) {
+                        lines[i] = result.suggestion;
+                        break;
+                    }
+                    nonEmptyIndex++;
+                }
+            }
+
+            textarea.value = lines.join('\n');
+            validateCreatePlayers();
+        }
+
+        function rejectCreateSuggestion(index) {
+            createValidationResults[index].status = 'new';
+            createValidationResults[index].confirmed_new = true;
+
+            const data = {
+                results: createValidationResults,
+                summary: {
+                    exact: createValidationResults.filter(r => r.status === 'exact').length,
+                    similar: createValidationResults.filter(r => r.status === 'similar').length,
+                    new: createValidationResults.filter(r => r.status === 'new').length,
+                    duplicate: createValidationResults.filter(r => r.status === 'duplicate').length
+                }
+            };
+            displayCreateValidationResults(data);
+        }
     </script>
+
+    <!-- Create Tournament Modal -->
+    {% if current_season %}
+    <div id="create-tournament-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Luo uusi turnaus</h2>
+                <button type="button" class="modal-close" onclick="closeCreateTournamentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="create-tournament-form" method="POST" action="/admin/tournaments/create">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="form-group">
+                        <label for="tournament_name">Turnauksen nimi</label>
+                        <input type="text" id="tournament_name" name="tournament_name" placeholder="esim. Perjantai-illan padel" maxlength="100" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="num_courts">Kenttien määrä</label>
+                        <select id="num_courts" name="num_courts" required>
+                            <option value="">Valitse kentät...</option>
+                            <option value="1">1 kenttä (4 pelaajaa)</option>
+                            <option value="2">2 kenttää (8 pelaajaa)</option>
+                            <option value="3">3 kenttää (12 pelaajaa)</option>
+                            <option value="4">4 kenttää (16 pelaajaa)</option>
+                            <option value="5">5 kenttää (20 pelaajaa)</option>
+                            <option value="6">6 kenttää (24 pelaajaa)</option>
+                            <option value="7">7 kenttää (28 pelaajaa)</option>
+                            <option value="8">8 kenttää (32 pelaajaa)</option>
+                            <option value="9">9 kenttää (36 pelaajaa)</option>
+                            <option value="10">10 kenttää (40 pelaajaa)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="players">Pelaajien nimet (yksi per rivi)</label>
+                        <textarea id="players" name="players" placeholder="Syötä pelaajien nimet, yksi per rivi&#10;Esimerkki:&#10;Matti Meikäläinen&#10;Maija Meikäläinen&#10;..." required></textarea>
+                        <p class="form-hint">Vähintään <span id="min_players">12</span> pelaajaa vaaditaan <span id="selected_courts">3</span> kentälle</p>
+                        <button type="button" onclick="validateCreatePlayers()" class="btn-secondary" style="margin-top: 8px;">Tarkista nimet</button>
+                    </div>
+
+                    <!-- Validation Results (hidden by default) -->
+                    <div id="create-validation-results" class="validation-results" style="display: none;">
+                        <div class="validation-summary" id="create-validation-summary"></div>
+                        <div id="create-validation-list" class="validation-list"></div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="closeCreateTournamentModal()">Peruuta</button>
+                        <button type="submit" class="btn-primary">Luo turnaus</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </body>
 </html>
