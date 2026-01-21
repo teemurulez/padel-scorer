@@ -32,6 +32,13 @@ def set_current_season(db, season_id):
     )
     db.commit()
 
+def get_setup_tournaments(db, season_id):
+    """Get tournaments in 'setup' status for a season"""
+    return db.execute(
+        "SELECT id, name FROM tournaments WHERE season_id = ? AND status = 'setup'",
+        (season_id,)
+    ).fetchall()
+
 app = Flask(__name__)
 app.config.from_object(Config)
 
@@ -1784,6 +1791,13 @@ def admin_end_current_season():
         flash('No current season to end')
         return redirect('/admin')
 
+    # Check for setup tournaments that would be orphaned
+    setup_tournaments = get_setup_tournaments(db, current_season['id'])
+    if setup_tournaments:
+        names = ', '.join([t['name'] for t in setup_tournaments])
+        flash(f'Kautta ei voi päättää: turnaukset valmistelussa: {names}. Poista tai käynnistä ne ensin.')
+        return redirect('/admin')
+
     from datetime import datetime
     db.execute(
         "UPDATE seasons SET is_current = 0, ended_at = ? WHERE id = ?",
@@ -1821,6 +1835,15 @@ def admin_create_season():
         flash('Season name already exists. Please choose a different name.')
         return redirect('/admin')
 
+    # Check for setup tournaments in current season that would be orphaned
+    current_season = get_current_season(db)
+    if current_season:
+        setup_tournaments = get_setup_tournaments(db, current_season['id'])
+        if setup_tournaments:
+            names = ', '.join([t['name'] for t in setup_tournaments])
+            flash(f'Uutta kautta ei voi luoda: turnaukset valmistelussa: {names}. Poista tai käynnistä ne ensin.')
+            return redirect('/admin')
+
     # Archive current season if exists
     db.execute("UPDATE seasons SET is_current = 0 WHERE is_current = 1")
 
@@ -1847,6 +1870,15 @@ def admin_activate_season(season_id):
     if not season:
         flash('Season not found')
         return redirect('/admin')
+
+    # Check for setup tournaments in current season that would be orphaned
+    current_season = get_current_season(db)
+    if current_season and current_season['id'] != season_id:
+        setup_tournaments = get_setup_tournaments(db, current_season['id'])
+        if setup_tournaments:
+            names = ', '.join([t['name'] for t in setup_tournaments])
+            flash(f'Kautta ei voi vaihtaa: turnaukset valmistelussa: {names}. Poista tai käynnistä ne ensin.')
+            return redirect('/admin')
 
     set_current_season(db, season_id)
 
