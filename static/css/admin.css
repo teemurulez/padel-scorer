@@ -334,6 +334,8 @@ body {
     background-color: var(--bg-surface);
     color: var(--text-primary);
     border: 2px solid var(--border-strong);
+    min-width: 120px;
+    text-align: center;
 }
 
 .btn-secondary:hover {
