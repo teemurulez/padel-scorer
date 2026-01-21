@@ -319,6 +319,8 @@ body {
     transition: all 0.3s ease;
     text-decoration: none;
     display: inline-block;
+    min-width: 120px;
+    text-align: center;
 }
 
 .btn-primary {
@@ -334,8 +336,6 @@ body {
     background-color: var(--bg-surface);
     color: var(--text-primary);
     border: 2px solid var(--border-strong);
-    min-width: 120px;
-    text-align: center;
 }
 
 .btn-secondary:hover {
