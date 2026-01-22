@@ -21,8 +21,21 @@ Player profile polish and deployment planning session.
 **Templates:**
 - `templates/player_profile.html` - Reordered stat cards, added win/loss per court vertical chart with CSS
 
+### Deployment Preparation
+- Created comprehensive PythonAnywhere deployment guide (`docs/PYTHONANYWHERE_DEPLOYMENT.md`)
+- Verified requirements.txt is up to date
+- Confirmed database auto-initialization works
+- Updated TODO.md with deployment checklist
+
+## Files Changed
+
+**Documentation:**
+- `docs/PYTHONANYWHERE_DEPLOYMENT.md` - New step-by-step deployment guide
+- `TODO.md` - Added deployment checklist, updated with today's changes
+- `docs/daily-summaries/DAILY_SUMMARY_2026-01-22.md` - This file
+
 ## Next Session
 
-- Deployment to PythonAnywhere
-  - Write step-by-step deployment guide
-  - Prepare app (requirements.txt, settings adjustments)
+- Follow deployment guide to deploy to PythonAnywhere
+- Set up admin password on production
+- Test all features on live site
