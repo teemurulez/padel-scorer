@@ -1654,7 +1654,9 @@ def player_profile(player_id):
             court_stats.append({
                 'court': court,
                 'winrate': winrate,
-                'matches': data['total']
+                'matches': data['total'],
+                'wins': data['wins'],
+                'losses': data['total'] - data['wins']
             })
 
         # 11. Progress data - wins per tournament for graph

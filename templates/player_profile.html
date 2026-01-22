@@ -155,6 +155,91 @@
             font-size: 0.85rem;
             color: #333;
         }
+        /* Win/Loss per Court Chart - Vertical */
+        .court-winloss-vertical {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 1rem;
+            height: 150px;
+            padding-bottom: 0.5rem;
+        }
+        .court-winloss-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+        }
+        .court-bars-vertical {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            flex: 1;
+        }
+        .vertical-bar {
+            width: 28px;
+            border-radius: 4px 4px 0 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            min-height: 20px;
+            transition: height 0.3s ease;
+        }
+        .vertical-bar.win-bar {
+            background: linear-gradient(to top, #28a745, #5cb85c);
+        }
+        .vertical-bar.loss-bar {
+            background: linear-gradient(to top, #dc3545, #e57373);
+        }
+        .vertical-bar .bar-count {
+            font-weight: bold;
+            font-size: 0.8rem;
+            color: #fff;
+            padding-top: 4px;
+        }
+        .court-winloss-label {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+        .court-winloss-legend {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+        .legend-color.win {
+            background: #28a745;
+        }
+        .legend-color.loss {
+            background: #dc3545;
+        }
+        @media (max-width: 768px) {
+            .court-winloss-vertical {
+                height: 120px;
+                gap: 0.5rem;
+            }
+            .vertical-bar {
+                width: 22px;
+            }
+            .vertical-bar .bar-count {
+                font-size: 0.7rem;
+            }
+        }
+
         /* Progress Chart */
         .progress-chart {
             padding: 1rem;
@@ -250,17 +335,17 @@
                         <span class="value">{{ season_stats.tournaments_played }}</span>
                     </div>
 
+                    <div class="stat-card primary">
+                        <span class="label">Voitot</span>
+                        <span class="value">{{ season_stats.total_wins }}</span>
+                    </div>
+
                     {% if wins_per_tournament %}
                     <div class="stat-card">
                         <span class="label">Voittoja/turnaus</span>
                         <span class="value">{{ wins_per_tournament }}</span>
                     </div>
                     {% endif %}
-
-                    <div class="stat-card primary">
-                        <span class="label">Voitot</span>
-                        <span class="value">{{ season_stats.total_wins }}</span>
-                    </div>
 
                     <div class="stat-card">
                         <span class="label">Otteluita</span>
@@ -396,6 +481,32 @@
                             <span class="court-bar-label">Kenttä {{ court.court }}</span>
                         </div>
                         {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Win/Loss per Court Chart -->
+                <div class="court-chart" style="margin-top: 1rem;">
+                    <div class="court-chart-label">Voitot ja häviöt per kenttä</div>
+                    {% set max_value = court_stats|map(attribute='wins')|list + court_stats|map(attribute='losses')|list %}
+                    {% set max_bar = max_value|max if max_value else 1 %}
+                    <div class="court-winloss-vertical">
+                        {% for court in court_stats %}
+                        <div class="court-winloss-column">
+                            <div class="court-bars-vertical">
+                                <div class="vertical-bar win-bar" style="height: {{ (court.wins / max_bar * 100) if max_bar > 0 else 0 }}%;">
+                                    <span class="bar-count">{{ court.wins }}</span>
+                                </div>
+                                <div class="vertical-bar loss-bar" style="height: {{ (court.losses / max_bar * 100) if max_bar > 0 else 0 }}%;">
+                                    <span class="bar-count">{{ court.losses }}</span>
+                                </div>
+                            </div>
+                            <span class="court-winloss-label">Kenttä {{ court.court }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="court-winloss-legend">
+                        <span class="legend-item"><span class="legend-color win"></span> Voitot</span>
+                        <span class="legend-item"><span class="legend-color loss"></span> Häviöt</span>
                     </div>
                 </div>
                 {% endif %}

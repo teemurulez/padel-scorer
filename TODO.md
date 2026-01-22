@@ -1,6 +1,6 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-01-21
+> **Last updated:** 2026-01-22
 
 ## Project Status
 
@@ -14,6 +14,7 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Database restore functionality (done 2026-01-21)
 - [x] Prevent orphaned tournaments when changing seasons (done 2026-01-21)
 - [x] Extended player profile statistics (done 2026-01-21)
+- [x] Win/loss per court vertical bar chart (done 2026-01-22)
 
 ## Next Steps
 
@@ -31,6 +32,14 @@ The app is **production-ready** with security hardening complete. Core features 
 **UX Ideas:**
 - Mobile-optimized views
 - Real-time score updates (WebSocket)
+
+## Recent Changes (2026-01-22)
+
+**Player Profile Statistics:**
+- Reordered stats cards: moved "Voitot" before "Voittoja/turnaus"
+- Added vertical bar chart showing wins/losses per court (green/red bars)
+
+---
 
 ## Recent Changes (2026-01-21)
 
