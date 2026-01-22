@@ -18,10 +18,15 @@ The app is **production-ready** with security hardening complete. Core features 
 
 ## Next Steps
 
-### 1. Production Deployment Checklist
+### 1. Production Deployment (PythonAnywhere)
+
+See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** for step-by-step guide.
+
+- [ ] Create PythonAnywhere account
+- [ ] Upload code and set up virtual environment
+- [ ] Configure web app and WSGI file
 - [ ] Set `SECRET_KEY` environment variable
-- [ ] Ensure HTTPS is configured (for secure cookies)
-- [ ] Test rate limiting works as expected
+- [ ] Test the live app
 
 ### 2. Optional Improvements
 
