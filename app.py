@@ -2200,7 +2200,7 @@ def admin_dashboard():
         ).fetchall()
 
         # Fetch players with season wins for Players tab
-        # Counts wins, tournaments, matches, and calculates averages
+        # Counts wins, tournaments, matches, calculates averages, and includes point adjustments
         players = db.execute('''
             SELECT
                 pr.id,
@@ -2212,17 +2212,20 @@ def admin_dashboard():
                 ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                       NULLIF(COUNT(DISTINCT t.id), 0), 2) as wins_per_tournament,
                 ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
-                      NULLIF(COUNT(DISTINCT m.id), 0), 2) as win_rate
+                      NULLIF(COUNT(DISTINCT m.id), 0), 2) as win_rate,
+                COALESCE(adj.adjustment, 0) as adjustment,
+                COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) as total_points
             FROM player_registry pr
             LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
             LEFT JOIN rounds r ON m.round_id = r.id
             LEFT JOIN tournaments t ON r.tournament_id = t.id
             LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+            LEFT JOIN player_points_adjustment adj ON (pr.id = adj.player_id AND adj.season_id = ?)
             WHERE t.season_id = ? AND m.completed = 1
             GROUP BY pr.id, pr.first_name, pr.last_name
             HAVING tournaments_played > 0
-            ORDER BY wins DESC, win_rate DESC, pr.last_name ASC
-        ''', (current_season['id'],)).fetchall()
+            ORDER BY total_points DESC, wins DESC, win_rate DESC, pr.last_name ASC
+        ''', (current_season['id'], current_season['id'])).fetchall()
 
     # Get database statistics for Data tab
     db_stats = {
@@ -2515,10 +2518,32 @@ def admin_players():
         ORDER BY s.ended_at DESC
     """).fetchall()
 
+    # Get tournament count and list for current season
+    current_tournament_count = db.execute(
+        "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
+        (current_season['id'],)
+    ).fetchone()['count']
+
+    current_season_tournaments = db.execute(
+        "SELECT * FROM tournaments WHERE season_id = ? ORDER BY created_at DESC",
+        (current_season['id'],)
+    ).fetchall()
+
+    # Get database statistics for Data tab
+    db_stats = {
+        'seasons': db.execute('SELECT COUNT(*) as count FROM seasons').fetchone()['count'],
+        'tournaments': db.execute('SELECT COUNT(*) as count FROM tournaments').fetchone()['count'],
+        'players': db.execute('SELECT COUNT(*) as count FROM player_registry').fetchone()['count'],
+        'matches': db.execute('SELECT COUNT(*) as count FROM matches').fetchone()['count']
+    }
+
     return render_template('admin_dashboard.html',
                           current_season=current_season,
+                          current_tournament_count=current_tournament_count,
+                          current_season_tournaments=current_season_tournaments,
                           players=players,
                           archived_seasons=archived_seasons,
+                          db_stats=db_stats,
                           active_tab='players')
 
 
@@ -2536,7 +2561,7 @@ def admin_edit_player_points(player_id):
         new_total = int(request.form.get('new_total_points', 0))
     except ValueError:
         flash('Virheellinen pistemäärä')
-        return redirect('/admin/players')
+        return redirect('/admin')
 
     # Get player's current auto points (from scores table, same as season_leaderboard)
     auto_result = db.execute('''
@@ -2567,7 +2592,7 @@ def admin_edit_player_points(player_id):
     player = db.execute('SELECT first_name, last_name FROM player_registry WHERE id = ?', (player_id,)).fetchone()
     flash(f'Pisteet päivitetty: {player["first_name"]} {player["last_name"]} = {new_total}')
 
-    return redirect('/admin/players')
+    return redirect(f'/admin?tab=players&edit_player={player_id}')
 
 
 @app.route('/admin/validate-players', methods=['POST'])

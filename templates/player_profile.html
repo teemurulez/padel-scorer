@@ -312,7 +312,12 @@
         <div class="player-profile">
             <!-- Header -->
             <div class="profile-header">
-                <h1>{{ player.first_name }} {{ player.last_name }}</h1>
+                <a href="{{ url_for('index') }}" style="text-decoration: none;">
+                    <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni" style="height: 40px; margin-bottom: 0.75rem;">
+                </a>
+                <a href="{{ url_for('index') }}" style="text-decoration: none; color: inherit;">
+                    <h1>{{ player.first_name }} {{ player.last_name }}</h1>
+                </a>
                 <p class="season-label">{{ season_name }}</p>
             </div>
 

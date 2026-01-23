@@ -107,7 +107,12 @@
 <body>
     <div class="container">
         <div class="page-header">
-            <h1>Aiemmat kaudet</h1>
+            <a href="{{ url_for('index') }}" style="text-decoration: none;">
+                <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni" style="height: 40px; margin-bottom: 0.75rem;">
+            </a>
+            <a href="{{ url_for('index') }}" style="text-decoration: none; color: inherit;">
+                <h1>Aiemmat kaudet</h1>
+            </a>
             <p class="info-text">Historiallinen turnausdata aiemmilta vuosilta</p>
         </div>
 

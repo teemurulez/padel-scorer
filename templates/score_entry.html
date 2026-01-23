@@ -189,8 +189,12 @@
     <div class="page-watermark"></div>
     <div class="container">
         <div class="score-header">
-            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
-            <h1>Kenttä {{ match['court_number'] }}</h1>
+            <a href="{{ url_for('index') }}" style="text-decoration: none;">
+                <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            </a>
+            <a href="{{ url_for('index') }}" style="text-decoration: none; color: inherit;">
+                <h1>Kenttä {{ match['court_number'] }}</h1>
+            </a>
             <p>{% if match['completed'] %}Muokkaa tulosta{% else %}Valitse voittaja{% endif %}</p>
         </div>
 

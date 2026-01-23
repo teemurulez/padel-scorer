@@ -172,7 +172,7 @@
             transition: transform 0.2s;
         }
         .toggle-icon.expanded {
-            transform: rotate(90deg);
+            /* Arrow change handled by JavaScript */
         }
         .tournament-name {
             font-weight: 700;
@@ -299,8 +299,12 @@
     <div class="page-watermark"></div>
     <div class="container">
         <div class="page-header">
-            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
-            <h1>{{ season_name }}</h1>
+            <a href="{{ url_for('index') }}" style="text-decoration: none;">
+                <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            </a>
+            <a href="{{ url_for('index') }}" style="text-decoration: none; color: inherit;">
+                <h1>{{ season_name }}</h1>
+            </a>
             {% if not no_season %}
             <p class="subtitle">{{ tournament_count }} turnaus{% if tournament_count != 1 %}ta{% endif %}</p>
             {% endif %}
@@ -340,7 +344,9 @@
             <tbody>
                 {% for player in season_stats %}
                 <tr>
-                    <td class="rank {% if player['rank'] <= 3 %}rank-{{ player['rank'] }}{% endif %}">#{{ player['rank'] }}</td>
+                    <td class="rank {% if player['rank'] <= 3 %}rank-{{ player['rank'] }}{% endif %}">
+                        {% if player['rank'] == 1 %}🥇{% elif player['rank'] == 2 %}🥈{% elif player['rank'] == 3 %}🥉{% else %}#{{ player['rank'] }}{% endif %}
+                    </td>
                     <td class="player-name">
                         <a href="{{ url_for('player_profile', player_id=player['id']) }}">
                             {{ player['first_name'] }} {{ player['last_name'] }}
@@ -392,7 +398,9 @@
                     <tbody>
                         {% for player in stats['players'] %}
                         <tr>
-                            <td class="rank {% if player['rank'] <= 3 %}rank-{{ player['rank'] }}{% endif %}">#{{ player['rank'] }}</td>
+                            <td class="rank {% if player['rank'] <= 3 %}rank-{{ player['rank'] }}{% endif %}">
+                                {% if player['rank'] == 1 %}🥇{% elif player['rank'] == 2 %}🥈{% elif player['rank'] == 3 %}🥉{% else %}#{{ player['rank'] }}{% endif %}
+                            </td>
                             <td class="player-name">
                                 <a href="{{ url_for('player_profile', player_id=player['id']) }}">
                                     {{ player['first_name'] }} {{ player['last_name'] }}

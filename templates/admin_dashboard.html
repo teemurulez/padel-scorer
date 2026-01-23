@@ -203,10 +203,12 @@
                             <th>#</th>
                             <th>Pelaaja</th>
                             <th>Voitot</th>
+                            <th>Pisteet</th>
                             <th>Turnauksia</th>
                             <th>V/T</th>
                             <th>Otteluita</th>
                             <th>V/O</th>
+                            <th>Toiminnot</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -215,10 +217,37 @@
                             <td>{{ loop.index }}</td>
                             <td>{{ player.first_name }} {{ player.last_name }}</td>
                             <td>{{ player.wins }}</td>
+                            <td>
+                                {{ player.total_points }}
+                                {% if player.adjustment and player.adjustment != 0 %}
+                                <span style="color: {% if player.adjustment > 0 %}#22c55e{% else %}#ef4444{% endif %}; font-size: 0.8em;">
+                                    ({% if player.adjustment > 0 %}+{% endif %}{{ player.adjustment }})
+                                </span>
+                                {% endif %}
+                            </td>
                             <td>{{ player.tournaments_played }}</td>
                             <td>{{ "%.2f"|format(player.wins_per_tournament or 0) }}</td>
                             <td>{{ player.matches_played }}</td>
                             <td>{{ "%.2f"|format(player.win_rate or 0) }}</td>
+                            <td>
+                                <button type="button" class="btn-secondary btn-small" onclick="toggleEditPlayer({{ player.id }}, {{ player.wins }}, {{ player.adjustment or 0 }}, {{ player.total_points }})">Muokkaa</button>
+                            </td>
+                        </tr>
+                        <tr id="edit-player-row-{{ player.id }}" class="edit-row" style="display: none; background: #f8f9fa;">
+                            <td colspan="9">
+                                <form method="POST" action="/admin/players/{{ player.id }}/edit" style="display: flex; align-items: center; gap: 1rem; padding: 0.5rem;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <span><strong>{{ player.first_name }} {{ player.last_name }}</strong></span>
+                                    <span>Voitot: {{ player.wins }}</span>
+                                    <span>Korjaus: <span id="adj-display-{{ player.id }}">{{ player.adjustment or 0 }}</span></span>
+                                    <label>
+                                        Uudet pisteet:
+                                        <input type="number" name="new_total_points" value="{{ player.total_points }}" style="width: 80px; padding: 0.25rem;" onchange="updateAdjustmentDisplay({{ player.id }}, {{ player.wins }}, this.value)">
+                                    </label>
+                                    <button type="submit" class="btn-primary btn-small">Tallenna</button>
+                                    <button type="button" class="btn-secondary btn-small" onclick="toggleEditPlayer({{ player.id }})">Peruuta</button>
+                                </form>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -320,6 +349,29 @@
                     document.getElementById(targetTab).classList.add('active');
                 });
             });
+
+            // Check URL parameters for tab and edit_player
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabParam = urlParams.get('tab');
+            const editPlayerParam = urlParams.get('edit_player');
+
+            // Switch to specified tab
+            if (tabParam === 'players') {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                document.querySelector('[data-tab="players-tab"]').classList.add('active');
+                document.getElementById('players-tab').classList.add('active');
+
+                // Expand the edited player's row
+                if (editPlayerParam) {
+                    const editRow = document.getElementById(`edit-player-row-${editPlayerParam}`);
+                    if (editRow) {
+                        editRow.style.display = 'table-row';
+                        // Scroll to the player row
+                        editRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }
         });
 
         // Player points edit toggle function
@@ -336,6 +388,14 @@
                 // Hide this edit form
                 editRow.style.display = 'none';
             }
+        }
+
+        // Update adjustment display when points input changes
+        function updateAdjustmentDisplay(playerId, autoPoints, newTotal) {
+            const adjDisplay = document.getElementById(`adj-display-${playerId}`);
+            const newAdj = parseInt(newTotal) - autoPoints;
+            adjDisplay.textContent = newAdj >= 0 ? `+${newAdj}` : newAdj;
+            adjDisplay.style.color = newAdj >= 0 ? '#22c55e' : '#ef4444';
         }
 
         // Modal functions

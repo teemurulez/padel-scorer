@@ -206,8 +206,12 @@
     <div class="page-watermark"></div>
     <div class="container">
         <div class="page-header">
-            <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
-            <h1>{% if season %}{{ season.name }}{% else %}Padel Paroni{% endif %}</h1>
+            <a href="{{ url_for('index') }}" style="text-decoration: none;">
+                <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            </a>
+            <a href="{{ url_for('index') }}" style="text-decoration: none; color: inherit;">
+                <h1>{% if season %}{{ season.name }}{% else %}Padel Paroni{% endif %}</h1>
+            </a>
             <p>Valitse turnauksesi</p>
         </div>
 
