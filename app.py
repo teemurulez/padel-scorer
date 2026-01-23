@@ -2027,75 +2027,9 @@ def admin_login():
     return render_template('admin_login.html')
 
 
-@app.route('/admin/forgot-password', methods=['GET', 'POST'])
-@limiter.limit("3 per hour", methods=["POST"])  # Prevent password reset abuse
-def admin_forgot_password():
-    """Handle forgot password - generate temp password and email it"""
-    import secrets
-    import string
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-
-    if request.method == 'POST':
-        db = get_db()
-
-        # Check if admin exists
-        admin = db.execute('SELECT id FROM admin_users LIMIT 1').fetchone()
-        if not admin:
-            flash('No admin account found. Please complete setup first.')
-            return redirect('/admin/setup')
-
-        # Generate random 12-character temporary password
-        alphabet = string.ascii_letters + string.digits
-        temp_password = ''.join(secrets.choice(alphabet) for _ in range(12))
-
-        # Hash and update password in database
-        password_hash = generate_password_hash(temp_password, method='pbkdf2:sha256')
-        db.execute(
-            'UPDATE admin_users SET password_hash = ? WHERE id = ?',
-            (password_hash, admin['id'])
-        )
-        db.commit()
-
-        # Send email with temporary password
-        try:
-            recipient_email = "teemu.sevon@gmail.com"
-
-            msg = MIMEMultipart()
-            msg['From'] = "Tennis Scorer Admin"
-            msg['To'] = recipient_email
-            msg['Subject'] = "Tennis Scorer - Admin Password Reset"
-
-            body = f"""
-Hello,
-
-Your admin password has been reset.
-
-Your new temporary password is: {temp_password}
-
-Please log in with this password and consider changing it to something memorable.
-
-Best regards,
-Tennis Scorer System
-            """
-
-            msg.attach(MIMEText(body, 'plain'))
-
-            # Note: For production, you'd configure SMTP settings
-            # For now, we'll just show success without actually sending
-            # To enable email, configure environment variables for SMTP
-
-            flash('Temporary password has been generated. Check your email at teemu.sevon@gmail.com')
-            flash(f'For testing: Your temporary password is: {temp_password}', 'success')
-            return redirect('/admin/login')
-
-        except Exception as e:
-            flash(f'Error sending email: {str(e)}')
-            flash(f'Your temporary password is: {temp_password}', 'success')
-            return redirect('/admin/login')
-
-    return render_template('admin_forgot_password.html')
+# NOTE: Forgot-password feature removed for security reasons.
+# If you forget the admin password, reset it via server command:
+#   python -c "from werkzeug.security import generate_password_hash; from database import get_db; db = get_db(); db.execute('UPDATE admin_users SET password_hash = ?', (generate_password_hash('newpassword'),)); db.commit(); print('Password reset to: newpassword')"
 
 
 @app.route('/admin/seasons/end-current', methods=['POST'])

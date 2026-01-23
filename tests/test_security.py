@@ -369,6 +369,35 @@ class TestXSSPrevention:
 # Session Security Tests
 # =============================================================================
 
+class TestPasswordResetRemoved:
+    """Tests to verify insecure password reset feature is removed"""
+
+    def test_forgot_password_does_not_reset_password(self, client_no_csrf):
+        """The forgot-password feature should not allow password resets"""
+        # Set up admin with known password
+        with app.app_context():
+            db = get_db()
+            original_hash = generate_password_hash('originalpass', method='pbkdf2:sha256')
+            db.execute('INSERT INTO admin_users (password_hash) VALUES (?)', (original_hash,))
+            db.commit()
+
+        # Try to access forgot-password (should redirect or 404)
+        response = client_no_csrf.get('/admin/forgot-password')
+        assert response.status_code in [302, 404], "forgot-password should redirect or not exist"
+
+        # Try to POST to forgot-password
+        response = client_no_csrf.post('/admin/forgot-password')
+        assert response.status_code in [302, 404], "forgot-password POST should redirect or not exist"
+
+        # Verify password was NOT changed
+        with app.app_context():
+            db = get_db()
+            admin = db.execute('SELECT password_hash FROM admin_users LIMIT 1').fetchone()
+            from werkzeug.security import check_password_hash
+            assert check_password_hash(admin['password_hash'], 'originalpass'), \
+                "Password should not have been changed by forgot-password attempt"
+
+
 class TestSessionSecurity:
     """Tests for session security"""
 
