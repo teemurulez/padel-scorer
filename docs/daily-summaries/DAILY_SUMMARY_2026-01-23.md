@@ -2,11 +2,38 @@
 
 ## Overview
 
-Testing session - added comprehensive tests for player profile statistics and security features.
+Testing and UI polish session - added security tests, player points editing feature, and navigation improvements.
 
 ## Completed Tasks
 
-### Test Coverage Expansion
+### Admin Player Points Editing
+Restored the player points adjustment feature in admin dashboard:
+- Added "Pisteet" column showing total points with adjustment indicator
+- Added "Muokkaa" button to edit each player's points inline
+- Shows automatic wins vs manual adjustment separately
+- After editing, stays on Players tab with edited player expanded
+
+### UI/UX Improvements
+1. **Clickable Navigation**
+   - Logo and titles now link to main view on all public pages
+   - Added to: season_leaderboard, player_profile, leaderboard, season_history, tournament_selection, no_active_tournament, confirm_match, active_round, score_entry
+
+2. **Season Standings**
+   - Fixed expand/collapse arrows (now point down when expanded)
+   - Added medal emojis (🥇🥈🥉) for top 3 in season and tournament standings
+
+3. **Back Navigation**
+   - Improved "Takaisin" button visibility in tournament views
+   - Changed from text link to styled button
+
+### Test Data Generation
+Created `scripts/generate_test_data.py`:
+- 20 players with varying skill levels
+- 3 completed tournaments with diverse results
+- 1 active tournament with round in progress
+- Useful for development and testing
+
+### Test Coverage Expansion (Morning Session)
 Added 4 new tests for player profile statistics:
 
 1. **Partner Statistics Test** (`test_player_profile_partner_statistics`)
@@ -60,11 +87,27 @@ Added 14 security tests in `tests/test_security.py`:
 
 ## Files Changed
 
-- `tests/test_player_profile.py` - Added 4 new test functions (+319 lines)
-- `TODO.md` - Updated test count
+### Morning Session (Testing)
+- `tests/test_security.py` - Added 14 security tests
+- `tests/test_player_profile.py` - Added 4 new test functions
+
+### Afternoon Session (Features & UI)
+- `app.py` - Added player points adjustment query, improved admin_players route
+- `templates/admin_dashboard.html` - Added points editing UI with inline form
+- `templates/season_leaderboard.html` - Fixed arrows, added medals, clickable header
+- `templates/active_round.html` - Clickable header, improved back button
+- `templates/score_entry.html` - Clickable header
+- `templates/player_profile.html` - Added clickable logo
+- `templates/leaderboard.html` - Clickable header
+- `templates/confirm_match.html` - Clickable header
+- `templates/tournament_selection.html` - Clickable header
+- `templates/no_active_tournament.html` - Clickable header
+- `templates/season_history.html` - Added logo, clickable header
+- `scripts/generate_test_data.py` - New test data generation script
 
 ## Technical Notes
 
 - Tests use temporary SQLite databases via pytest fixtures
 - Partner stats require multiple matches with clear win/loss patterns
-- Worst tournament only shows if player has at least 1 win there (due to query design)
+- Player points adjustment stored in `player_points_adjustment` table
+- Total points = automatic wins + manual adjustment

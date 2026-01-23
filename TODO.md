@@ -1,6 +1,6 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-01-22
+> **Last updated:** 2026-01-23
 
 ## Project Status
 
@@ -15,6 +15,9 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Prevent orphaned tournaments when changing seasons (done 2026-01-21)
 - [x] Extended player profile statistics (done 2026-01-21)
 - [x] Win/loss per court vertical bar chart (done 2026-01-22)
+- [x] Player points editing in admin (done 2026-01-23)
+- [x] Clickable logo/title navigation (done 2026-01-23)
+- [x] Medal emojis in standings (done 2026-01-23)
 
 ## Next Steps
 
@@ -40,12 +43,24 @@ See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** f
 
 ## Recent Changes (2026-01-23)
 
+**Admin Features:**
+- Player points editing in admin Players tab (inline edit with adjustment tracking)
+
+**UI/Navigation:**
+- Clickable logo and titles on all public pages (link to main view)
+- Fixed expand/collapse arrows in season standings
+- Added medal emojis (🥇🥈🥉) for top 3 players
+- Improved back navigation buttons in tournament views
+
+**Development:**
+- Added `scripts/generate_test_data.py` for diverse test data generation
+
 **Security Testing:**
 - Added 14 security tests covering CSRF, rate limiting, SQL injection, XSS
 - Test count: 159 → 173
 
 **Testing:**
-- Added 4 new tests for player profile statistics (partner stats, tournament stats, court stats, current form)
+- Added 4 new tests for player profile statistics
 - Test count: 155 → 159
 
 ---
