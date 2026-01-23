@@ -4,7 +4,7 @@
 
 ## Project Status
 
-The app is **production-ready** with security hardening complete. Core features work well. All 159 tests pass.
+The app is **production-ready** with security hardening complete. Core features work well. All 173 tests pass.
 
 ## Completed Items
 
@@ -39,6 +39,10 @@ See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** f
 - Real-time score updates (WebSocket)
 
 ## Recent Changes (2026-01-23)
+
+**Security Testing:**
+- Added 14 security tests covering CSRF, rate limiting, SQL injection, XSS
+- Test count: 159 → 173
 
 **Testing:**
 - Added 4 new tests for player profile statistics (partner stats, tournament stats, court stats, current form)
