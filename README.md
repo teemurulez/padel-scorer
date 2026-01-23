@@ -16,15 +16,18 @@ A mobile-optimized web application for managing "King of the Court" style Padel 
 
 ### Season & Player Management
 - **Season tracking** - Organize tournaments into seasons
-- **Season leaderboard** - Cumulative points across tournaments
+- **Season leaderboard** - Cumulative points across tournaments with medal emojis
 - **Player registry** - Persistent player database with name matching
-- **Player points adjustment** - Manual point corrections when needed
+- **Player profiles** - Detailed statistics (partners, opponents, court stats, form)
+- **Player points adjustment** - Manual point corrections in admin
+- **CSV export** - Export season standings for spreadsheets
 
 ### Admin Dashboard
 - **Password protected** - Secure admin area with session management
 - **Tournament lifecycle** - Create, edit, start, end, delete tournaments
 - **Full-screen tournament editor** - Edit players, preview pairings, search players
 - **Season management** - Create seasons, archive old ones, view history
+- **Data management** - JSON backup/restore, CSV exports
 
 ### Security (Production Ready)
 - **CSRF protection** - All forms protected against cross-site request forgery
@@ -134,7 +137,7 @@ padel-scorer/
 │   └── images/
 │       └── padel-paroni-logo.png
 │
-├── tests/                      # 40 test files, 155 tests
+├── tests/                      # 40+ test files, 173 tests
 │   ├── conftest.py            # Test configuration
 │   ├── test_court_movement.py
 │   ├── test_admin_auth.py
@@ -194,7 +197,7 @@ TESTING=1 pytest -v
 TESTING=1 pytest tests/test_court_movement.py
 ```
 
-**Current status:** 142 passing, 10 failing (pre-existing schema issues), 3 skipped
+**Current status:** 170 passing, 3 skipped
 
 ## Development Phases
 
