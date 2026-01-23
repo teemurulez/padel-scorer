@@ -1,3 +1,26 @@
+"""
+Padel Paroni - Tournament Management Application
+
+A Flask web application for managing padel/tennis tournaments with:
+- Season and tournament management
+- Player registry and statistics
+- Round-robin court assignments with smart pairing algorithm
+- Real-time scoring and leaderboards
+- Admin dashboard with authentication
+
+Main features:
+- Public views: Leaderboards, player profiles, live scoring
+- Admin views: Tournament setup, player management, data export/restore
+
+Security:
+- CSRF protection on all POST requests
+- Rate limiting on sensitive endpoints
+- Password hashing (pbkdf2:sha256)
+- Session timeout after 30 minutes
+
+For deployment instructions, see docs/PYTHONANYWHERE_DEPLOYMENT.md
+"""
+
 from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify, abort, Response
 import csv
 import io
@@ -68,7 +91,7 @@ def get_db_connection():
     return g.db
 
 @app.teardown_appcontext
-def close_db(_error):
+def close_db(_):
     """Close database connection at end of request"""
     db = g.pop('db', None)
     if db is not None:
@@ -933,13 +956,11 @@ def score_entry(match_id):
             # Return 409 Conflict for AJAX requests
             return jsonify({'error': 'version_conflict', 'message': 'Joku muu on muokannut tätä ottelua.'}), 409
 
-        # Determine winners
+        # Determine winners (only winners get points in current scoring system)
         if winning_team == 1:
             winner_ids = [match['player1_id'], match['player2_id']]
-            loser_ids = [match['player3_id'], match['player4_id']]
         else:
             winner_ids = [match['player3_id'], match['player4_id']]
-            loser_ids = [match['player1_id'], match['player2_id']]
 
         if match['completed']:
             # Update existing scores
@@ -2318,7 +2339,7 @@ def admin_export_database_json():
             rows = db.execute(f'SELECT * FROM {table}').fetchall()
             # Convert sqlite3.Row objects to dicts
             export_data['tables'][table] = [dict(row) for row in rows]
-        except Exception as e:
+        except Exception:
             # Table might not exist, skip it
             export_data['tables'][table] = []
 
