@@ -338,6 +338,7 @@
         const TOURNAMENT_ID = {{ tournament.id }};
         const ROUND_ID = {{ round.id }};
         const COURT_NUMBER = {{ court_number }};
+        const CSRF_TOKEN = "{{ csrf_token() }}";
     </script>
     <script src="{{ url_for('static', filename='js/shuffle.js') }}"></script>
 </body>

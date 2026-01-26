@@ -208,6 +208,12 @@
             {% endif %}
         {% endwith %}
 
+        {% if is_editing %}
+        <div class="info-banner">
+            Nykyinen voittaja: Joukkue {{ match['winning_team'] }}
+        </div>
+        {% endif %}
+
         <form id="scoreForm" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="version" value="{{ match.get('version', 1) }}">
@@ -238,6 +244,11 @@
             <button type="submit" class="btn-primary-action" id="submitBtn">
                 {% if match['completed'] %}Päivitä voittaja{% else %}Vahvista voittaja{% endif %}
             </button>
+
+            {% if is_editing %}
+            <a href="{{ url_for('confirm_match_teams', tournament_id=match['tournament_id'], round_id=match['round_id'], court_number=match['court_number']) }}"
+               class="btn-secondary-action" style="margin-bottom: 0.5rem;">Muokkaa joukkueita</a>
+            {% endif %}
 
             <a href="{{ url_for('active_round', tournament_id=match['tournament_id'], round_id=match['round_id']) }}"
                class="btn-secondary-action">← Takaisin</a>

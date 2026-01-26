@@ -32,7 +32,7 @@
             max-width: 600px;
             margin: 0 auto;
             padding: 1rem;
-            background: white;
+            background: {% if is_admin %}#FFFACD{% else %}white{% endif %};
             position: relative;
             z-index: 1;
             min-height: 100vh;
@@ -40,7 +40,7 @@
 
         /* Header */
         .round-header {
-            background: white;
+            background: {% if is_admin %}#FFFACD{% else %}white{% endif %};
             padding: 1.5rem 1rem;
             text-align: center;
             border-bottom: 1px solid #e0e0e0;
@@ -325,6 +325,19 @@
                 ↑ Voittajat ylös &bull; ↓ Häviäjät alas
             </div>
             {% endif %}
+            {% if is_admin and all_rounds|length > 1 %}
+            <div style="margin-top: 0.75rem;">
+                <span style="font-size: 0.85rem; color: #666;">Kierrokset: </span>
+                {% for r in all_rounds %}
+                    {% if r['round_number'] == round_data['round_number'] %}
+                        <span style="font-weight: bold; padding: 0.25rem 0.5rem; background: #FFD700; border-radius: 4px; font-size: 0.85rem;">{{ r['round_number'] }}</span>
+                    {% else %}
+                        <a href="{{ url_for('active_round', tournament_id=tournament_id, round_id=r['id']) }}"
+                           style="padding: 0.25rem 0.5rem; background: #f0f0f0; border-radius: 4px; font-size: 0.85rem; color: #333; text-decoration: none;">{{ r['round_number'] }}</a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
 
         <!-- Flash messages -->
@@ -337,6 +350,21 @@
                 </div>
             {% endif %}
         {% endwith %}
+
+        {% if needs_recalculation %}
+        <div class="warning-banner" style="margin-bottom: 0.5rem; background: #f8d7da; border-color: #f5c2c7; color: #842029;">
+            Edellisen kierroksen tuloksia on muutettu. Kierros täytyy laskea uudelleen.
+        </div>
+        {% set completed_count = matches|selectattr('completed')|list|length %}
+        {% if completed_count == 0 %}
+        <form action="{{ url_for('admin_recalculate_round', tournament_id=tournament_id, round_id=round_data['id']) }}" method="POST" style="margin-bottom: 1rem;" onsubmit="return confirm('Haluatko varmasti laskea kierroksen uudelleen? Nykyiset parit poistetaan ja luodaan uudet edellisen kierroksen tulosten perusteella.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-primary-action" style="background: #dc3545; color: white; width: 100%;">
+                Laske kierros uudelleen
+            </button>
+        </form>
+        {% endif %}
+        {% endif %}
 
         <!-- Progress -->
         {% set completed_count = matches|selectattr('completed')|list|length %}

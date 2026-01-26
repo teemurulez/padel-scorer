@@ -176,6 +176,10 @@ async function confirmAndStartMatch() {
         Object.entries(config).forEach(([key, value]) => {
             formData.append(key, value);
         });
+        // Add CSRF token
+        if (typeof CSRF_TOKEN !== 'undefined') {
+            formData.append('csrf_token', CSRF_TOKEN);
+        }
 
         const response = await fetch(window.location.pathname, {
             method: 'POST',

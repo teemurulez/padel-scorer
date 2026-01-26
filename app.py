@@ -156,6 +156,56 @@ def get_player(player_id):
         'last_name': f'Player {player_id}]'
     }
 
+def get_result_correction_scenario(match_id, db):
+    """
+    Determine if a match result can be safely edited.
+
+    Returns dict with:
+        - scenario: 1 (safe to edit) or 2 (next round exists)
+        - can_edit: boolean (True for scenario 1, False for scenario 2 unless admin)
+        - next_round_id: ID of next round if scenario 2
+        - message: Warning text for user (Finnish)
+    """
+    # Get match and round info
+    match = db.execute(
+        '''SELECT m.*, r.tournament_id, r.round_number
+           FROM matches m
+           JOIN rounds r ON m.round_id = r.id
+           WHERE m.id = ?''',
+        (match_id,)
+    ).fetchone()
+
+    if not match:
+        return {'scenario': None, 'can_edit': False, 'message': 'Ottelua ei löydy'}
+
+    # Check if next round exists
+    next_round = db.execute(
+        '''SELECT id, round_number FROM rounds
+           WHERE tournament_id = ? AND round_number = ?''',
+        (match['tournament_id'], match['round_number'] + 1)
+    ).fetchone()
+
+    if next_round:
+        # Scenario 2: Next round exists
+        return {
+            'scenario': 2,
+            'can_edit': False,
+            'next_round_id': next_round['id'],
+            'current_round_id': match['round_id'],
+            'tournament_id': match['tournament_id'],
+            'message': 'Seuraava kierros on jo alkanut. Tuloksen muuttaminen vaatii kierroksen uudelleenlaskemisen.'
+        }
+    else:
+        # Scenario 1: Safe to edit
+        return {
+            'scenario': 1,
+            'can_edit': True,
+            'next_round_id': None,
+            'current_round_id': match['round_id'],
+            'tournament_id': match['tournament_id'],
+            'message': None
+        }
+
 def validate_round1_pairings(tournament_id, pairings, db):
     """
     Validate custom Round 1 pairings before saving.
@@ -802,21 +852,13 @@ def confirm_match_teams(tournament_id, round_id, court_number):
         flash('Match not found')
         return redirect(url_for('index'))
 
-    # Check if match already completed
+    # Check if match already completed - allow editing in scenario 1 (no next round)
     if match['completed']:
-        flash("This match has already been completed.")
-        return redirect(url_for('leaderboard', tournament_id=tournament_id))
-
-    # Check if scores already entered (prevent shuffle after scoring starts)
-    existing_scores = db.execute(
-        'SELECT COUNT(*) as count FROM scores WHERE match_id = ?',
-        (match['id'],)
-    ).fetchone()
-
-    if existing_scores['count'] > 0:
-        flash("Match already in progress. Team shuffling not available.")
-        # Redirect to active tournament scoring
-        return redirect(url_for('active_tournament', tournament_id=tournament_id))
+        correction_scenario = get_result_correction_scenario(match['id'], db)
+        if correction_scenario['scenario'] == 2 and not session.get('logged_in_as_admin'):
+            flash(correction_scenario['message'])
+            return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
+        # Scenario 1 or admin: allow editing teams
 
     # Get player details
     players = {
@@ -901,12 +943,58 @@ def active_round(tournament_id, round_id):
     # Check if all matches are completed
     all_completed = all(match['completed'] for match in matches)
 
+    # Check if user is admin
+    is_admin = session.get('logged_in_as_admin', False)
+
+    # Get all rounds for this tournament (for admin navigation)
+    all_rounds = []
+    if is_admin:
+        all_rounds = db.execute(
+            'SELECT id, round_number FROM rounds WHERE tournament_id = ? ORDER BY round_number',
+            (tournament_id,)
+        ).fetchall()
+
+    # Check if previous round was edited after this round started (needs recalculation)
+    needs_recalculation = False
+    if is_admin and round_data['round_number'] > 1:
+        # Get the most recent result correction for previous round (after this round was created)
+        last_correction = db.execute(
+            '''SELECT MAX(changed_at) as last_changed FROM tournament_edit_history
+               WHERE tournament_id = ?
+               AND change_type = 'result_corrected'
+               AND changed_at > ?
+               AND json_extract(change_data, '$.round_id') = (
+                   SELECT id FROM rounds WHERE tournament_id = ? AND round_number = ?
+               )''',
+            (tournament_id, round_data['created_at'], tournament_id, round_data['round_number'] - 1)
+        ).fetchone()
+
+        if last_correction and last_correction['last_changed']:
+            # Check if this round was recalculated after the last correction
+            last_recalc = db.execute(
+                '''SELECT MAX(changed_at) as last_changed FROM tournament_edit_history
+                   WHERE tournament_id = ?
+                   AND change_type = 'round_recalculated'
+                   AND json_extract(change_data, '$.round_id') = ?''',
+                (tournament_id, round_id)
+            ).fetchone()
+
+            if last_recalc and last_recalc['last_changed']:
+                # Needs recalculation only if correction is newer than last recalc
+                needs_recalculation = last_correction['last_changed'] > last_recalc['last_changed']
+            else:
+                # No recalculation done yet, so needs it
+                needs_recalculation = True
+
     return render_template('active_round.html',
                           tournament_id=tournament_id,
                           tournament=tournament,
                           round_data=round_data,
                           matches=matches,
-                          all_completed=all_completed)
+                          all_completed=all_completed,
+                          is_admin=is_admin,
+                          all_rounds=all_rounds,
+                          needs_recalculation=needs_recalculation)
 
 @app.route('/match/<int:match_id>/score', methods=['GET', 'POST'])
 def score_entry(match_id):
@@ -930,6 +1018,18 @@ def score_entry(match_id):
     if tournament and tournament['status'] == 'completed':
         flash('Turnaus on päättynyt')
         return redirect(url_for('index'))
+
+    # Check if editing completed match - detect scenario
+    is_editing = match['completed']
+    correction_scenario = None
+    if is_editing:
+        correction_scenario = get_result_correction_scenario(match_id, db)
+        # Scenario 2: Block regular users if next round has started
+        if correction_scenario['scenario'] == 2 and not session.get('logged_in_as_admin'):
+            flash(correction_scenario['message'])
+            return redirect(url_for('active_round',
+                                   tournament_id=match['tournament_id'],
+                                   round_id=match['round_id']))
 
     # Get player details using helper function (Phase 3 compatible)
     match = dict(match)
@@ -964,6 +1064,21 @@ def score_entry(match_id):
 
         if match['completed']:
             # Update existing scores
+            old_winning_team = match['winning_team']
+
+            # Log the correction to audit history
+            db.execute(
+                '''INSERT INTO tournament_edit_history (tournament_id, change_type, change_data)
+                   VALUES (?, ?, ?)''',
+                (match['tournament_id'], 'result_corrected', json.dumps({
+                    'match_id': match_id,
+                    'court_number': match['court_number'],
+                    'round_id': match['round_id'],
+                    'old_winning_team': old_winning_team,
+                    'new_winning_team': winning_team
+                }))
+            )
+
             # Delete old scores and insert new ones
             db.execute('DELETE FROM scores WHERE match_id = ?', (match_id,))
             for player_id in winner_ids:
@@ -993,7 +1108,7 @@ def score_entry(match_id):
                                tournament_id=match['tournament_id'],
                                round_id=match['round_id']))
 
-    return render_template('score_entry.html', match=match)
+    return render_template('score_entry.html', match=match, is_editing=is_editing)
 
 @app.route('/tournament/<int:tournament_id>/end', methods=['POST'])
 def end_tournament(tournament_id):
@@ -3247,6 +3362,108 @@ def admin_delete_tournament(tournament_id):
         flash(f'Error deleting tournament: {str(e)}')
 
     return redirect('/admin')
+
+
+@app.route('/admin/tournament/<int:tournament_id>/round/<int:round_id>/recalculate', methods=['POST'])
+def admin_recalculate_round(tournament_id, round_id):
+    """
+    Recalculate round pairings based on previous round results (ADMIN only).
+    Used when previous round result was corrected after this round started.
+    """
+    if not session.get('logged_in_as_admin'):
+        flash('Vain ylläpitäjä voi laskea kierroksen uudelleen.')
+        return redirect(url_for('index'))
+
+    db = get_db_connection()
+
+    # Get round info
+    round_data = db.execute(
+        'SELECT * FROM rounds WHERE id = ? AND tournament_id = ?',
+        (round_id, tournament_id)
+    ).fetchone()
+
+    if not round_data:
+        flash('Kierrosta ei löydy.')
+        return redirect(url_for('admin_dashboard'))
+
+    # Can't recalculate round 1 (no previous round)
+    if round_data['round_number'] == 1:
+        flash('Ensimmäistä kierrosta ei voi laskea uudelleen.')
+        return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
+
+    # Check that all matches in this round are incomplete (not started)
+    matches = db.execute(
+        'SELECT * FROM matches WHERE round_id = ?',
+        (round_id,)
+    ).fetchall()
+
+    completed_matches = [m for m in matches if m['completed']]
+    if completed_matches:
+        flash('Kierroksella on jo tuloksia. Vain aloittamattoman kierroksen voi laskea uudelleen.')
+        return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
+
+    # Get previous round matches
+    previous_round = db.execute(
+        'SELECT * FROM rounds WHERE tournament_id = ? AND round_number = ?',
+        (tournament_id, round_data['round_number'] - 1)
+    ).fetchone()
+
+    if not previous_round:
+        flash('Edellistä kierrosta ei löydy.')
+        return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
+
+    previous_matches = db.execute(
+        'SELECT * FROM matches WHERE round_id = ?',
+        (previous_round['id'],)
+    ).fetchall()
+
+    # Convert to list of dicts
+    previous_matches = [dict(m) for m in previous_matches]
+
+    # Get number of courts
+    tournament = db.execute(
+        'SELECT num_courts FROM tournaments WHERE id = ?',
+        (tournament_id,)
+    ).fetchone()
+    num_courts = tournament['num_courts']
+
+    try:
+        # Generate new pairings
+        new_pairings = generate_next_round_pairings(previous_matches, num_courts)
+
+        # Delete current round matches (and their scores just in case)
+        for match in matches:
+            db.execute('DELETE FROM scores WHERE match_id = ?', (match['id'],))
+        db.execute('DELETE FROM matches WHERE round_id = ?', (round_id,))
+
+        # Create new matches
+        for court_idx, players in enumerate(new_pairings):
+            db.execute(
+                '''INSERT INTO matches
+                   (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
+                   VALUES (?, ?, ?, ?, ?, ?)''',
+                (round_id, court_idx + 1, players[0], players[1], players[2], players[3])
+            )
+
+        # Log the recalculation
+        db.execute(
+            '''INSERT INTO tournament_edit_history (tournament_id, change_type, change_data)
+               VALUES (?, ?, ?)''',
+            (tournament_id, 'round_recalculated', json.dumps({
+                'round_id': round_id,
+                'round_number': round_data['round_number'],
+                'reason': 'Previous round result corrected'
+            }))
+        )
+
+        db.commit()
+        flash(f'Kierros {round_data["round_number"]} laskettu uudelleen edellisen kierroksen tulosten perusteella.')
+
+    except ValueError as e:
+        db.rollback()
+        flash(f'Virhe kierroksen laskemisessa: {str(e)}')
+
+    return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
 
 
 @app.route('/admin/logout', methods=['POST'])
