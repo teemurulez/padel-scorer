@@ -1,10 +1,10 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-01-23
+> **Last updated:** 2026-01-26
 
 ## Project Status
 
-The app is **production-ready** with security hardening complete. Core features work well. All 173 tests pass.
+The app is **production-ready** with security hardening complete. Core features work well. All 187 tests pass.
 
 ## Completed Items
 
@@ -18,18 +18,31 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Player points editing in admin (done 2026-01-23)
 - [x] Clickable logo/title navigation (done 2026-01-23)
 - [x] Medal emojis in standings (done 2026-01-23)
+- [x] Railway deployment configuration (done 2026-01-24)
+- [x] Match result correction feature (done 2026-01-26)
+
+## Known Issues (Needs Fixing)
+
+### 1. Mobile Drag Feedback Not Visible
+**Priority:** Medium
+**Location:** Public view team editing
+**Problem:** When dragging players to edit teams on mobile, there's no visual feedback showing the drag is active. This makes the interaction confusing.
+**Possible solutions:**
+- Add CSS touch-action and drag styles
+- Highlight the dragged element
+- Show a ghost/shadow effect during drag
 
 ## Next Steps
 
-### 1. Production Deployment (PythonAnywhere)
+### 1. Production Deployment
 
-See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** for step-by-step guide.
+**Railway (configured):**
+- `runtime.txt` - Python 3.10.12
+- `Procfile` - gunicorn web server
+- Set `SECRET_KEY` environment variable in Railway dashboard
 
-- [ ] Create PythonAnywhere account
-- [ ] Upload code and set up virtual environment
-- [ ] Configure web app and WSGI file
-- [ ] Set `SECRET_KEY` environment variable
-- [ ] Test the live app
+**Alternative: PythonAnywhere**
+- See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** for step-by-step guide.
 
 ### 2. Optional Improvements
 
@@ -38,8 +51,35 @@ See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** f
 - Consider database connection pooling
 
 **UX Ideas:**
-- Mobile-optimized views
 - Real-time score updates (WebSocket)
+
+## Recent Changes (2026-01-26)
+
+**Match Result Correction Feature:**
+- Scenario detection: blocks regular users when next round started, allows admin
+- Admin recalculate round: regenerates pairings based on corrected results
+- Red warning banner when previous round was edited
+- Round navigation for admins (switch between rounds)
+- Yellow background indicator for admin mode
+- Info banner showing current winner when editing
+- Audit logging for all result corrections
+
+**Bug Fixes:**
+- Fixed CSRF token missing in team shuffle form
+
+**Testing:**
+- Added 16 new tests for result correction feature
+- Test count: 173 → 187
+
+---
+
+## Recent Changes (2026-01-24)
+
+**Deployment:**
+- Added Railway deployment configuration (runtime.txt, Procfile)
+- Project ready for cloud deployment
+
+---
 
 ## Recent Changes (2026-01-23)
 
