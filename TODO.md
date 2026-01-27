@@ -23,6 +23,7 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Mobile drag feedback with floating clone (done 2026-01-27)
 - [x] Demo mode for admin (done 2026-01-27)
 - [x] Content-Security-Policy headers with nonces (done 2026-01-27)
+- [x] Database connection management cleanup (done 2026-01-27)
 
 ## Next Steps
 
@@ -39,7 +40,7 @@ The app is **production-ready** with security hardening complete. Core features 
 ### 2. Optional Improvements
 
 **Additional Security (lower priority):**
-- Consider database connection pooling
+- (Database connection management fixed 2026-01-27)
 
 **UX Ideas:**
 - Real-time score updates (WebSocket)
@@ -63,6 +64,10 @@ The app is **production-ready** with security hardening complete. Core features 
 - Strict CSP with nonces for inline scripts
 - Prevents XSS and unauthorized script execution
 - Unique nonce generated per request
+
+**Database Connection Cleanup:**
+- All routes now use `get_db_connection()` consistently
+- Connections properly closed at request end via Flask's `g` object
 
 ---
 
