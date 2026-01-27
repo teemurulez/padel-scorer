@@ -1,6 +1,6 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-01-26
+> **Last updated:** 2026-01-27
 
 ## Project Status
 
@@ -20,17 +20,13 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Medal emojis in standings (done 2026-01-23)
 - [x] Railway deployment configuration (done 2026-01-24)
 - [x] Match result correction feature (done 2026-01-26)
+- [x] Mobile drag feedback with floating clone (done 2026-01-27)
 
-## Known Issues (Needs Fixing)
+## In Progress
 
-### 1. Mobile Drag Feedback Not Visible
-**Priority:** Medium
-**Location:** Public view team editing
-**Problem:** When dragging players to edit teams on mobile, there's no visual feedback showing the drag is active. This makes the interaction confusing.
-**Possible solutions:**
-- Add CSS touch-action and drag styles
-- Highlight the dragged element
-- Show a ghost/shadow effect during drag
+### Demo Mode for Admin
+Read-only admin mode for showing the app to friends. Users log in with a demo password and can explore admin features, but all write operations are blocked.
+- See `docs/plans/2026-01-27-demo-mode-design.md`
 
 ## Next Steps
 
@@ -52,6 +48,20 @@ The app is **production-ready** with security hardening complete. Core features 
 
 **UX Ideas:**
 - Real-time score updates (WebSocket)
+
+## Recent Changes (2026-01-27)
+
+**Mobile Drag Feedback:**
+- Added floating clone that follows finger when dragging players
+- Original slot shows faded placeholder during drag
+- Drop targets highlighted with dashed border
+- Team cards centered and wider on mobile (95% width)
+- Fixed missing shuffle.css link in template
+
+**In Progress:**
+- Demo mode for admin (read-only access for demos)
+
+---
 
 ## Recent Changes (2026-01-26)
 
