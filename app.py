@@ -488,7 +488,7 @@ def get_tournament_leaderboard(tournament_id):
 @app.route('/')
 def index():
     """Home page - smart entry point for scorekeepers/players"""
-    db = get_db()
+    db = get_db_connection()
 
     # Query active tournaments
     active_tournaments = db.execute(
@@ -2105,7 +2105,7 @@ def create_player():
         flash("First name and last name are required")
         return redirect(request.referrer or '/')
 
-    db = get_db()
+    db = get_db_connection()
 
     # Check for duplicate
     existing = db.execute(
@@ -2131,7 +2131,7 @@ def create_player():
 @app.route('/players')
 def players_list():
     """Show all players in registry"""
-    db = get_db()
+    db = get_db_connection()
     players = db.execute("""
         SELECT
             pr.id,
@@ -2157,7 +2157,7 @@ def players_list():
 @app.route('/admin/setup', methods=['GET', 'POST'])
 def admin_setup():
     """First-run admin setup page"""
-    db = get_db()
+    db = get_db_connection()
 
     # Check if admin already exists
     admin = db.execute('SELECT id FROM admin_users LIMIT 1').fetchone()
@@ -2195,7 +2195,7 @@ def admin_setup():
 @limiter.limit("5 per minute", methods=["POST"])  # Brute force protection
 def admin_login():
     """Admin login page"""
-    db = get_db()
+    db = get_db_connection()
 
     # Check if admin exists, redirect to setup if not
     admin = db.execute('SELECT id FROM admin_users LIMIT 1').fetchone()
@@ -2238,7 +2238,7 @@ def admin_login():
 @block_in_demo_mode
 def admin_end_current_season():
     """End the current season without creating a new one (ADMIN)"""
-    db = get_db()
+    db = get_db_connection()
 
     current_season = get_current_season(db)
     if not current_season:
@@ -2269,7 +2269,7 @@ def admin_end_current_season():
 @block_in_demo_mode
 def admin_create_season():
     """Create a new season and make it current (ADMIN)"""
-    db = get_db()
+    db = get_db_connection()
     season_name = request.form.get('season_name', '').strip()
 
     # Validation
@@ -2317,7 +2317,7 @@ def admin_create_season():
 @block_in_demo_mode
 def admin_activate_season(season_id):
     """Reactivate an archived season as the current season (ADMIN)"""
-    db = get_db()
+    db = get_db_connection()
 
     season = db.execute(
         "SELECT * FROM seasons WHERE id = ?", (season_id,)
@@ -2347,7 +2347,7 @@ def admin_activate_season(season_id):
 @app.route('/admin')
 def admin_dashboard():
     """Admin dashboard main page with season management"""
-    db = get_db()
+    db = get_db_connection()
 
     # Check if we should keep a tournament edit form open
     edit_tournament_id = request.args.get('edit', type=int)
@@ -2434,7 +2434,7 @@ def admin_dashboard():
 @app.route('/admin/export/season-standings.csv')
 def admin_export_season_standings():
     """Export current season standings as CSV for Google Sheets"""
-    db = get_db()
+    db = get_db_connection()
 
     current_season = get_current_season(db)
     if not current_season:
@@ -2498,7 +2498,7 @@ def admin_export_season_standings():
 @app.route('/admin/export/database.json')
 def admin_export_database_json():
     """Export entire database as JSON backup"""
-    db = get_db()
+    db = get_db_connection()
 
     # Define tables to export (excluding admin_users for security)
     tables = [
@@ -2546,7 +2546,7 @@ def admin_export_database_json():
 @block_in_demo_mode
 def admin_restore_database():
     """Restore database from JSON backup"""
-    db = get_db()
+    db = get_db_connection()
 
     # Check if file was uploaded
     if 'backup_file' not in request.files:
@@ -2659,7 +2659,7 @@ def admin_restore_database():
 @app.route('/admin/players')
 def admin_players():
     """Admin players tab - view and edit player season points"""
-    db = get_db()
+    db = get_db_connection()
 
     # Get current season
     current_season = get_current_season(db)
@@ -2737,7 +2737,7 @@ def admin_players():
 @block_in_demo_mode
 def admin_edit_player_points(player_id):
     """Edit player season points (admin only)"""
-    db = get_db()
+    db = get_db_connection()
 
     current_season = get_current_season(db)
     if not current_season:
@@ -3579,7 +3579,7 @@ with app.app_context():
         print("✅ Seasons schema migration completed")
 
     # Add version column to matches table for concurrency control
-    db = get_db()
+    db = get_db_connection()
     cursor = db.execute("PRAGMA table_info(matches)")
     columns = [row[1] for row in cursor.fetchall()]
     if 'version' not in columns:
