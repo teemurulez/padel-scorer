@@ -197,8 +197,8 @@
         <input type="hidden" name="round1_pairings" id="form-pairings">
     </form>
 
-    <script src="{{ url_for('static', filename='js/tournament_edit.js') }}"></script>
-    <script>
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/tournament_edit.js') }}"></script>
+    <script nonce="{{ csp_nonce }}">
         // Initialize with tournament data
         const tournamentId = {{ tournament.id }};
         const numCourts = {{ tournament.num_courts }};

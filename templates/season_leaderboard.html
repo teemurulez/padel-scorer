@@ -437,7 +437,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         function toggleTournament(tournamentId) {
             const details = document.getElementById('tournament-' + tournamentId);
             const icon = document.getElementById('icon-' + tournamentId);

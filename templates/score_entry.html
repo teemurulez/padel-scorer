@@ -254,7 +254,7 @@
                class="btn-secondary-action">← Takaisin</a>
         </form>
 
-        <script>
+        <script nonce="{{ csp_nonce }}">
             function showOfflineWarning() {
                 if (!navigator.onLine) {
                     alert('Ei verkkoyhteyttä. Tarkista yhteys ja yritä uudelleen.');

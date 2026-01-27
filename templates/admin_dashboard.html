@@ -337,7 +337,7 @@
     </main>
 
     <!-- Tab Switching JavaScript -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
         // Tab switching functionality
         document.addEventListener('DOMContentLoaded', function() {
             const tabButtons = document.querySelectorAll('.tab-btn');

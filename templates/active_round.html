@@ -433,7 +433,7 @@
                 {% endif %}
             </form>
             {% if all_completed %}
-            <script>
+            <script nonce="{{ csp_nonce }}">
                 document.getElementById('nextRoundForm').addEventListener('submit', async function(e) {
                     e.preventDefault();
                     const form = e.target;

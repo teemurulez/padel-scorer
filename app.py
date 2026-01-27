@@ -24,6 +24,8 @@ For deployment instructions, see docs/PYTHONANYWHERE_DEPLOYMENT.md
 from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify, abort, Response
 import csv
 import io
+import secrets
+import base64
 from functools import wraps
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -142,6 +144,37 @@ def check_admin_session():
 
         # Update last activity
         session['last_activity'] = datetime.now().isoformat()
+
+
+@app.before_request
+def generate_csp_nonce():
+    """Generate a unique nonce for Content-Security-Policy on each request"""
+    g.csp_nonce = base64.b64encode(secrets.token_bytes(16)).decode('utf-8')
+
+
+@app.after_request
+def add_security_headers(response):
+    """Add Content-Security-Policy and other security headers"""
+    # Only add CSP to HTML responses
+    if response.content_type and 'text/html' in response.content_type:
+        nonce = getattr(g, 'csp_nonce', '')
+        csp = (
+            f"default-src 'self'; "
+            f"script-src 'self' 'nonce-{nonce}'; "
+            f"style-src 'self' 'unsafe-inline'; "
+            f"img-src 'self' data:; "
+            f"form-action 'self'; "
+            f"frame-ancestors 'none'"
+        )
+        response.headers['Content-Security-Policy'] = csp
+    return response
+
+
+@app.context_processor
+def inject_csp_nonce():
+    """Make csp_nonce available in all templates"""
+    return {'csp_nonce': getattr(g, 'csp_nonce', '')}
+
 
 def get_player(player_id):
     """
