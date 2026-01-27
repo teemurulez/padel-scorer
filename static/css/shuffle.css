@@ -67,6 +67,8 @@ header h2 {
     min-height: 60px;
     transition: all 0.2s ease;
     border: 2px solid #2196F3;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
 }
 
 .player-slot:hover {
@@ -76,8 +78,40 @@ header h2 {
 }
 
 .player-slot.dragging {
-    opacity: 0.5;
-    transform: scale(0.95);
+    background: #2196F3;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 8px 20px rgba(33, 150, 243, 0.4);
+    z-index: 100;
+    animation: pulse-drag 0.8s ease-in-out infinite;
+}
+
+.player-slot.dragging .player-name {
+    color: white;
+}
+
+.player-slot.dragging .drag-handle {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.player-slot.drop-target {
+    background: #E3F2FD;
+    border-color: #1976D2;
+    border-style: dashed;
+    transform: scale(1.02);
+}
+
+.player-slot.drop-target-hover {
+    background: #BBDEFB;
+    border-color: #1565C0;
+    border-style: solid;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(21, 101, 192, 0.3);
+}
+
+@keyframes pulse-drag {
+    0%, 100% { box-shadow: 0 8px 20px rgba(33, 150, 243, 0.4); }
+    50% { box-shadow: 0 8px 30px rgba(33, 150, 243, 0.6); }
 }
 
 .player-slot.swapped {

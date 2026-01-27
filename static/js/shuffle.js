@@ -28,6 +28,7 @@ class TeamShuffler {
     handleDragStart(e) {
         this.draggedElement = e.target.closest('.player-slot');
         this.draggedElement.classList.add('dragging');
+        this.highlightDropTargets(true);
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/html', this.draggedElement.innerHTML);
     }
@@ -35,6 +36,13 @@ class TeamShuffler {
     handleDragOver(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+        const targetSlot = e.target.closest('.player-slot');
+        // Update hover state for desktop
+        this.playerSlots.forEach(slot => {
+            if (slot !== this.draggedElement) {
+                slot.classList.toggle('drop-target-hover', slot === targetSlot);
+            }
+        });
         return false;
     }
 
@@ -54,18 +62,29 @@ class TeamShuffler {
     handleDragEnd(e) {
         this.draggedElement.classList.remove('dragging');
         this.draggedElement = null;
+        this.highlightDropTargets(false);
     }
 
     // Mobile Touch Handlers
     handleTouchStart(e) {
         this.draggedElement = e.target.closest('.player-slot');
         this.draggedElement.classList.add('dragging');
+        this.highlightDropTargets(true);
         e.preventDefault();
     }
 
     handleTouchMove(e) {
         e.preventDefault();
-        // Optional: show visual feedback of drag position
+        // Update drop target highlight based on finger position
+        const touch = e.touches[0];
+        const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+        const targetSlot = targetElement?.closest('.player-slot');
+
+        this.playerSlots.forEach(slot => {
+            if (slot !== this.draggedElement) {
+                slot.classList.toggle('drop-target-hover', slot === targetSlot);
+            }
+        });
     }
 
     handleTouchEnd(e) {
@@ -81,6 +100,17 @@ class TeamShuffler {
             this.draggedElement.classList.remove('dragging');
             this.draggedElement = null;
         }
+        this.highlightDropTargets(false);
+    }
+
+    // Highlight/unhighlight potential drop targets
+    highlightDropTargets(show) {
+        this.playerSlots.forEach(slot => {
+            if (slot !== this.draggedElement) {
+                slot.classList.toggle('drop-target', show);
+            }
+            slot.classList.remove('drop-target-hover');
+        });
     }
 
     // Core Swap Logic
