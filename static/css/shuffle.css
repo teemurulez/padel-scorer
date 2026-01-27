@@ -78,20 +78,17 @@ header h2 {
 }
 
 .player-slot.dragging {
-    background: #2196F3;
-    color: white;
-    transform: scale(1.05);
-    box-shadow: 0 8px 20px rgba(33, 150, 243, 0.4);
-    z-index: 100;
-    animation: pulse-drag 0.8s ease-in-out infinite;
+    background: #E3F2FD;
+    border: 2px dashed #90CAF9;
+    opacity: 0.5;
 }
 
 .player-slot.dragging .player-name {
-    color: white;
+    color: #90CAF9;
 }
 
 .player-slot.dragging .drag-handle {
-    color: rgba(255, 255, 255, 0.8);
+    color: #90CAF9;
 }
 
 .player-slot.drop-target {
@@ -112,6 +109,27 @@ header h2 {
 @keyframes pulse-drag {
     0%, 100% { box-shadow: 0 8px 20px rgba(33, 150, 243, 0.4); }
     50% { box-shadow: 0 8px 30px rgba(33, 150, 243, 0.6); }
+}
+
+/* Floating clone that follows finger on mobile */
+.floating-clone {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    background: #2196F3;
+    border: 2px solid #1565C0;
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(33, 150, 243, 0.5);
+    transform: scale(1.05) rotate(2deg);
+    opacity: 0.95;
+}
+
+.floating-clone .player-name {
+    color: white;
+}
+
+.floating-clone .drag-handle {
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .player-slot.swapped {
@@ -176,7 +194,13 @@ header h2 {
 @media (max-width: 600px) {
     .teams-container {
         flex-direction: column;
+        align-items: center;
         gap: 10px;
+    }
+
+    .team-box {
+        width: 95%;
+        max-width: 400px;
     }
 
     .vs-divider {

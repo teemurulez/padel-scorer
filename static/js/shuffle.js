@@ -5,6 +5,9 @@ class TeamShuffler {
     constructor() {
         this.playerSlots = document.querySelectorAll('.player-slot');
         this.draggedElement = null;
+        this.floatingClone = null;
+        this.touchOffsetX = 0;
+        this.touchOffsetY = 0;
         this.originalConfiguration = this.saveConfiguration();
         this.initDragAndDrop();
     }
@@ -70,14 +73,43 @@ class TeamShuffler {
         this.draggedElement = e.target.closest('.player-slot');
         this.draggedElement.classList.add('dragging');
         this.highlightDropTargets(true);
+
+        // Create floating clone
+        const touch = e.touches[0];
+        const rect = this.draggedElement.getBoundingClientRect();
+        this.touchOffsetX = touch.clientX - rect.left;
+        this.touchOffsetY = touch.clientY - rect.top;
+
+        this.floatingClone = this.draggedElement.cloneNode(true);
+        this.floatingClone.classList.remove('dragging');
+        this.floatingClone.classList.add('floating-clone');
+        this.floatingClone.style.width = rect.width + 'px';
+        this.floatingClone.style.left = (touch.clientX - this.touchOffsetX) + 'px';
+        this.floatingClone.style.top = (touch.clientY - this.touchOffsetY) + 'px';
+        document.body.appendChild(this.floatingClone);
+
         e.preventDefault();
     }
 
     handleTouchMove(e) {
         e.preventDefault();
-        // Update drop target highlight based on finger position
         const touch = e.touches[0];
+
+        // Move floating clone
+        if (this.floatingClone) {
+            this.floatingClone.style.left = (touch.clientX - this.touchOffsetX) + 'px';
+            this.floatingClone.style.top = (touch.clientY - this.touchOffsetY) + 'px';
+        }
+
+        // Update drop target highlight based on finger position
+        // Temporarily hide clone to find element underneath
+        if (this.floatingClone) {
+            this.floatingClone.style.display = 'none';
+        }
         const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (this.floatingClone) {
+            this.floatingClone.style.display = '';
+        }
         const targetSlot = targetElement?.closest('.player-slot');
 
         this.playerSlots.forEach(slot => {
@@ -89,6 +121,11 @@ class TeamShuffler {
 
     handleTouchEnd(e) {
         const touch = e.changedTouches[0];
+
+        // Hide clone to find element underneath
+        if (this.floatingClone) {
+            this.floatingClone.style.display = 'none';
+        }
         const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
         const targetSlot = targetElement?.closest('.player-slot');
 
@@ -96,6 +133,11 @@ class TeamShuffler {
             this.swapPlayers(this.draggedElement, targetSlot);
         }
 
+        // Clean up
+        if (this.floatingClone) {
+            this.floatingClone.remove();
+            this.floatingClone = null;
+        }
         if (this.draggedElement) {
             this.draggedElement.classList.remove('dragging');
             this.draggedElement = null;
