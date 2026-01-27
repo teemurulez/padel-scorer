@@ -2,7 +2,7 @@
 
 ## Overview
 
-Fixed mobile drag feedback with floating clone approach. Started implementing demo mode for admin.
+Major productivity day: mobile drag feedback, demo mode, CSP headers, SSE live updates, and bulk import feature for player points from external tournaments.
 
 ## Completed Tasks
 
@@ -48,7 +48,9 @@ Implemented strict CSP with nonces for XSS protection:
 - Unique nonce generated per request via `@app.before_request`
 - CSP header added via `@app.after_request`
 - Context processor injects nonce into all templates
-- Updated 9 script tags with `nonce="{{ csp_nonce }}"`
+- Updated all script tags with `nonce="{{ csp_nonce }}"`
+- Removed all inline `onclick`, `onchange`, `onsubmit` handlers
+- Replaced with event delegation in nonced script blocks
 
 **Policy:**
 ```
@@ -76,10 +78,44 @@ Implemented Server-Sent Events for real-time score updates on active round page:
 - `templates/active_round.html` - EventSource client, partial include
 - `templates/_matches_partial.html` - New partial for matches section
 
+### Bulk Import Player Points
+Added feature to import player wins and tournament counts from external tournaments (e.g., Excel):
+
+- Button "Tuo puuttuvat pisteet" in Players tab
+- Modal with textarea for pasting Excel data (Name, Wins, Tournaments columns)
+- Preview table showing parsed data and player status (new/existing)
+- Case-insensitive player matching
+- Points and tournaments added to existing totals (not replaced)
+- Creates new players in registry if needed
+- Players with 0 wins are now imported (added to registry)
+- Disabled button styling for import confirm button
+
+**Database Changes:**
+- Added `tournaments_adjustment` column to `player_points_adjustment` table
+- Updated admin dashboard query to include imported tournaments in totals
+
+**Files Changed:**
+- `app.py` - POST `/admin/players/import-points` endpoint with tournaments support
+- `database.py` - Schema and migration for tournaments_adjustment
+- `templates/admin_dashboard.html` - Modal, JavaScript functions, CSP-compliant event handlers
+- `static/css/admin.css` - Disabled button styling
+
+**Tests:**
+- 8 new tests covering import functionality
+
 ## Test Results
 
-- 187 tests passing
+- 195 tests passing
 - 3 skipped (expected)
+
+## Restore Points Created
+
+- `instance/padel_backup_before_import_test.db` - Before clearing for import testing
+- `instance/padel_restore_point_2026-01-27_imported_data.db` - Real data with 32 players, 127 wins, 32 tournaments
+
+## Known Issues
+
+- Season standings page not working when only imported points exist (no tournament matches)
 
 ## Commits
 

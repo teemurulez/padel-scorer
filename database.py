@@ -256,6 +256,7 @@ def init_db():
             player_id INTEGER NOT NULL,
             season_id INTEGER NOT NULL,
             adjustment INTEGER DEFAULT 0,
+            tournaments_adjustment INTEGER DEFAULT 0,
             note TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -264,6 +265,12 @@ def init_db():
             UNIQUE(player_id, season_id)
         )
     ''')
+
+    # Migration: add tournaments_adjustment column if missing
+    cursor.execute("PRAGMA table_info(player_points_adjustment)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'tournaments_adjustment' not in columns:
+        cursor.execute("ALTER TABLE player_points_adjustment ADD COLUMN tournaments_adjustment INTEGER DEFAULT 0")
 
     # Tournament edit history table (for tracking changes across edit sessions)
     cursor.execute('''

@@ -2514,29 +2514,31 @@ def admin_dashboard():
 
         # Fetch players with season wins for Players tab
         # Counts wins, tournaments, matches, calculates averages, and includes point adjustments
+        # Includes players who have adjustments even if they haven't played matches
         players = db.execute('''
             SELECT
                 pr.id,
                 pr.first_name,
                 pr.last_name,
                 COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
-                COUNT(DISTINCT t.id) as tournaments_played,
+                COUNT(DISTINCT t.id) + COALESCE(adj.tournaments_adjustment, 0) as tournaments_played,
                 COUNT(DISTINCT m.id) as matches_played,
-                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
-                      NULLIF(COUNT(DISTINCT t.id), 0), 2) as wins_per_tournament,
+                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) AS FLOAT) /
+                      NULLIF(COUNT(DISTINCT t.id) + COALESCE(adj.tournaments_adjustment, 0), 0), 2) as wins_per_tournament,
                 ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                       NULLIF(COUNT(DISTINCT m.id), 0), 2) as win_rate,
                 COALESCE(adj.adjustment, 0) as adjustment,
+                COALESCE(adj.tournaments_adjustment, 0) as tournaments_adjustment,
                 COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) as total_points
             FROM player_registry pr
-            LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
-            LEFT JOIN rounds r ON m.round_id = r.id
-            LEFT JOIN tournaments t ON r.tournament_id = t.id
-            LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
             LEFT JOIN player_points_adjustment adj ON (pr.id = adj.player_id AND adj.season_id = ?)
-            WHERE t.season_id = ? AND m.completed = 1
+            LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id) AND m.completed = 1)
+            LEFT JOIN rounds r ON m.round_id = r.id
+            LEFT JOIN tournaments t ON r.tournament_id = t.id AND t.season_id = ?
+            LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+            WHERE adj.adjustment IS NOT NULL OR adj.tournaments_adjustment IS NOT NULL OR t.id IS NOT NULL
             GROUP BY pr.id, pr.first_name, pr.last_name
-            HAVING tournaments_played > 0
+            HAVING total_points > 0 OR tournaments_played > 0
             ORDER BY total_points DESC, wins DESC, win_rate DESC, pr.last_name ASC
         ''', (current_season['id'], current_season['id'])).fetchall()
 
@@ -2909,6 +2911,80 @@ def admin_edit_player_points(player_id):
     flash(f'Pisteet päivitetty: {player["first_name"]} {player["last_name"]} = {new_total}')
 
     return redirect(f'/admin?tab=players&edit_player={player_id}')
+
+
+@app.route('/admin/players/import-points', methods=['POST'])
+@block_in_demo_mode
+def admin_import_player_points():
+    """Bulk import player points from external tournament (admin only)"""
+    db = get_db_connection()
+
+    current_season = get_current_season(db)
+    if not current_season:
+        return jsonify({'success': False, 'error': 'Ei aktiivista kautta'}), 400
+
+    data = request.get_json()
+    if not data or 'players' not in data:
+        return jsonify({'success': False, 'error': 'No players provided'}), 400
+
+    players = data['players']
+    imported_count = 0
+    created_count = 0
+
+    for player_data in players:
+        first_name = player_data.get('firstName', '').strip()
+        last_name = player_data.get('lastName', '').strip()
+        wins = player_data.get('wins', 0)
+        tournaments = player_data.get('tournaments', 0)
+
+        if not first_name or not last_name or wins < 0 or tournaments < 0:
+            continue
+
+        # Check if player exists in registry
+        existing = db.execute('''
+            SELECT id FROM player_registry
+            WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)
+        ''', (first_name, last_name)).fetchone()
+
+        if existing:
+            player_id = existing['id']
+        else:
+            # Create new player in registry
+            cursor = db.execute('''
+                INSERT INTO player_registry (first_name, last_name, created_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', (first_name, last_name))
+            player_id = cursor.lastrowid
+            created_count += 1
+
+        # Get current adjustments (if any)
+        current_adj = db.execute('''
+            SELECT adjustment, tournaments_adjustment FROM player_points_adjustment
+            WHERE player_id = ? AND season_id = ?
+        ''', (player_id, current_season['id'])).fetchone()
+
+        current_adjustment = current_adj['adjustment'] if current_adj else 0
+        current_tournaments = current_adj['tournaments_adjustment'] if current_adj else 0
+        new_adjustment = current_adjustment + wins
+        new_tournaments = current_tournaments + tournaments
+
+        # Insert or update adjustment (add to existing)
+        db.execute('''
+            INSERT INTO player_points_adjustment (player_id, season_id, adjustment, tournaments_adjustment, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(player_id, season_id)
+            DO UPDATE SET adjustment = ?, tournaments_adjustment = ?, updated_at = CURRENT_TIMESTAMP
+        ''', (player_id, current_season['id'], new_adjustment, new_tournaments, new_adjustment, new_tournaments))
+
+        imported_count += 1
+
+    db.commit()
+
+    return jsonify({
+        'success': True,
+        'imported': imported_count,
+        'created': created_count
+    })
 
 
 @app.route('/admin/validate-players', methods=['POST'])

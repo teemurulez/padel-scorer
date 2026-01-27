@@ -4,7 +4,7 @@
 
 ## Project Status
 
-The app is **production-ready** with security hardening complete. Core features work well. All 187 tests pass.
+The app is **production-ready** with security hardening complete. Core features work well. All 195 tests pass.
 
 ## Completed Items
 
@@ -25,10 +25,19 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Content-Security-Policy headers with nonces (done 2026-01-27)
 - [x] Database connection management cleanup (done 2026-01-27)
 - [x] Live score updates via SSE (done 2026-01-27)
+- [x] Bulk import player points from external tournaments (done 2026-01-27)
 
 ## Next Steps
 
-### 1. Production Deployment
+### 1. Bug Fix: Season Standings with Imported Points Only
+
+**Issue:** The season standings page (`/season/standings`) doesn't work when players only have imported points (no tournament match history). The page likely returns an error or shows empty results.
+
+**Root Cause:** The standings query expects players to have participated in tournaments with completed matches. Players with only `player_points_adjustment` records are not included.
+
+**Fix Needed:** Update the season standings query to include players who have point adjustments even without match history, similar to the fix applied to the admin Players tab.
+
+### 2. Production Deployment
 
 **Railway (configured):**
 - `runtime.txt` - Python 3.10.12
@@ -75,6 +84,21 @@ The app is **production-ready** with security hardening complete. Core features 
 - Uses Server-Sent Events (no WebSocket complexity)
 - Auto-reconnects on connection drops
 - Next round button enables automatically when all matches complete
+
+**Bulk Import Player Points:**
+- New feature in Players tab to import wins from external tournaments
+- Paste from Excel (Name, Wins, Tournaments columns)
+- Preview parsed data before importing
+- Adds to existing points and tournaments (doesn't replace)
+- Creates new players if needed
+- Players with 0 wins are imported (added to registry)
+- 8 new tests added (195 total)
+
+**CSP Inline Handler Fixes:**
+- Removed all inline onclick/onchange/onsubmit handlers
+- Replaced with event delegation in nonced script blocks
+- Fixed buttons in admin dashboard (create tournament, import points, player edit)
+- Added disabled button styling for import confirm
 
 ---
 

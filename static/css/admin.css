@@ -346,6 +346,16 @@ body {
     background-color: var(--yellow-hover);
 }
 
+.btn-primary:disabled {
+    background-color: #e0e0e0;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.btn-primary:disabled:hover {
+    background-color: #e0e0e0;
+}
+
 .btn-secondary {
     background-color: var(--bg-surface);
     color: var(--text-primary);
