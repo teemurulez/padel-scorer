@@ -24,15 +24,21 @@ Fixed the issue where there was no visual feedback when dragging players on mobi
 - `static/js/shuffle.js` - Implemented floating clone creation/movement/cleanup
 - `templates/confirm_match.html` - Added missing shuffle.css link
 
-## In Progress
-
 ### Demo Mode for Admin
-Designed read-only admin mode for showing the app to friends:
+Implemented read-only admin mode for showing the app to friends:
 
 - Same login form, separate `DEMO_PASSWORD` env var
-- Banner: "👾 Demo-tila – muutoksia ei tallenneta 👾"
+- Orange banner: "👾 Demo-tila – muutoksia ei tallenneta 👾"
 - `@block_in_demo_mode` decorator blocks all POST/DELETE routes
 - Users can explore but not modify data
+- Flash message shown when action is blocked
+
+**Files Changed:**
+- `config.py` - Added DEMO_PASSWORD config
+- `app.py` - Login handling, decorator, applied to all write routes
+- `static/css/admin.css` - Demo banner styles
+- `templates/admin_dashboard.html` - Demo banner
+- `templates/admin_tournament_edit.html` - Demo banner
 
 Design doc: `docs/plans/2026-01-27-demo-mode-design.md`
 
@@ -46,3 +52,5 @@ Design doc: `docs/plans/2026-01-27-demo-mode-design.md`
 - `d806478` feat: add mobile drag feedback with in-place highlighting
 - `1973a33` feat: improve mobile drag with floating clone
 - `186449c` docs: add demo mode design
+- `763240d` docs: add daily summary and update TODO for 2026-01-27
+- `4dd0b69` feat: add demo mode for admin

@@ -21,12 +21,7 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Railway deployment configuration (done 2026-01-24)
 - [x] Match result correction feature (done 2026-01-26)
 - [x] Mobile drag feedback with floating clone (done 2026-01-27)
-
-## In Progress
-
-### Demo Mode for Admin
-Read-only admin mode for showing the app to friends. Users log in with a demo password and can explore admin features, but all write operations are blocked.
-- See `docs/plans/2026-01-27-demo-mode-design.md`
+- [x] Demo mode for admin (done 2026-01-27)
 
 ## Next Steps
 
@@ -58,8 +53,11 @@ Read-only admin mode for showing the app to friends. Users log in with a demo pa
 - Team cards centered and wider on mobile (95% width)
 - Fixed missing shuffle.css link in template
 
-**In Progress:**
-- Demo mode for admin (read-only access for demos)
+**Demo Mode:**
+- Read-only admin access for demonstrations
+- Set `DEMO_PASSWORD` env var to enable
+- Orange banner shows when in demo mode
+- All write operations blocked with friendly message
 
 ---
 
