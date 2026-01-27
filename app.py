@@ -24,6 +24,7 @@ For deployment instructions, see docs/PYTHONANYWHERE_DEPLOYMENT.md
 from flask import Flask, render_template, request, redirect, url_for, flash, g, session, jsonify, abort, Response
 import csv
 import io
+from functools import wraps
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -35,6 +36,30 @@ from config import Config
 from database import get_db, init_db
 from court_movement import generate_next_round_pairings
 from werkzeug.security import generate_password_hash, check_password_hash
+
+
+def block_in_demo_mode(f):
+    """Decorator to block write operations in demo mode.
+
+    Returns a friendly message instead of executing the function.
+    Works with both AJAX (JSON) and form submissions (redirect with flash).
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('demo_mode'):
+            # Check if this is an AJAX request
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'demo': True,
+                    'message': 'Demo-tila: toimintoa ei suoritettu'
+                }), 200
+            else:
+                flash('👾 Demo-tila: toimintoa ei suoritettu')
+                # Redirect back to referrer or admin page
+                return redirect(request.referrer or '/admin')
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Season Management Helpers
 def get_current_season(db):
@@ -2151,8 +2176,16 @@ def admin_login():
         admin = db.execute('SELECT password_hash FROM admin_users LIMIT 1').fetchone()
 
         if admin and check_password_hash(admin['password_hash'], password):
-            # Set session
+            # Set session for full admin access
             session['logged_in_as_admin'] = True
+            session['demo_mode'] = False
+            session['login_time'] = datetime.now().isoformat()
+            session['last_activity'] = datetime.now().isoformat()
+            return redirect('/admin')
+        elif app.config.get('DEMO_PASSWORD') and password == app.config['DEMO_PASSWORD']:
+            # Demo mode: read-only admin access
+            session['logged_in_as_admin'] = True
+            session['demo_mode'] = True
             session['login_time'] = datetime.now().isoformat()
             session['last_activity'] = datetime.now().isoformat()
             return redirect('/admin')
@@ -2169,6 +2202,7 @@ def admin_login():
 
 
 @app.route('/admin/seasons/end-current', methods=['POST'])
+@block_in_demo_mode
 def admin_end_current_season():
     """End the current season without creating a new one (ADMIN)"""
     db = get_db()
@@ -2199,6 +2233,7 @@ def admin_end_current_season():
 
 
 @app.route('/admin/seasons/create', methods=['POST'])
+@block_in_demo_mode
 def admin_create_season():
     """Create a new season and make it current (ADMIN)"""
     db = get_db()
@@ -2246,6 +2281,7 @@ def admin_create_season():
 
 
 @app.route('/admin/seasons/<int:season_id>/activate', methods=['POST'])
+@block_in_demo_mode
 def admin_activate_season(season_id):
     """Reactivate an archived season as the current season (ADMIN)"""
     db = get_db()
@@ -2358,7 +2394,8 @@ def admin_dashboard():
                           archived_seasons=archived_seasons,
                           active_tab='seasons',
                           edit_tournament_id=edit_tournament_id,
-                          db_stats=db_stats)
+                          db_stats=db_stats,
+                          demo_mode=session.get('demo_mode', False))
 
 
 @app.route('/admin/export/season-standings.csv')
@@ -2473,6 +2510,7 @@ def admin_export_database_json():
 
 
 @app.route('/admin/restore/database', methods=['POST'])
+@block_in_demo_mode
 def admin_restore_database():
     """Restore database from JSON backup"""
     db = get_db()
@@ -2663,6 +2701,7 @@ def admin_players():
 
 
 @app.route('/admin/players/<int:player_id>/edit', methods=['POST'])
+@block_in_demo_mode
 def admin_edit_player_points(player_id):
     """Edit player season points (admin only)"""
     db = get_db()
@@ -2750,6 +2789,7 @@ def admin_validate_players():
 
 
 @app.route('/admin/tournaments/create', methods=['POST'])
+@block_in_demo_mode
 def admin_create_tournament():
     """Create new tournament from admin dashboard (ADMIN)"""
     db = get_db_connection()
@@ -2909,6 +2949,7 @@ def admin_preview_round1(tournament_id):
 
 
 @app.route('/admin/tournaments/<int:tournament_id>/save-round1-pairings', methods=['POST'])
+@block_in_demo_mode
 def admin_save_round1_pairings(tournament_id):
     """Save custom Round 1 pairings (ADMIN)"""
     db = get_db_connection()
@@ -3046,10 +3087,12 @@ def admin_tournament_edit_page(tournament_id):
                           pairings=pairings,
                           unassigned_players=unassigned_players,
                           can_start=can_start,
-                          edit_history=edit_history)
+                          edit_history=edit_history,
+                          demo_mode=session.get('demo_mode', False))
 
 
 @app.route('/admin/tournaments/<int:tournament_id>/edit', methods=['POST'])
+@block_in_demo_mode
 def admin_edit_tournament(tournament_id):
     """Edit tournament in setup mode (ADMIN)"""
     db = get_db_connection()
@@ -3302,6 +3345,7 @@ def admin_edit_tournament(tournament_id):
 
 
 @app.route('/admin/tournaments/<int:tournament_id>/delete', methods=['POST'])
+@block_in_demo_mode
 def admin_delete_tournament(tournament_id):
     """Delete a tournament and all associated data (ADMIN)"""
     db = get_db_connection()
@@ -3365,6 +3409,7 @@ def admin_delete_tournament(tournament_id):
 
 
 @app.route('/admin/tournament/<int:tournament_id>/round/<int:round_id>/recalculate', methods=['POST'])
+@block_in_demo_mode
 def admin_recalculate_round(tournament_id, round_id):
     """
     Recalculate round pairings based on previous round results (ADMIN only).

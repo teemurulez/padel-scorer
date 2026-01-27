@@ -15,6 +15,13 @@
         <div class="header-spacer"></div>
     </header>
 
+    <!-- Demo Mode Banner -->
+    {% if demo_mode %}
+    <div class="demo-banner">
+        👾 Demo-tila – muutoksia ei tallenneta 👾
+    </div>
+    {% endif %}
+
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

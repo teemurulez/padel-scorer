@@ -102,6 +102,20 @@ body {
     color: var(--black);
 }
 
+/* Demo Mode Banner */
+.demo-banner {
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    color: white;
+    text-align: center;
+    padding: 12px 20px;
+    font-weight: 600;
+    font-size: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+}
+
 /* Flash Messages */
 .flash-messages {
     max-width: 1200px;

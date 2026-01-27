@@ -30,3 +30,7 @@ class Config:
     SESSION_COOKIE_SECURE = not _is_development  # HTTPS only in production
     SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
     SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection for cookies
+
+    # Demo mode: read-only admin access for demonstrations
+    # Set DEMO_PASSWORD env var to enable (leave unset to disable)
+    DEMO_PASSWORD = os.environ.get('DEMO_PASSWORD')
