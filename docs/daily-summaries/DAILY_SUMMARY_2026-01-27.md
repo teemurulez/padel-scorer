@@ -57,6 +57,25 @@ style-src 'self' 'unsafe-inline'; img-src 'self' data:;
 form-action 'self'; frame-ancestors 'none'
 ```
 
+### Database Connection Cleanup
+Fixed inconsistent database connection handling:
+- Replaced all `get_db()` calls with `get_db_connection()`
+- Ensures connections are properly closed at request end via Flask's `g` object
+
+### Live Score Updates (SSE)
+Implemented Server-Sent Events for real-time score updates on active round page:
+
+- SSE broadcaster class for in-memory event distribution
+- `/sse/round/<round_id>` endpoint streams events to connected browsers
+- `/tournament/.../matches-partial` returns HTML for AJAX refresh
+- EventSource client with auto-reconnect on connection drops
+- Next round button automatically enables when all matches complete
+
+**Files Changed:**
+- `app.py` - SSE broadcaster, endpoints, score broadcast on submit
+- `templates/active_round.html` - EventSource client, partial include
+- `templates/_matches_partial.html` - New partial for matches section
+
 ## Test Results
 
 - 187 tests passing
@@ -71,3 +90,7 @@ form-action 'self'; frame-ancestors 'none'
 - `4dd0b69` feat: add demo mode for admin
 - `9a4135b` docs: update TODO and daily summary with demo mode completion
 - `a27efb2` feat: add Content-Security-Policy with nonces
+- `cf29c1e` docs: update TODO with CSP implementation
+- `c4ae28c` fix: use get_db_connection() consistently
+- `ce1664c` docs: update TODO with database connection cleanup
+- `39c506a` feat: add live score updates via Server-Sent Events

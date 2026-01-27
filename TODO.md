@@ -24,6 +24,7 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Demo mode for admin (done 2026-01-27)
 - [x] Content-Security-Policy headers with nonces (done 2026-01-27)
 - [x] Database connection management cleanup (done 2026-01-27)
+- [x] Live score updates via SSE (done 2026-01-27)
 
 ## Next Steps
 
@@ -43,7 +44,7 @@ The app is **production-ready** with security hardening complete. Core features 
 - (Database connection management fixed 2026-01-27)
 
 **UX Ideas:**
-- Real-time score updates (WebSocket)
+- (Live updates implemented via SSE 2026-01-27)
 
 ## Recent Changes (2026-01-27)
 
@@ -68,6 +69,12 @@ The app is **production-ready** with security hardening complete. Core features 
 **Database Connection Cleanup:**
 - All routes now use `get_db_connection()` consistently
 - Connections properly closed at request end via Flask's `g` object
+
+**Live Score Updates (SSE):**
+- Active round page now updates in real-time
+- Uses Server-Sent Events (no WebSocket complexity)
+- Auto-reconnects on connection drops
+- Next round button enables automatically when all matches complete
 
 ---
 
