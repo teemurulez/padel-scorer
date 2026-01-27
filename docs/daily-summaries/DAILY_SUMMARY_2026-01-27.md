@@ -42,6 +42,21 @@ Implemented read-only admin mode for showing the app to friends:
 
 Design doc: `docs/plans/2026-01-27-demo-mode-design.md`
 
+### Content-Security-Policy Headers
+Implemented strict CSP with nonces for XSS protection:
+
+- Unique nonce generated per request via `@app.before_request`
+- CSP header added via `@app.after_request`
+- Context processor injects nonce into all templates
+- Updated 9 script tags with `nonce="{{ csp_nonce }}"`
+
+**Policy:**
+```
+default-src 'self'; script-src 'self' 'nonce-...';
+style-src 'self' 'unsafe-inline'; img-src 'self' data:;
+form-action 'self'; frame-ancestors 'none'
+```
+
 ## Test Results
 
 - 187 tests passing
@@ -54,3 +69,5 @@ Design doc: `docs/plans/2026-01-27-demo-mode-design.md`
 - `186449c` docs: add demo mode design
 - `763240d` docs: add daily summary and update TODO for 2026-01-27
 - `4dd0b69` feat: add demo mode for admin
+- `9a4135b` docs: update TODO and daily summary with demo mode completion
+- `a27efb2` feat: add Content-Security-Policy with nonces

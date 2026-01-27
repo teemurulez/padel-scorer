@@ -22,6 +22,7 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Match result correction feature (done 2026-01-26)
 - [x] Mobile drag feedback with floating clone (done 2026-01-27)
 - [x] Demo mode for admin (done 2026-01-27)
+- [x] Content-Security-Policy headers with nonces (done 2026-01-27)
 
 ## Next Steps
 
@@ -38,7 +39,6 @@ The app is **production-ready** with security hardening complete. Core features 
 ### 2. Optional Improvements
 
 **Additional Security (lower priority):**
-- Add Content-Security-Policy headers
 - Consider database connection pooling
 
 **UX Ideas:**
@@ -58,6 +58,11 @@ The app is **production-ready** with security hardening complete. Core features 
 - Set `DEMO_PASSWORD` env var to enable
 - Orange banner shows when in demo mode
 - All write operations blocked with friendly message
+
+**Content-Security-Policy:**
+- Strict CSP with nonces for inline scripts
+- Prevents XSS and unauthorized script execution
+- Unique nonce generated per request
 
 ---
 
