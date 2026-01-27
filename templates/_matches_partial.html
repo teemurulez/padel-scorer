@@ -1,0 +1,56 @@
+<!-- Matches partial - used for both initial render and AJAX refresh -->
+<!-- Progress -->
+{% set completed_count = matches|selectattr('completed')|list|length %}
+<div class="progress-text">
+    {{ completed_count }}/{{ matches|length }} ottelua valmis
+</div>
+
+<!-- Match cards -->
+<div class="matches">
+    {% for match in matches %}
+    <div class="match-card {% if match['completed'] %}completed{% endif %}">
+        <div class="court-header">Kenttä {{ match['court_number'] }}</div>
+
+        <div class="teams">
+            <div class="team">
+                <div class="team-label">Joukkue 1</div>
+                <div class="team-players">
+                    {{ match['player1_name'] }}<br>
+                    {{ match['player2_name'] }}
+                </div>
+            </div>
+
+            <div class="vs">vs</div>
+
+            <div class="team">
+                <div class="team-label">Joukkue 2</div>
+                <div class="team-players">
+                    {{ match['player3_name'] }}<br>
+                    {{ match['player4_name'] }}
+                </div>
+            </div>
+        </div>
+
+        {% if not match['completed'] %}
+        <div class="match-actions">
+            <a href="{{ url_for('score_entry', match_id=match['id']) }}" class="btn-primary-action">
+                Syötä tulos
+            </a>
+            <a href="{{ url_for('confirm_match_teams', tournament_id=tournament_id, round_id=round_data['id'], court_number=match['court_number']) }}" class="btn-secondary-action">
+                Muokkaa joukkueita
+            </a>
+        </div>
+        {% else %}
+        <a href="{{ url_for('score_entry', match_id=match['id']) }}" class="completed-badge">
+            ✓ Joukkue {{ match['winning_team'] }} voitti
+            <small>Muokkaa tulosta</small>
+        </a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Data for JS: all_completed status -->
+<script type="application/json" id="matches-data">
+{"all_completed": {{ 'true' if all_completed else 'false' }}, "completed_count": {{ completed_count }}, "total": {{ matches|length }}}
+</script>

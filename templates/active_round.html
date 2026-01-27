@@ -366,58 +366,13 @@
         {% endif %}
         {% endif %}
 
-        <!-- Progress -->
-        {% set completed_count = matches|selectattr('completed')|list|length %}
-        <div class="progress-text">
-            {{ completed_count }}/{{ matches|length }} ottelua valmis
-        </div>
-
-        <!-- Match cards -->
-        <div class="matches">
-            {% for match in matches %}
-            <div class="match-card {% if match['completed'] %}completed{% endif %}">
-                <div class="court-header">Kenttä {{ match['court_number'] }}</div>
-
-                <div class="teams">
-                    <div class="team">
-                        <div class="team-label">Joukkue 1</div>
-                        <div class="team-players">
-                            {{ match['player1_name'] }}<br>
-                            {{ match['player2_name'] }}
-                        </div>
-                    </div>
-
-                    <div class="vs">vs</div>
-
-                    <div class="team">
-                        <div class="team-label">Joukkue 2</div>
-                        <div class="team-players">
-                            {{ match['player3_name'] }}<br>
-                            {{ match['player4_name'] }}
-                        </div>
-                    </div>
-                </div>
-
-                {% if not match['completed'] %}
-                <div class="match-actions">
-                    <a href="{{ url_for('score_entry', match_id=match['id']) }}" class="btn-primary-action">
-                        Syötä tulos
-                    </a>
-                    <a href="{{ url_for('confirm_match_teams', tournament_id=tournament_id, round_id=round_data['id'], court_number=match['court_number']) }}" class="btn-secondary-action">
-                        Muokkaa joukkueita
-                    </a>
-                </div>
-                {% else %}
-                <a href="{{ url_for('score_entry', match_id=match['id']) }}" class="completed-badge">
-                    ✓ Joukkue {{ match['winning_team'] }} voitti
-                    <small>Muokkaa tulosta</small>
-                </a>
-                {% endif %}
-            </div>
-            {% endfor %}
+        <!-- Matches section (live-updated via SSE) -->
+        <div id="matches-container">
+            {% include '_matches_partial.html' %}
         </div>
 
         <!-- Bottom actions -->
+        {% set completed_count = matches|selectattr('completed')|list|length %}
         <div class="round-actions">
             <a href="{{ url_for('leaderboard', tournament_id=tournament_id) }}" class="btn-leaderboard">
                 Näytä tulokset
@@ -464,5 +419,96 @@
             </div>
         </div>
     </div>
+
+    <!-- Live updates via Server-Sent Events -->
+    <script nonce="{{ csp_nonce }}">
+    (function() {
+        const roundId = {{ round_data['id'] }};
+        const tournamentId = {{ tournament_id }};
+        let eventSource = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+
+        function connect() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource('/sse/round/' + roundId);
+
+            eventSource.onopen = function() {
+                console.log('SSE connected');
+                reconnectAttempts = 0;
+            };
+
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('SSE event:', data);
+
+                    if (data.type === 'score_updated') {
+                        refreshMatches();
+                    }
+                } catch (e) {
+                    console.error('SSE parse error:', e);
+                }
+            };
+
+            eventSource.onerror = function(event) {
+                console.log('SSE error, reconnecting...');
+                eventSource.close();
+
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    setTimeout(connect, 2000 * reconnectAttempts);
+                }
+            };
+        }
+
+        function refreshMatches() {
+            fetch('/tournament/' + tournamentId + '/round/' + roundId + '/matches-partial')
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('matches-container').innerHTML = html;
+                    updateNextRoundButton();
+                })
+                .catch(err => console.error('Refresh error:', err));
+        }
+
+        function updateNextRoundButton() {
+            const dataEl = document.getElementById('matches-data');
+            if (!dataEl) return;
+
+            try {
+                const data = JSON.parse(dataEl.textContent);
+                const btn = document.querySelector('.btn-next-round');
+                if (!btn) return;
+
+                if (data.all_completed) {
+                    btn.disabled = false;
+                    btn.type = 'submit';
+                    btn.textContent = 'Aloita seuraava kierros';
+                } else {
+                    const remaining = data.total - data.completed_count;
+                    btn.disabled = true;
+                    btn.type = 'button';
+                    btn.textContent = 'Odottaa ' + remaining + ' tulos' + (remaining !== 1 ? 'ta' : '');
+                }
+            } catch (e) {
+                console.error('Button update error:', e);
+            }
+        }
+
+        // Start connection
+        connect();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    })();
+    </script>
 </body>
 </html>

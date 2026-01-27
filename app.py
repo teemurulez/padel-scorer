@@ -26,6 +26,9 @@ import csv
 import io
 import secrets
 import base64
+import queue
+import threading
+import time
 from functools import wraps
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -102,6 +105,51 @@ limiter = Limiter(
     default_limits=["200 per day", "50 per hour"],
     storage_uri="memory://",
 )
+
+# SSE (Server-Sent Events) broadcaster for live updates
+class SSEBroadcaster:
+    """Simple in-memory event broadcaster for SSE connections."""
+
+    def __init__(self):
+        self.listeners = {}  # round_id -> list of queues
+        self.lock = threading.Lock()
+
+    def subscribe(self, round_id):
+        """Subscribe to events for a specific round. Returns a queue."""
+        q = queue.Queue(maxsize=10)
+        with self.lock:
+            if round_id not in self.listeners:
+                self.listeners[round_id] = []
+            self.listeners[round_id].append(q)
+        return q
+
+    def unsubscribe(self, round_id, q):
+        """Unsubscribe from events."""
+        with self.lock:
+            if round_id in self.listeners:
+                try:
+                    self.listeners[round_id].remove(q)
+                except ValueError:
+                    pass
+                if not self.listeners[round_id]:
+                    del self.listeners[round_id]
+
+    def broadcast(self, round_id, event_type, data):
+        """Broadcast an event to all listeners for a round."""
+        message = {
+            'type': event_type,
+            'data': data,
+            'timestamp': datetime.now().isoformat()
+        }
+        with self.lock:
+            if round_id in self.listeners:
+                for q in self.listeners[round_id]:
+                    try:
+                        q.put_nowait(message)
+                    except queue.Full:
+                        pass  # Drop if queue is full
+
+sse_broadcaster = SSEBroadcaster()
 
 # Ensure instance folder exists
 os.makedirs('instance', exist_ok=True)
@@ -1054,6 +1102,80 @@ def active_round(tournament_id, round_id):
                           all_rounds=all_rounds,
                           needs_recalculation=needs_recalculation)
 
+
+@app.route('/sse/round/<int:round_id>')
+def sse_round_stream(round_id):
+    """Server-Sent Events stream for live round updates."""
+    def event_stream():
+        q = sse_broadcaster.subscribe(round_id)
+        try:
+            # Send initial connection confirmation
+            yield f"data: {json.dumps({'type': 'connected', 'round_id': round_id})}\n\n"
+
+            while True:
+                try:
+                    # Wait for events with timeout (for keepalive)
+                    message = q.get(timeout=30)
+                    yield f"data: {json.dumps(message)}\n\n"
+                except queue.Empty:
+                    # Send keepalive comment to prevent connection timeout
+                    yield ": keepalive\n\n"
+        except GeneratorExit:
+            pass
+        finally:
+            sse_broadcaster.unsubscribe(round_id, q)
+
+    return Response(
+        event_stream(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'  # Disable nginx buffering
+        }
+    )
+
+
+@app.route('/tournament/<int:tournament_id>/round/<int:round_id>/matches-partial')
+def active_round_matches_partial(tournament_id, round_id):
+    """Return just the matches section HTML for AJAX refresh."""
+    db = get_db_connection()
+
+    round_data = db.execute('SELECT * FROM rounds WHERE id = ?', (round_id,)).fetchone()
+    if not round_data:
+        return '', 404
+
+    # Get all matches with player names
+    matches_raw = db.execute(
+        '''SELECT m.*
+           FROM matches m
+           WHERE m.round_id = ?
+           ORDER BY m.court_number''',
+        (round_id,)
+    ).fetchall()
+
+    matches = []
+    for match in matches_raw:
+        match_dict = dict(match)
+        player1 = get_player(match_dict['player1_id'])
+        player2 = get_player(match_dict['player2_id'])
+        player3 = get_player(match_dict['player3_id'])
+        player4 = get_player(match_dict['player4_id'])
+        match_dict['player1_name'] = f"{player1['first_name']} {player1['last_name']}"
+        match_dict['player2_name'] = f"{player2['first_name']} {player2['last_name']}"
+        match_dict['player3_name'] = f"{player3['first_name']} {player3['last_name']}"
+        match_dict['player4_name'] = f"{player4['first_name']} {player4['last_name']}"
+        matches.append(match_dict)
+
+    all_completed = all(match['completed'] for match in matches)
+
+    return render_template('_matches_partial.html',
+                          tournament_id=tournament_id,
+                          round_data=round_data,
+                          matches=matches,
+                          all_completed=all_completed)
+
+
 @app.route('/match/<int:match_id>/score', methods=['GET', 'POST'])
 def score_entry(match_id):
     """Simple form for winners to enter their win"""
@@ -1161,6 +1283,13 @@ def score_entry(match_id):
         )
 
         db.commit()
+
+        # Broadcast score update for live refresh
+        sse_broadcaster.broadcast(match['round_id'], 'score_updated', {
+            'match_id': match_id,
+            'court_number': match['court_number'],
+            'winning_team': winning_team
+        })
 
         return redirect(url_for('active_round',
                                tournament_id=match['tournament_id'],
