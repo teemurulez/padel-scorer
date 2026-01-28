@@ -3816,45 +3816,48 @@ def test_noactive():
     season = {'name': 'Winter 2025', 'tournament_count': 5}
     return render_template('no_active_tournament.html', season=season)
 
-# Run migrations on startup if needed
-with app.app_context():
-    from migration import run_migration_if_needed, migrate_seasons_schema
-    result = run_migration_if_needed()
-    if result == "migrated":
-        print("✅ Data migration completed: Tournaments assigned to seasons")
-    elif result == "already_migrated":
-        print("✅ Data already migrated")
+# Run migrations on startup if needed (skip with SKIP_MIGRATIONS=1 for faster startup)
+if not os.environ.get('SKIP_MIGRATIONS'):
+    with app.app_context():
+        from migration import run_migration_if_needed, migrate_seasons_schema
+        result = run_migration_if_needed()
+        if result == "migrated":
+            print("✅ Data migration completed: Tournaments assigned to seasons")
+        elif result == "already_migrated":
+            print("✅ Data already migrated")
 
-    # Ensure seasons table has name and ended_at columns
-    schema_result = migrate_seasons_schema()
-    if schema_result == "migrated":
-        print("✅ Seasons schema migration completed")
+        # Ensure seasons table has name and ended_at columns
+        schema_result = migrate_seasons_schema()
+        if schema_result == "migrated":
+            print("✅ Seasons schema migration completed")
 
-    # Add version column to matches table for concurrency control
-    db = get_db_connection()
-    cursor = db.execute("PRAGMA table_info(matches)")
-    columns = [row[1] for row in cursor.fetchall()]
-    if 'version' not in columns:
-        db.execute("ALTER TABLE matches ADD COLUMN version INTEGER DEFAULT 1")
+        # Add version column to matches table for concurrency control
+        db = get_db_connection()
+        cursor = db.execute("PRAGMA table_info(matches)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'version' not in columns:
+            db.execute("ALTER TABLE matches ADD COLUMN version INTEGER DEFAULT 1")
+            db.commit()
+            print("✅ Matches version column added")
+
+        # Create player_points_adjustment table if not exists
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS player_points_adjustment (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                player_id INTEGER NOT NULL,
+                season_id INTEGER NOT NULL,
+                adjustment INTEGER DEFAULT 0,
+                note TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (player_id) REFERENCES player_registry(id) ON DELETE CASCADE,
+                FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE,
+                UNIQUE(player_id, season_id)
+            )
+        ''')
         db.commit()
-        print("✅ Matches version column added")
-
-    # Create player_points_adjustment table if not exists
-    db.execute('''
-        CREATE TABLE IF NOT EXISTS player_points_adjustment (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            player_id INTEGER NOT NULL,
-            season_id INTEGER NOT NULL,
-            adjustment INTEGER DEFAULT 0,
-            note TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (player_id) REFERENCES player_registry(id) ON DELETE CASCADE,
-            FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE,
-            UNIQUE(player_id, season_id)
-        )
-    ''')
-    db.commit()
+else:
+    print("⏭️ Skipping migrations (SKIP_MIGRATIONS=1)")
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')
