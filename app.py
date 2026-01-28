@@ -542,6 +542,23 @@ def get_tournament_leaderboard(tournament_id):
 
 # Routes
 
+@app.route('/health')
+def health_check():
+    """Simple health check - no database access"""
+    return {'status': 'ok', 'db': 'not checked'}
+
+
+@app.route('/health/db')
+def health_check_db():
+    """Health check with database access"""
+    import time
+    start = time.time()
+    db = get_db_connection()
+    db.execute('SELECT 1').fetchone()
+    db_time = time.time() - start
+    return {'status': 'ok', 'db_response_ms': round(db_time * 1000, 2)}
+
+
 @app.route('/')
 def index():
     """Home page - smart entry point for scorekeepers/players"""
