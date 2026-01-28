@@ -74,7 +74,7 @@
         <section class="players-panel">
             <div class="panel-header">
                 <h2>Pelaajat <span id="validation-warning" class="validation-warning" style="display: none;">⚠</span></h2>
-                <button type="button" id="edit-players-btn" onclick="showPlayerEditor()" class="btn-secondary">Muokkaa</button>
+                <button type="button" id="edit-players-btn" class="btn-primary">Muokkaa</button>
             </div>
 
             <!-- Player List View (read-only) -->
@@ -111,7 +111,7 @@
         <section class="pairings-panel">
             <div class="panel-header">
                 <h2>Kierros 1 - Parit</h2>
-                <button type="button" onclick="regeneratePairings()" class="btn-secondary">Luo uudet parit</button>
+                <button type="button" id="regenerate-btn" class="btn-primary">Luo uudet parit</button>
             </div>
 
             <!-- Search Bar -->
@@ -129,19 +129,19 @@
                         <div class="court-teams">
                             <div class="team team1">
                                 <h4>Tiimi 1</h4>
-                                <div class="player-slot {% if not court.team1_player1_id %}empty{% endif %}" data-player-id="{{ court.team1_player1_id or '' }}" onclick="selectPlayer(this)">
+                                <div class="player-slot {% if not court.team1_player1_id %}empty{% endif %}" data-player-id="{{ court.team1_player1_id or '' }}">
                                     {{ court.team1_player1_name or '[TYHJÄ]' }}
                                 </div>
-                                <div class="player-slot {% if not court.team1_player2_id %}empty{% endif %}" data-player-id="{{ court.team1_player2_id or '' }}" onclick="selectPlayer(this)">
+                                <div class="player-slot {% if not court.team1_player2_id %}empty{% endif %}" data-player-id="{{ court.team1_player2_id or '' }}">
                                     {{ court.team1_player2_name or '[TYHJÄ]' }}
                                 </div>
                             </div>
                             <div class="team team2">
                                 <h4>Tiimi 2</h4>
-                                <div class="player-slot {% if not court.team2_player1_id %}empty{% endif %}" data-player-id="{{ court.team2_player1_id or '' }}" onclick="selectPlayer(this)">
+                                <div class="player-slot {% if not court.team2_player1_id %}empty{% endif %}" data-player-id="{{ court.team2_player1_id or '' }}">
                                     {{ court.team2_player1_name or '[TYHJÄ]' }}
                                 </div>
-                                <div class="player-slot {% if not court.team2_player2_id %}empty{% endif %}" data-player-id="{{ court.team2_player2_id or '' }}" onclick="selectPlayer(this)">
+                                <div class="player-slot {% if not court.team2_player2_id %}empty{% endif %}" data-player-id="{{ court.team2_player2_id or '' }}">
                                     {{ court.team2_player2_name or '[TYHJÄ]' }}
                                 </div>
                             </div>
@@ -149,21 +149,44 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="no-pairings">
-                        <p>Ei vielä pareja. Klikkaa "Luo uudet parit" luodaksesi kierros 1 parit.</p>
+                    <!-- Show empty courts based on num_courts -->
+                    {% for court_num in range(1, tournament.num_courts + 1) %}
+                    <div class="court-card" data-court="{{ court_num }}">
+                        <div class="court-header">Kenttä {{ court_num }}</div>
+                        <div class="court-teams">
+                            <div class="team team1">
+                                <h4>Tiimi 1</h4>
+                                <div class="player-slot empty" data-player-id="">[TYHJÄ]</div>
+                                <div class="player-slot empty" data-player-id="">[TYHJÄ]</div>
+                            </div>
+                            <div class="team team2">
+                                <h4>Tiimi 2</h4>
+                                <div class="player-slot empty" data-player-id="">[TYHJÄ]</div>
+                                <div class="player-slot empty" data-player-id="">[TYHJÄ]</div>
+                            </div>
+                        </div>
                     </div>
+                    {% endfor %}
                 {% endif %}
             </div>
 
             <!-- Unassigned Players Pool -->
-            <div id="unassigned-pool" class="unassigned-pool" style="display: {% if unassigned_players %}block{% else %}none{% endif %};">
-                <h3>Sijoittamattomat pelaajat</h3>
+            <div id="unassigned-pool" class="unassigned-pool" style="display: {% if unassigned_players or (players and not pairings) %}block{% else %}none{% endif %};">
+                <h3>Sijoittamattomat pelaajat (<span id="unassigned-count">{% if pairings %}{{ unassigned_players|length }}{% else %}{{ players|length }}{% endif %}</span>)</h3>
                 <div class="unassigned-list">
-                    {% for player in unassigned_players %}
-                    <div class="unassigned-player" data-player-id="{{ player.id }}" onclick="selectPlayer(this)">
-                        {{ player.first_name }} {{ player.last_name }}
-                    </div>
-                    {% endfor %}
+                    {% if pairings %}
+                        {% for player in unassigned_players %}
+                        <div class="unassigned-player" data-player-id="{{ player.id }}">
+                            {{ player.first_name }} {{ player.last_name }}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        {% for player in players %}
+                        <div class="unassigned-player" data-player-id="{{ player.id }}">
+                            {{ player.first_name }} {{ player.last_name }}
+                        </div>
+                        {% endfor %}
+                    {% endif %}
                 </div>
                 <p class="hint">Klikkaa pelaajaa, sitten tyhjää paikkaa sijoittaaksesi</p>
             </div>

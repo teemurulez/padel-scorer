@@ -114,8 +114,8 @@ function displayValidationResults(data) {
                     <span class="validation-suggestion">
                         <span>→ ${result.suggestion}?</span>
                         <span class="suggestion-links">
-                            <button onclick="acceptSuggestion(${index})" class="btn-link">Kyllä</button>
-                            <button onclick="rejectSuggestion(${index})" class="btn-link">Ei, uusi pelaaja</button>
+                            <button class="btn-link accept-suggestion" data-index="${index}">Kyllä</button>
+                            <button class="btn-link reject-suggestion" data-index="${index}">Ei, uusi pelaaja</button>
                         </span>
                     </span>
                 `;
@@ -132,6 +132,18 @@ function displayValidationResults(data) {
 
         item.innerHTML = `<span class="validation-icon">${icon}</span>${content}`;
         container.appendChild(item);
+    });
+
+    // Add event listeners to dynamically created buttons
+    container.querySelectorAll('.accept-suggestion').forEach(btn => {
+        btn.addEventListener('click', function() {
+            acceptSuggestion(parseInt(this.dataset.index));
+        });
+    });
+    container.querySelectorAll('.reject-suggestion').forEach(btn => {
+        btn.addEventListener('click', function() {
+            rejectSuggestion(parseInt(this.dataset.index));
+        });
     });
 
     // Summary
@@ -223,19 +235,62 @@ function selectPlayer(element) {
 function swapPlayers(slot1, slot2) {
     const id1 = slot1.dataset.playerId;
     const id2 = slot2.dataset.playerId;
-    const name1 = slot1.textContent;
-    const name2 = slot2.textContent;
+    const name1 = slot1.textContent.trim();
+    const name2 = slot2.textContent.trim();
 
-    slot1.dataset.playerId = id2;
-    slot1.textContent = name2;
-    slot2.dataset.playerId = id1;
-    slot2.textContent = name1;
+    const isSlot1Unassigned = slot1.classList.contains('unassigned-player');
+    const isSlot2Unassigned = slot2.classList.contains('unassigned-player');
+    const isSlot1Empty = !id1 || id1 === 'null' || id1 === '';
+    const isSlot2Empty = !id2 || id2 === 'null' || id2 === '';
 
-    // Handle empty slot styling
-    slot1.classList.toggle('empty', !id2 || id2 === 'null' || id2 === '');
-    slot2.classList.toggle('empty', !id1 || id1 === 'null' || id1 === '');
+    // Case: Moving unassigned player to empty court slot
+    if (isSlot1Unassigned && isSlot2Empty) {
+        // Fill the court slot with the player
+        slot2.dataset.playerId = id1;
+        slot2.textContent = name1;
+        slot2.classList.remove('empty');
+        // Remove from unassigned pool
+        slot1.remove();
+        updateUnassignedPoolVisibility();
+    } else if (isSlot2Unassigned && isSlot1Empty) {
+        // Fill the court slot with the player
+        slot1.dataset.playerId = id2;
+        slot1.textContent = name2;
+        slot1.classList.remove('empty');
+        // Remove from unassigned pool
+        slot2.remove();
+        updateUnassignedPoolVisibility();
+    } else if (isSlot1Unassigned || isSlot2Unassigned) {
+        // Swapping unassigned player with assigned player - do a full swap
+        slot1.dataset.playerId = id2;
+        slot1.textContent = name2;
+        slot2.dataset.playerId = id1;
+        slot2.textContent = name1;
+        slot1.classList.toggle('empty', isSlot2Empty);
+        slot2.classList.toggle('empty', isSlot1Empty);
+    } else {
+        // Normal swap between two court slots
+        slot1.dataset.playerId = id2;
+        slot1.textContent = name2;
+        slot2.dataset.playerId = id1;
+        slot2.textContent = name1;
+        slot1.classList.toggle('empty', isSlot2Empty);
+        slot2.classList.toggle('empty', isSlot1Empty);
+    }
 
     pairingsModified = true;
+}
+
+function updateUnassignedPoolVisibility() {
+    const pool = document.getElementById('unassigned-pool');
+    const unassignedPlayers = document.querySelectorAll('.unassigned-player');
+    const countSpan = document.getElementById('unassigned-count');
+    if (countSpan) {
+        countSpan.textContent = unassignedPlayers.length;
+    }
+    if (pool) {
+        pool.style.display = unassignedPlayers.length > 0 ? 'block' : 'none';
+    }
 }
 
 async function regeneratePairings() {
@@ -377,12 +432,62 @@ function clearSearch() {
     }
 }
 
-// Initialize empty slots
+// Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize empty slots
     document.querySelectorAll('.player-slot').forEach(slot => {
         const text = slot.textContent.trim();
         if (text === '[TYHJÄ]' || !slot.dataset.playerId || slot.dataset.playerId === 'None' || slot.dataset.playerId === '') {
             slot.classList.add('empty');
         }
     });
+
+    // Event listeners for buttons (CSP-compliant, no inline handlers)
+    const editPlayersBtn = document.getElementById('edit-players-btn');
+    if (editPlayersBtn) editPlayersBtn.addEventListener('click', showPlayerEditor);
+
+    // Player editor buttons
+    document.querySelectorAll('.editor-actions .btn-primary').forEach(btn => {
+        if (btn.textContent.includes('Tarkista')) btn.addEventListener('click', validatePlayers);
+    });
+    document.querySelectorAll('.editor-actions .btn-secondary').forEach(btn => {
+        if (btn.textContent.includes('Peruuta')) btn.addEventListener('click', cancelPlayerEdit);
+    });
+
+    // Validation actions
+    document.querySelectorAll('.validation-actions .btn-secondary').forEach(btn => {
+        if (btn.textContent.includes('Takaisin')) btn.addEventListener('click', backToEditor);
+    });
+    const applyBtn = document.getElementById('apply-btn');
+    if (applyBtn) applyBtn.addEventListener('click', applyPlayerChanges);
+
+    // Pairings panel - regenerate button
+    const regenerateBtn = document.getElementById('regenerate-btn');
+    if (regenerateBtn) regenerateBtn.addEventListener('click', regeneratePairings);
+
+    // Search
+    const searchInput = document.getElementById('player-search');
+    if (searchInput) searchInput.addEventListener('input', function() { searchPlayers(this.value); });
+
+    const searchClear = document.querySelector('.search-clear');
+    if (searchClear) searchClear.addEventListener('click', clearSearch);
+
+    // Player slots and unassigned players - click to select/swap
+    document.querySelectorAll('.player-slot').forEach(slot => {
+        slot.addEventListener('click', function() { selectPlayer(this); });
+    });
+    document.querySelectorAll('.unassigned-player').forEach(player => {
+        player.addEventListener('click', function() { selectPlayer(this); });
+    });
+
+    // History toggle
+    const historyHeader = document.querySelector('.history-header');
+    if (historyHeader) historyHeader.addEventListener('click', toggleHistory);
+
+    // Action bar buttons
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) saveBtn.addEventListener('click', saveTournament);
+
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) startBtn.addEventListener('click', startTournament);
 });

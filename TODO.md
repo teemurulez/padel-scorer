@@ -50,8 +50,17 @@ The app is **production-ready** with security hardening complete. Core features 
 
 **UX Ideas:**
 - (Live updates implemented via SSE 2026-01-27)
+- Move tournament edit flash messages into "Viimeisimmät muutokset" expandable area
 
 ## Recent Changes (2026-01-28)
+
+**Tournament Edit Page UX:**
+- Changed buttons to primary gold style (was gray/secondary)
+- Tiimi 2 background changed to green (visual distinction from Tiimi 1 blue)
+- Empty court slots now shown when no pairings exist
+- All players shown in unassigned pool when no pairings
+- Players removed from pool when placed on court
+- Dynamic count of unassigned players (updates in real-time)
 
 **Bug Fix:**
 - Season standings now includes players with only imported points (no tournament matches)
@@ -66,6 +75,10 @@ The app is **production-ready** with security hardening complete. Core features 
 - Added `SKIP_MIGRATIONS=1` env var to skip startup DB operations
 - Optimized Gunicorn settings for slow volume I/O
 - Added `/health` and `/health/db` diagnostic endpoints
+
+**Railway Deployment:**
+- Upgraded to Hobby plan with persistent volume
+- Volume mounted at `/data` for SQLite database
 
 **Tests:** 199 passed (was 196)
 
