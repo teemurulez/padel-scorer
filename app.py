@@ -181,6 +181,15 @@ def check_admin_session():
         if not session.get('logged_in_as_admin'):
             return redirect('/admin/login')
 
+        # Verify admin still exists in database (handles wiped database case)
+        # Skip in testing mode where sessions are mocked without real admin users
+        if not app.config.get('TESTING'):
+            db = get_db_connection()
+            admin_exists = db.execute('SELECT id FROM admin_users LIMIT 1').fetchone()
+            if not admin_exists:
+                session.clear()
+                return redirect('/admin/setup')
+
         # Check 30-minute timeout
         last_activity_str = session.get('last_activity')
         if last_activity_str:
