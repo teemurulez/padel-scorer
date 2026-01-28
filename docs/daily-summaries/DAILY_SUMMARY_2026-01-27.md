@@ -115,7 +115,7 @@ Added feature to import player wins and tournament counts from external tourname
 
 ## Known Issues
 
-- Season standings page not working when only imported points exist (no tournament matches)
+- ~~Season standings page not working when only imported points exist (no tournament matches)~~ **Fixed 2026-01-28**
 
 ## Commits
 

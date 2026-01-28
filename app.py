@@ -1417,6 +1417,7 @@ def season_leaderboard():
     # Get leaderboard (existing logic, but filter by current season)
     # Sort by total_points first, then win_rate for tiebreaker
     # Includes admin adjustments from player_points_adjustment table
+    # Includes players with only imported points (no tournament matches)
     season_stats_raw = db.execute("""
         SELECT
             pr.id,
@@ -1424,28 +1425,22 @@ def season_leaderboard():
             pr.last_name,
             COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
             COUNT(DISTINCT m.id) as total_matches,
-            COUNT(DISTINCT t.id) as total_tournaments,
+            COUNT(DISTINCT t.id) + COALESCE(adj.tournaments_adjustment, 0) as total_tournaments,
             ROUND(
                 CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
                 NULLIF(COUNT(DISTINCT m.id), 0) * 100,
                 1
             ) as win_rate,
-            COALESCE(SUM(s.points), 0) + COALESCE(adj.adjustment, 0) as total_points
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) as total_points
         FROM player_registry pr
-        LEFT JOIN matches m ON (
-            pr.id = m.player1_id OR
-            pr.id = m.player2_id OR
-            pr.id = m.player3_id OR
-            pr.id = m.player4_id
-        )
-        LEFT JOIN rounds r ON m.round_id = r.id
-        LEFT JOIN tournaments t ON r.tournament_id = t.id
-        LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
         LEFT JOIN player_points_adjustment adj ON (pr.id = adj.player_id AND adj.season_id = ?)
-        WHERE t.season_id = ?
-          AND m.completed = 1
+        LEFT JOIN matches m ON (pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id) AND m.completed = 1)
+        LEFT JOIN rounds r ON m.round_id = r.id
+        LEFT JOIN tournaments t ON r.tournament_id = t.id AND t.season_id = ?
+        LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+        WHERE adj.adjustment IS NOT NULL OR adj.tournaments_adjustment IS NOT NULL OR t.id IS NOT NULL
         GROUP BY pr.id, pr.first_name, pr.last_name
-        HAVING total_matches > 0
+        HAVING total_points > 0 OR total_tournaments > 0
         ORDER BY total_points DESC, win_rate DESC, pr.last_name ASC
     """, (current_season['id'], current_season['id'])).fetchall()
 

@@ -4,7 +4,7 @@
 
 ## Project Status
 
-The app is **production-ready** with security hardening complete. Core features work well. All 195 tests pass.
+The app is **production-ready** with security hardening complete. Core features work well. All 196 tests pass.
 
 ## Completed Items
 
@@ -26,18 +26,11 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Database connection management cleanup (done 2026-01-27)
 - [x] Live score updates via SSE (done 2026-01-27)
 - [x] Bulk import player points from external tournaments (done 2026-01-27)
+- [x] Fix season standings for players with only imported points (done 2026-01-28)
 
 ## Next Steps
 
-### 1. Bug Fix: Season Standings with Imported Points Only
-
-**Issue:** The season standings page (`/season/standings`) doesn't work when players only have imported points (no tournament match history). The page likely returns an error or shows empty results.
-
-**Root Cause:** The standings query expects players to have participated in tournaments with completed matches. Players with only `player_points_adjustment` records are not included.
-
-**Fix Needed:** Update the season standings query to include players who have point adjustments even without match history, similar to the fix applied to the admin Players tab.
-
-### 2. Production Deployment
+### 1. Production Deployment
 
 **Railway (configured):**
 - `runtime.txt` - Python 3.10.12
