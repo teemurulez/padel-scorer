@@ -42,11 +42,34 @@ The app is **production-ready** with security hardening complete. Core features 
 
 ### 2. Optional Improvements
 
+**Performance:**
+- Set up UptimeRobot (free) to ping app every 5 min to prevent cold starts
+
 **Additional Security (lower priority):**
 - (Database connection management fixed 2026-01-27)
 
 **UX Ideas:**
 - (Live updates implemented via SSE 2026-01-27)
+
+## Recent Changes (2026-01-28)
+
+**Bug Fix:**
+- Season standings now includes players with only imported points (no tournament matches)
+
+**Security Improvements:**
+- Admin setup requires `ADMIN_SETUP_TOKEN` env var in production
+- Session invalidated when database is wiped (prevents stale session access)
+- Only admins can start tournaments in setup mode
+- Players registered in setup tournaments now show in admin Players tab
+
+**Performance:**
+- Added `SKIP_MIGRATIONS=1` env var to skip startup DB operations
+- Optimized Gunicorn settings for slow volume I/O
+- Added `/health` and `/health/db` diagnostic endpoints
+
+**Tests:** 199 passed (was 196)
+
+---
 
 ## Recent Changes (2026-01-27)
 
