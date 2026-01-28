@@ -266,6 +266,10 @@ def test_full_tournament_lifecycle(tmp_path):
             assert tournament['status'] == 'setup'
 
         # PHASE 2: ACTIVE (status='active')
+        # Set admin session (required to start tournament in setup mode)
+        with client.session_transaction() as sess:
+            sess['is_admin'] = True
+
         # Start Round 1
         response = client.post(f'/tournament/{tournament_id}/start_round',
                              follow_redirects=True)

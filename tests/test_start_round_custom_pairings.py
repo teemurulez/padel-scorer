@@ -71,6 +71,10 @@ def test_start_round1_uses_custom_pairings_if_saved(client):
 
         db.commit()
 
+    # Set admin session (required to start tournament in setup mode)
+    with client_obj.session_transaction() as sess:
+        sess['is_admin'] = True
+
     # Start Round 1
     response = client_obj.post(f'/tournament/{tournament_id}/start_round')
 
@@ -108,6 +112,10 @@ def test_start_round1_deletes_used_custom_pairings(client):
         """, (tournament_id, 1, 1, 2, 3, 4, tournament_id, 2, 5, 6, 7, 8))
         db.commit()
 
+    # Set admin session (required to start tournament in setup mode)
+    with client_obj.session_transaction() as sess:
+        sess['is_admin'] = True
+
     # Start Round 1
     client_obj.post(f'/tournament/{tournament_id}/start_round')
 
@@ -124,6 +132,10 @@ def test_start_round1_deletes_used_custom_pairings(client):
 def test_start_round1_uses_algorithm_if_no_custom_pairings(client):
     """Test fallback to seeding algorithm when no custom pairings"""
     client_obj, tournament_id = client
+
+    # Set admin session (required to start tournament in setup mode)
+    with client_obj.session_transaction() as sess:
+        sess['is_admin'] = True
 
     # Start Round 1 without saving custom pairings
     response = client_obj.post(f'/tournament/{tournament_id}/start_round')

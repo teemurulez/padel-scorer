@@ -34,3 +34,8 @@ class Config:
     # Demo mode: read-only admin access for demonstrations
     # Set DEMO_PASSWORD env var to enable (leave unset to disable)
     DEMO_PASSWORD = os.environ.get('DEMO_PASSWORD')
+
+    # Admin setup token: Required to create the first admin account
+    # This prevents unauthorized admin creation if database is reset
+    # Set ADMIN_SETUP_TOKEN env var in production
+    ADMIN_SETUP_TOKEN = os.environ.get('ADMIN_SETUP_TOKEN')

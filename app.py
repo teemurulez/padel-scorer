@@ -608,6 +608,11 @@ def start_round(tournament_id):
         flash('Turnaus on päättynyt')
         return redirect(url_for('index'))
 
+    # Prevent non-admin users from starting tournament in setup mode
+    if tournament['status'] == 'setup' and not session.get('is_admin'):
+        flash('Vain ylläpitäjä voi aloittaa turnauksen')
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
         # Get players for this tournament only (Phase 3)
         players = db.execute(
@@ -2288,18 +2293,37 @@ def admin_setup():
     if admin:
         return redirect('/admin/login')
 
+    # In production, require ADMIN_SETUP_TOKEN to prevent unauthorized admin creation
+    setup_token = app.config.get('ADMIN_SETUP_TOKEN')
+    is_production = not (
+        os.environ.get('FLASK_ENV') == 'development' or
+        os.environ.get('FLASK_DEBUG') == '1' or
+        os.environ.get('TESTING') == '1'
+    )
+
+    if is_production and not setup_token:
+        flash('Admin setup disabled. Set ADMIN_SETUP_TOKEN environment variable.')
+        return render_template('admin_setup.html', setup_disabled=True)
+
     if request.method == 'POST':
         password = request.form.get('password', '').strip()
         confirm_password = request.form.get('confirm_password', '').strip()
 
+        # Verify setup token in production
+        if is_production:
+            provided_token = request.form.get('setup_token', '').strip()
+            if provided_token != setup_token:
+                flash('Invalid setup token')
+                return render_template('admin_setup.html', require_token=True)
+
         # Validation
         if len(password) < 8:
             flash('Password must be at least 8 characters long')
-            return render_template('admin_setup.html')
+            return render_template('admin_setup.html', require_token=is_production)
 
         if password != confirm_password:
             flash('Passwords do not match')
-            return render_template('admin_setup.html')
+            return render_template('admin_setup.html', require_token=is_production)
 
         # Create admin user
         password_hash = generate_password_hash(password, method='pbkdf2:sha256')
@@ -2312,7 +2336,7 @@ def admin_setup():
         flash('Admin account created successfully! Please log in.')
         return redirect('/admin/login')
 
-    return render_template('admin_setup.html')
+    return render_template('admin_setup.html', require_token=is_production)
 
 
 @app.route('/admin/login', methods=['GET', 'POST'])
@@ -2510,6 +2534,7 @@ def admin_dashboard():
         # Fetch players with season wins for Players tab
         # Counts wins, tournaments, matches, calculates averages, and includes point adjustments
         # Includes players who have adjustments even if they haven't played matches
+        # Includes players registered in setup tournaments (no matches yet)
         players = db.execute('''
             SELECT
                 pr.id,
@@ -2531,11 +2556,12 @@ def admin_dashboard():
             LEFT JOIN rounds r ON m.round_id = r.id
             LEFT JOIN tournaments t ON r.tournament_id = t.id AND t.season_id = ?
             LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
-            WHERE adj.adjustment IS NOT NULL OR adj.tournaments_adjustment IS NOT NULL OR t.id IS NOT NULL
+            LEFT JOIN tournament_players tp ON pr.id = tp.player_id
+            LEFT JOIN tournaments setup_t ON tp.tournament_id = setup_t.id AND setup_t.season_id = ?
+            WHERE adj.adjustment IS NOT NULL OR adj.tournaments_adjustment IS NOT NULL OR t.id IS NOT NULL OR setup_t.id IS NOT NULL
             GROUP BY pr.id, pr.first_name, pr.last_name
-            HAVING total_points > 0 OR tournaments_played > 0
             ORDER BY total_points DESC, wins DESC, win_rate DESC, pr.last_name ASC
-        ''', (current_season['id'], current_season['id'])).fetchall()
+        ''', (current_season['id'], current_season['id'], current_season['id'])).fetchall()
 
     # Get database statistics for Data tab
     db_stats = {

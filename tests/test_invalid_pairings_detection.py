@@ -63,6 +63,10 @@ def test_start_round1_detects_invalid_pairings(client):
 
         db.commit()
 
+    # Set admin session (required to start tournament in setup mode)
+    with client.session_transaction() as sess:
+        sess['is_admin'] = True
+
     # Try to start Round 1
     response = client.post(f'/tournament/{tournament_id}/start_round')
 

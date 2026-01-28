@@ -458,3 +458,110 @@ class TestSessionSecurity:
             # Should redirect to login
             assert response.status_code == 302, f"Route {route} should require auth"
             assert '/admin/login' in response.location or '/admin/setup' in response.location
+
+
+class TestStartRoundProtection:
+    """Tests for start round protection in setup tournaments"""
+
+    def test_non_admin_cannot_start_setup_tournament(self, client_no_csrf):
+        """Non-admin users should not be able to start a tournament in setup mode"""
+        with app.app_context():
+            db = get_db()
+
+            # Create season and tournament in setup mode
+            db.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season", 1))
+            season_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+            db.execute("INSERT INTO tournaments (name, num_courts, season_id, status) VALUES (?, ?, ?, ?)",
+                      ("Test Tournament", 1, season_id, "setup"))
+            tournament_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+            # Add 4 players
+            for i in range(4):
+                db.execute("INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)",
+                          (f"Player{i}", f"Last{i}"))
+                player_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+                db.execute("INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)",
+                          (tournament_id, player_id))
+
+            db.commit()
+
+        # Try to start round without admin session
+        response = client_no_csrf.post(f'/tournament/{tournament_id}/start_round', follow_redirects=True)
+
+        # Should show error message and redirect to index
+        assert 'Vain ylläpitäjä voi aloittaa turnauksen'.encode('utf-8') in response.data
+
+    def test_admin_can_start_setup_tournament(self, client_no_csrf):
+        """Admin users should be able to start a tournament in setup mode"""
+        with app.app_context():
+            db = get_db()
+
+            # Create season and tournament in setup mode
+            db.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season", 1))
+            season_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+            db.execute("INSERT INTO tournaments (name, num_courts, season_id, status) VALUES (?, ?, ?, ?)",
+                      ("Test Tournament", 1, season_id, "setup"))
+            tournament_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+            # Add 4 players
+            for i in range(4):
+                db.execute("INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)",
+                          (f"Player{i}", f"Last{i}"))
+                player_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+                db.execute("INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)",
+                          (tournament_id, player_id))
+
+            db.commit()
+
+        # Set admin session
+        with client_no_csrf.session_transaction() as sess:
+            sess['is_admin'] = True
+
+        # Admin should be able to start round
+        response = client_no_csrf.post(f'/tournament/{tournament_id}/start_round', follow_redirects=False)
+
+        # Should redirect to active round (302)
+        assert response.status_code == 302
+        assert '/round/' in response.location
+
+    def test_non_admin_can_start_active_tournament_round(self, client_no_csrf):
+        """Non-admin users should be able to start new rounds in active tournaments"""
+        with app.app_context():
+            db = get_db()
+
+            # Create season and tournament in ACTIVE mode
+            db.execute("INSERT INTO seasons (name, is_current) VALUES (?, ?)", ("Test Season", 1))
+            season_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+            db.execute("INSERT INTO tournaments (name, num_courts, season_id, status) VALUES (?, ?, ?, ?)",
+                      ("Test Tournament", 1, season_id, "active"))
+            tournament_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+            # Add 4 players
+            player_ids = []
+            for i in range(4):
+                db.execute("INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)",
+                          (f"Player{i}", f"Last{i}"))
+                player_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+                player_ids.append(player_id)
+                db.execute("INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)",
+                          (tournament_id, player_id))
+
+            # Create completed round 1
+            db.execute("INSERT INTO rounds (tournament_id, round_number, status) VALUES (?, ?, ?)",
+                      (tournament_id, 1, "completed"))
+            round_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+            db.execute("""INSERT INTO matches (round_id, court_number, player1_id, player2_id,
+                         player3_id, player4_id, winning_team, completed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                      (round_id, 1, player_ids[0], player_ids[1], player_ids[2], player_ids[3], 1, 1))
+
+            db.commit()
+
+        # Non-admin should be able to start round 2 (tournament is active)
+        response = client_no_csrf.post(f'/tournament/{tournament_id}/start_round', follow_redirects=False)
+
+        # Should redirect to active round
+        assert response.status_code == 302

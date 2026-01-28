@@ -20,12 +20,32 @@
             {% endif %}
         {% endwith %}
 
+        {% if setup_disabled %}
+        <p class="subtitle" style="color: #e74c3c;">
+            Ylläpidon asennus on estetty. Aseta ADMIN_SETUP_TOKEN ympäristömuuttuja palvelimella.
+        </p>
+        {% else %}
         <p class="subtitle">
             Luo ylläpidon salasana suojataksesi ylläpitonäkymän.
         </p>
 
         <form method="POST" action="/admin/setup" class="auth-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            {% if require_token %}
+            <div class="form-group">
+                <label for="setup_token">Asennusavain</label>
+                <input
+                    type="password"
+                    id="setup_token"
+                    name="setup_token"
+                    required
+                    placeholder="ADMIN_SETUP_TOKEN"
+                >
+                <div class="help-text">Palvelimen ympäristömuuttujassa määritetty avain</div>
+            </div>
+            {% endif %}
+
             <div class="form-group">
                 <label for="password">Salasana</label>
                 <input
@@ -53,6 +73,7 @@
 
             <button type="submit" class="btn-primary">Luo ylläpitotili</button>
         </form>
+        {% endif %}
     </div>
 </body>
 </html>

@@ -228,6 +228,10 @@ def test_round1_uses_seeded_pairing(client):
 
         db.commit()
 
+    # Set admin session (required to start tournament in setup mode)
+    with client.session_transaction() as sess:
+        sess['is_admin'] = True
+
     # Start Round 1
     response = client.post('/tournament/1/start_round', follow_redirects=False)
 
@@ -447,6 +451,10 @@ def test_round1_with_no_previous_tournaments(client):
             )
 
         db.commit()
+
+    # Set admin session (required to start tournament in setup mode)
+    with client.session_transaction() as sess:
+        sess['is_admin'] = True
 
     # Start Round 1
     response = client.post('/tournament/1/start_round', follow_redirects=False)
