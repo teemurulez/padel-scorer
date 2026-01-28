@@ -2322,7 +2322,7 @@ def admin_setup():
         if is_production:
             provided_token = request.form.get('setup_token', '').strip()
             if provided_token != setup_token:
-                flash('Invalid setup token')
+                flash('Virheellinen asennusavain', 'error')
                 return render_template('admin_setup.html', require_token=True)
 
         # Validation
