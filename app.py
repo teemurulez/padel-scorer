@@ -151,8 +151,10 @@ class SSEBroadcaster:
 
 sse_broadcaster = SSEBroadcaster()
 
-# Ensure instance folder exists
-os.makedirs('instance', exist_ok=True)
+# Ensure database directory exists
+db_dir = os.path.dirname(app.config['DATABASE'])
+if db_dir:
+    os.makedirs(db_dir, exist_ok=True)
 
 # Initialize database on first run
 if not os.path.exists(app.config['DATABASE']):

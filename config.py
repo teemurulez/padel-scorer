@@ -24,7 +24,9 @@ class Config:
             "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
         )
 
-    DATABASE = os.path.join('instance', 'padel.db')
+    # Database path: configurable via DATABASE_PATH env var for Railway volume
+    # Default: instance/padel.db (local development)
+    DATABASE = os.environ.get('DATABASE_PATH', os.path.join('instance', 'padel.db'))
 
     # Session security settings
     SESSION_COOKIE_SECURE = not _is_development  # HTTPS only in production
