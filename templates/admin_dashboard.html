@@ -64,7 +64,7 @@
                     <!-- Current Season -->
                     {% if current_season %}
                     <div class="season-row current">
-                        <div class="season-header" onclick="toggleSeason('current')">
+                        <div class="season-header" data-season-id="current">
                             <span class="season-toggle-icon" id="season-icon-current">▶</span>
                             <span class="season-name">{{ current_season.name }}</span>
                             <span class="season-badge current">Nykyinen</span>
@@ -140,7 +140,7 @@
                     <!-- Archived Seasons -->
                     {% for season in archived_seasons %}
                     <div class="season-row">
-                        <div class="season-header" onclick="toggleSeason({{ season.id }})">
+                        <div class="season-header" data-season-id="{{ season.id }}">
                             <span class="season-toggle-icon" id="season-icon-{{ season.id }}">▶</span>
                             <span class="season-name">{{ season.name }}</span>
                             <span class="season-badge ended">Päättynyt</span>
@@ -427,19 +427,22 @@
             adjDisplay.style.color = newAdj >= 0 ? '#22c55e' : '#ef4444';
         }
 
-        // Season accordion toggle
-        function toggleSeason(seasonId) {
-            const details = document.getElementById('season-details-' + seasonId);
-            const icon = document.getElementById('season-icon-' + seasonId);
+        // Season accordion toggle (event delegation for CSP compliance)
+        document.querySelectorAll('.season-header[data-season-id]').forEach(header => {
+            header.addEventListener('click', function() {
+                const seasonId = this.getAttribute('data-season-id');
+                const details = document.getElementById('season-details-' + seasonId);
+                const icon = document.getElementById('season-icon-' + seasonId);
 
-            if (details.classList.contains('show')) {
-                details.classList.remove('show');
-                icon.textContent = '▶';
-            } else {
-                details.classList.add('show');
-                icon.textContent = '▼';
-            }
-        }
+                if (details.classList.contains('show')) {
+                    details.classList.remove('show');
+                    icon.textContent = '▶';
+                } else {
+                    details.classList.add('show');
+                    icon.textContent = '▼';
+                }
+            });
+        });
 
         // Create season form toggle
         document.getElementById('toggle-create-season-btn')?.addEventListener('click', function() {
