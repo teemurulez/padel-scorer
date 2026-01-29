@@ -2534,7 +2534,7 @@ def admin_dashboard():
     current_season = get_current_season(db)
 
     # Get archived seasons with tournament counts
-    archived_seasons = db.execute("""
+    archived_seasons_raw = db.execute("""
         SELECT
             s.*,
             COUNT(t.id) as tournament_count
@@ -2544,6 +2544,18 @@ def admin_dashboard():
         GROUP BY s.id
         ORDER BY s.ended_at DESC, s.created_at DESC
     """).fetchall()
+
+    # Build archived seasons list with tournaments included
+    archived_seasons = []
+    for season in archived_seasons_raw:
+        season_dict = dict(season)
+        season_dict['tournaments'] = db.execute('''
+            SELECT id, name, status, created_at
+            FROM tournaments
+            WHERE season_id = ?
+            ORDER BY created_at DESC
+        ''', (season['id'],)).fetchall()
+        archived_seasons.append(season_dict)
 
     # Get tournament count for current season
     current_tournament_count = 0

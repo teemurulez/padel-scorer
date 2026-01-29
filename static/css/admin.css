@@ -1210,3 +1210,147 @@ body.auth-page {
     margin-bottom: 0.75rem;
     font-size: 1.1rem;
 }
+
+/* Season Accordion */
+.season-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.season-row {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.season-row.current {
+    border-color: var(--accent);
+    border-width: 2px;
+}
+
+.season-header {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    cursor: pointer;
+    gap: 1rem;
+    transition: background 0.2s;
+}
+
+.season-header:hover {
+    background: var(--bg-surface-alt);
+}
+
+.season-toggle-icon {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    min-width: 15px;
+    transition: transform 0.2s;
+}
+
+.season-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.season-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.season-badge.current {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.season-badge.ended {
+    background: var(--bg-surface-alt);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+}
+
+.season-tournament-count {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.season-details {
+    display: none;
+    padding: 0 1rem 1rem 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.season-details.show {
+    display: block;
+}
+
+.season-meta {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    margin-top: 1rem;
+}
+
+.season-tournaments-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.season-tournaments-table th,
+.season-tournaments-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.season-tournaments-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+.season-tournaments-table .actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.season-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.create-season-inline {
+    display: none;
+    padding: 1rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-top: 0.5rem;
+}
+
+.create-season-inline.show {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.create-season-inline input {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}

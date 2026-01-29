@@ -55,136 +55,153 @@
             <div class="tab-panel">
                 <h2>Kausien hallinta</h2>
 
-                <!-- Current Season Card -->
-                {% if current_season %}
-                <div class="season-card current">
-                    <h3>🏆 Nykyinen kausi: {{ current_season.name }}</h3>
-                    <p>Luotu: {{ current_season.created_at[:10] }}</p>
-                    <p>Turnauksia: {{ current_tournament_count }}</p>
-
-                    <form method="POST" action="/admin/seasons/end-current" class="confirm-form" data-confirm="Lopeta {{ current_season.name }}? Voit aktivoida sen uudelleen tai luoda uuden kauden myöhemmin.">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn-warning">Lopeta nykyinen kausi</button>
-                    </form>
+                {% if not current_season and not archived_seasons %}
+                <div class="empty-state">
+                    <p>Ei kausia. Luo ensimmäinen kausi aloittaaksesi.</p>
                 </div>
                 {% else %}
-                <div class="season-card no-season">
-                    <h3>⚠️ Ei aktiivista kautta</h3>
-                    <p>Luo uusi kausi tai aktivoi arkistoitu kausi alla.</p>
-                </div>
-                {% endif %}
+                <div class="season-accordion">
+                    <!-- Current Season -->
+                    {% if current_season %}
+                    <div class="season-row current">
+                        <div class="season-header" onclick="toggleSeason('current')">
+                            <span class="season-toggle-icon" id="season-icon-current">▶</span>
+                            <span class="season-name">{{ current_season.name }}</span>
+                            <span class="season-badge current">Nykyinen</span>
+                            <span class="season-tournament-count">{{ current_tournament_count }} turnausta</span>
+                        </div>
+                        <div class="season-details" id="season-details-current">
+                            <p class="season-meta">Luotu: {{ current_season.created_at[:10] }}</p>
 
-                <!-- Current Season Tournaments -->
-                {% if current_season %}
-                <div class="current-season-tournaments">
-                    <h3>Turnaukset kaudella {{ current_season.name }}</h3>
+                            {% if current_season_tournaments %}
+                            <table class="season-tournaments-table">
+                                <thead>
+                                    <tr>
+                                        <th>Turnaus</th>
+                                        <th>Pvm</th>
+                                        <th>Tila</th>
+                                        <th>Toiminnot</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for tournament in current_season_tournaments %}
+                                    <tr>
+                                        <td>{{ tournament['name'] }}</td>
+                                        <td>{{ tournament['created_at'][:10] }}</td>
+                                        <td>
+                                            {% if tournament['status'] == 'active' %}
+                                            <span class="status-badge active-badge">Käynnissä</span>
+                                            {% elif tournament['status'] == 'completed' %}
+                                            <span class="status-badge completed-badge">Päättynyt</span>
+                                            {% else %}
+                                            <span class="status-badge setup-badge">Valmistelu</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="actions">
+                                            {% if tournament['status'] == 'setup' %}
+                                            <form method="POST" action="{{ url_for('start_round', tournament_id=tournament['id']) }}" style="display:inline;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn-primary btn-small">Aloita</button>
+                                            </form>
+                                            <a href="{{ url_for('admin_tournament_edit_page', tournament_id=tournament['id']) }}" class="btn-secondary btn-small">Muokkaa</a>
+                                            {% elif tournament['status'] == 'active' %}
+                                            <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-secondary btn-small">Näytä</a>
+                                            <form method="POST" action="{{ url_for('end_tournament', tournament_id=tournament['id']) }}" style="display:inline;" class="confirm-form" data-confirm="Lopeta turnaus '{{ tournament['name'] }}'?">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn-warning btn-small">Lopeta</button>
+                                            </form>
+                                            {% else %}
+                                            <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary btn-small">Näytä</a>
+                                            {% endif %}
+                                            <form method="POST" action="{{ url_for('admin_delete_tournament', tournament_id=tournament['id']) }}" style="display:inline;" class="confirm-form" data-confirm="Poista turnaus '{{ tournament['name'] }}'? Tätä ei voi perua.">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn-danger btn-small">Poista</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <p class="season-meta">Ei vielä turnauksia.</p>
+                            {% endif %}
 
-                    {% if current_season_tournaments %}
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Turnauksen nimi</th>
-                                <th>Päivämäärä</th>
-                                <th>Tila</th>
-                                <th>Toiminnot</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for tournament in current_season_tournaments %}
-                            <tr id="tournament-{{ tournament['id'] }}">
-                                <td>{{ tournament['name'] }}</td>
-                                <td>{{ tournament['created_at'][:10] }}</td>
-                                <td>
-                                    {% if tournament['status'] == 'active' %}
-                                    <span class="status-badge active-badge">Käynnissä</span>
-                                    {% elif tournament['status'] == 'completed' %}
-                                    <span class="status-badge completed-badge">Päättynyt</span>
-                                    {% else %}
-                                    <span class="status-badge setup-badge">Valmistelu</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if tournament['status'] == 'setup' %}
-                                    <form method="POST" action="{{ url_for('start_round', tournament_id=tournament['id']) }}" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn-primary">Aloita</button>
-                                    </form>
-                                    <a href="{{ url_for('admin_tournament_edit_page', tournament_id=tournament['id']) }}" class="btn-secondary">Muokkaa</a>
-                                    {% elif tournament['status'] == 'active' %}
-                                    <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-secondary">Näytä</a>
-                                    <form method="POST" action="{{ url_for('end_tournament', tournament_id=tournament['id']) }}" style="display: inline;" class="confirm-form" data-confirm="Haluatko varmasti lopettaa turnauksen '{{ tournament['name'] }}'?">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn-warning">Lopeta</button>
-                                    </form>
-                                    {% else %}
-                                    <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary">Näytä</a>
-                                    {% endif %}
-                                    <form method="POST" action="{{ url_for('admin_delete_tournament', tournament_id=tournament['id']) }}" style="display: inline;" class="confirm-form" data-confirm="⚠️ Haluatko varmasti poistaa turnauksen '{{ tournament['name'] }}'? Tämä poistaa pysyvästi kaikki kierrokset, ottelut ja tulokset. Tätä ei voi perua.">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn-danger">Poista</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                    <p class="empty-state-message">Ei vielä turnauksia. Luo turnaus alla.</p>
+                            <div class="season-actions">
+                                <button type="button" id="open-create-tournament-btn" class="btn-primary">+ Luo turnaus</button>
+                                <form method="POST" action="/admin/seasons/end-current" class="confirm-form" data-confirm="Lopeta {{ current_season.name }}?">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn-warning">Lopeta kausi</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                     {% endif %}
+
+                    <!-- Archived Seasons -->
+                    {% for season in archived_seasons %}
+                    <div class="season-row">
+                        <div class="season-header" onclick="toggleSeason({{ season.id }})">
+                            <span class="season-toggle-icon" id="season-icon-{{ season.id }}">▶</span>
+                            <span class="season-name">{{ season.name }}</span>
+                            <span class="season-badge ended">Päättynyt</span>
+                            <span class="season-tournament-count">{{ season.tournament_count }} turnausta</span>
+                        </div>
+                        <div class="season-details" id="season-details-{{ season.id }}">
+                            <p class="season-meta">Luotu: {{ season.created_at[:10] }} | Päättynyt: {{ season.ended_at[:10] if season.ended_at else '-' }}</p>
+
+                            {% if season.tournaments %}
+                            <table class="season-tournaments-table">
+                                <thead>
+                                    <tr>
+                                        <th>Turnaus</th>
+                                        <th>Pvm</th>
+                                        <th>Tila</th>
+                                        <th>Toiminnot</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for tournament in season.tournaments %}
+                                    <tr>
+                                        <td>{{ tournament['name'] }}</td>
+                                        <td>{{ tournament['created_at'][:10] }}</td>
+                                        <td><span class="status-badge completed-badge">Päättynyt</span></td>
+                                        <td class="actions">
+                                            <a href="{{ url_for('leaderboard', tournament_id=tournament['id']) }}" class="btn-secondary btn-small">Näytä</a>
+                                            <form method="POST" action="{{ url_for('admin_delete_tournament', tournament_id=tournament['id']) }}" style="display:inline;" class="confirm-form" data-confirm="Poista turnaus '{{ tournament['name'] }}'? Tätä ei voi perua.">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn-danger btn-small">Poista</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <p class="season-meta">Ei turnauksia.</p>
+                            {% endif %}
+
+                            <div class="season-actions">
+                                <form method="POST" action="/admin/seasons/{{ season.id }}/activate" class="confirm-form" data-confirm="Aseta {{ season.name }} nykyiseksi kaudeksi?">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn-secondary">Aseta nykyiseksi</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
                 {% endif %}
 
-                <!-- Create Tournament Button -->
-                {% if current_season %}
-                <div style="margin-bottom: 2rem;">
-                    <button type="button" id="open-create-tournament-btn" class="btn-primary">+ Luo uusi turnaus</button>
-                </div>
-                {% endif %}
-
-
-                <!-- Create New Season Form -->
-                <div class="create-season-form">
-                    <h3>Luo uusi kausi</h3>
-                    <form method="POST" action="/admin/seasons/create">
+                <!-- Create Season -->
+                <button type="button" id="toggle-create-season-btn" class="btn-primary">+ Luo uusi kausi</button>
+                <div class="create-season-inline" id="create-season-form">
+                    <form method="POST" action="/admin/seasons/create" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;width:100%;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="text" name="season_name" placeholder="Kauden nimi (esim. Talvi 2025)" maxlength="100" required>
-                        <button type="submit" class="btn-primary">Luo kausi</button>
+                        <input type="text" name="season_name" placeholder="Kauden nimi (esim. Kevät 2026)" maxlength="100" required style="flex:1;min-width:200px;">
+                        <button type="submit" class="btn-primary">Luo</button>
+                        <button type="button" id="cancel-create-season-btn" class="btn-secondary">Peruuta</button>
                     </form>
                 </div>
-
-                <!-- Archived Seasons Table -->
-                {% if archived_seasons %}
-                <div class="archived-seasons">
-                    <h3>Arkistoidut kaudet</h3>
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Kauden nimi</th>
-                                <th>Luotu</th>
-                                <th>Päättynyt</th>
-                                <th>Turnauksia</th>
-                                <th>Toiminnot</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for season in archived_seasons %}
-                            <tr>
-                                <td>{{ season.name }}</td>
-                                <td>{{ season.created_at[:10] }}</td>
-                                <td>{{ season.ended_at[:10] if season.ended_at else '-' }}</td>
-                                <td>{{ season.tournament_count }}</td>
-                                <td>
-                                    <form method="POST" action="/admin/seasons/{{ season.id }}/activate" style="display:inline;" class="confirm-form" data-confirm="Aseta {{ season.name }} nykyiseksi kaudeksi?">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn-secondary">Aseta nykyiseksi</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% endif %}
             </div>
         </div>
 
@@ -409,6 +426,31 @@
             adjDisplay.textContent = newAdj >= 0 ? `+${newAdj}` : newAdj;
             adjDisplay.style.color = newAdj >= 0 ? '#22c55e' : '#ef4444';
         }
+
+        // Season accordion toggle
+        function toggleSeason(seasonId) {
+            const details = document.getElementById('season-details-' + seasonId);
+            const icon = document.getElementById('season-icon-' + seasonId);
+
+            if (details.classList.contains('show')) {
+                details.classList.remove('show');
+                icon.textContent = '▶';
+            } else {
+                details.classList.add('show');
+                icon.textContent = '▼';
+            }
+        }
+
+        // Create season form toggle
+        document.getElementById('toggle-create-season-btn')?.addEventListener('click', function() {
+            document.getElementById('create-season-form').classList.add('show');
+            this.style.display = 'none';
+        });
+
+        document.getElementById('cancel-create-season-btn')?.addEventListener('click', function() {
+            document.getElementById('create-season-form').classList.remove('show');
+            document.getElementById('toggle-create-season-btn').style.display = '';
+        });
 
         // Modal functions
         function openCreateTournamentModal() {
