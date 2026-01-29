@@ -156,9 +156,9 @@ db_dir = os.path.dirname(app.config['DATABASE'])
 if db_dir:
     os.makedirs(db_dir, exist_ok=True)
 
-# Initialize database on first run
-if not os.path.exists(app.config['DATABASE']):
-    init_db()
+# Initialize database (idempotent - uses CREATE TABLE IF NOT EXISTS)
+# Always run to ensure tables exist even if file was created empty
+init_db()
 
 # Database connection helper
 def get_db_connection():
