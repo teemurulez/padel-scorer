@@ -3847,6 +3847,7 @@ if not os.environ.get('SKIP_MIGRATIONS'):
                 player_id INTEGER NOT NULL,
                 season_id INTEGER NOT NULL,
                 adjustment INTEGER DEFAULT 0,
+                tournaments_adjustment INTEGER DEFAULT 0,
                 note TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -3855,6 +3856,13 @@ if not os.environ.get('SKIP_MIGRATIONS'):
                 UNIQUE(player_id, season_id)
             )
         ''')
+
+        # Migration: add tournaments_adjustment column if missing (for existing databases)
+        cursor = db.execute("PRAGMA table_info(player_points_adjustment)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'tournaments_adjustment' not in columns:
+            db.execute("ALTER TABLE player_points_adjustment ADD COLUMN tournaments_adjustment INTEGER DEFAULT 0")
+
         db.commit()
 else:
     print("⏭️ Skipping migrations (SKIP_MIGRATIONS=1)")
