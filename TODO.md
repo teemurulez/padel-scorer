@@ -1,10 +1,10 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-01-28
+> **Last updated:** 2026-01-29
 
 ## Project Status
 
-The app is **production-ready** with security hardening complete. Core features work well. All 196 tests pass.
+The app is **production-ready** with security hardening complete. Core features work well. All 199 tests pass.
 
 ## Completed Items
 
@@ -27,6 +27,8 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Live score updates via SSE (done 2026-01-27)
 - [x] Bulk import player points from external tournaments (done 2026-01-27)
 - [x] Fix season standings for players with only imported points (done 2026-01-28)
+- [x] Railway persistent volume with DATABASE_PATH config (done 2026-01-29)
+- [x] Seasons tab accordion redesign (done 2026-01-29)
 
 ## Next Steps
 
@@ -51,6 +53,26 @@ The app is **production-ready** with security hardening complete. Core features 
 **UX Ideas:**
 - (Live updates implemented via SSE 2026-01-27)
 - Move tournament edit flash messages into "Viimeisimmät muutokset" expandable area
+- Reduce visual clutter in seasons accordion (simplify tournament table, compact layout)
+
+## Recent Changes (2026-01-29)
+
+**Railway Deployment Fixes:**
+- Fixed missing `tournaments_adjustment` column in migration
+- Made `DATABASE_PATH` configurable via environment variable
+- Fixed migrations to handle fresh/empty databases
+- Fixed `init_db()` to run in Flask app context for correct path
+- Railway now uses persistent volume at `/data/padel.db`
+
+**Admin Seasons Tab Redesign:**
+- Replaced cluttered layout with accordion list
+- Each season expands to show tournaments and actions
+- Current season highlighted with gold border at top
+- Tournament actions (Aloita, Muokkaa, Näytä, Lopeta, Poista) in compact rows
+- Inline "Luo uusi kausi" form
+- CSP-compliant event handling
+
+---
 
 ## Recent Changes (2026-01-28)
 
