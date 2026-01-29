@@ -158,7 +158,9 @@ if db_dir:
 
 # Initialize database (idempotent - uses CREATE TABLE IF NOT EXISTS)
 # Always run to ensure tables exist even if file was created empty
-init_db()
+# Must run in app context so init_db() can access app.config['DATABASE']
+with app.app_context():
+    init_db()
 
 # Database connection helper
 def get_db_connection():
