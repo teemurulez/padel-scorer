@@ -15,6 +15,11 @@ def migrate_tournaments_to_seasons(conn):
     """
     cursor = conn.cursor()
 
+    # Check if tournaments table exists (fresh database has no tables yet)
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tournaments'")
+    if not cursor.fetchone():
+        return "already_migrated"  # Nothing to migrate on fresh database
+
     # Check if migration needed (any tournament without season_id)
     result = cursor.execute(
         "SELECT COUNT(*) FROM tournaments WHERE season_id IS NULL"
@@ -106,6 +111,12 @@ def migrate_seasons_schema():
     """Add name and ended_at columns to seasons table if missing"""
     conn = get_db()
     cursor = conn.cursor()
+
+    # Check if seasons table exists (fresh database has no tables yet)
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='seasons'")
+    if not cursor.fetchone():
+        conn.close()
+        return "already_migrated"  # Nothing to migrate on fresh database
 
     # Check existing columns
     cursor.execute("PRAGMA table_info(seasons)")
