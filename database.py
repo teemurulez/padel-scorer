@@ -21,8 +21,17 @@ def get_db():
 
 def init_db():
     """Initialize database with schema"""
-    # Ensure instance directory exists
-    os.makedirs('instance', exist_ok=True)
+    # Get the database path (uses Flask config if available)
+    try:
+        from flask import current_app
+        db_path = current_app.config.get('DATABASE', DATABASE)
+    except (ImportError, RuntimeError):
+        db_path = DATABASE
+
+    # Ensure database directory exists
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
 
     conn = get_db()
     cursor = conn.cursor()

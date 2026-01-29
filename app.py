@@ -3835,12 +3835,15 @@ if not os.environ.get('SKIP_MIGRATIONS'):
 
         # Add version column to matches table for concurrency control
         db = get_db_connection()
-        cursor = db.execute("PRAGMA table_info(matches)")
-        columns = [row[1] for row in cursor.fetchall()]
-        if 'version' not in columns:
-            db.execute("ALTER TABLE matches ADD COLUMN version INTEGER DEFAULT 1")
-            db.commit()
-            print("✅ Matches version column added")
+        # Check if matches table exists (fresh database may not have it yet)
+        cursor = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='matches'")
+        if cursor.fetchone():
+            cursor = db.execute("PRAGMA table_info(matches)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if 'version' not in columns:
+                db.execute("ALTER TABLE matches ADD COLUMN version INTEGER DEFAULT 1")
+                db.commit()
+                print("✅ Matches version column added")
 
         # Create player_points_adjustment table if not exists
         db.execute('''
