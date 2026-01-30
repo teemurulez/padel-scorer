@@ -17,8 +17,6 @@ def get_db():
     uri_mode = db_path.startswith('file:')
     conn = sqlite3.connect(db_path, uri=uri_mode, timeout=10.0)
     conn.row_factory = sqlite3.Row  # Returns rows as dictionaries
-    # Enable WAL mode for better concurrency (only needs to be set once per database)
-    conn.execute('PRAGMA journal_mode=WAL')
     return conn
 
 def init_db():
@@ -37,6 +35,9 @@ def init_db():
 
     conn = get_db()
     cursor = conn.cursor()
+
+    # Enable WAL mode for better concurrency (only needs to be set once)
+    cursor.execute('PRAGMA journal_mode=WAL')
 
     # Create players table
     cursor.execute('''
