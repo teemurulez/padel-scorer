@@ -2,8 +2,8 @@ import pytest
 from seeded_pairing import generate_seeded_round1_pairings
 
 
-def test_seeded_pairing_puts_top_players_on_court_1():
-    """Test that highest seeded players are on Court 1"""
+def test_seeded_pairing_uses_rolling_pool_randomization():
+    """Test that court assignments use rolling pool randomization within skill tiers"""
     # Mock database with 8 players having different seeds
     players_with_seeds = [
         {'id': 1, 'seed_points': 850},
@@ -18,17 +18,26 @@ def test_seeded_pairing_puts_top_players_on_court_1():
 
     pairings = generate_seeded_round1_pairings(players_with_seeds, num_courts=2)
 
-    # Court 1 should have top 4 players (ids 1, 2, 3, 4)
     court1_players = set(pairings[0])
-    assert court1_players == {1, 2, 3, 4}
-
-    # Court 2 should have bottom 4 players (ids 5, 6, 7, 8)
     court2_players = set(pairings[1])
-    assert court2_players == {5, 6, 7, 8}
+
+    # All players should be assigned exactly once
+    assert len(court1_players) == 4
+    assert len(court2_players) == 4
+    assert court1_players.isdisjoint(court2_players)
+    assert court1_players | court2_players == {1, 2, 3, 4, 5, 6, 7, 8}
+
+    # Court 1 players should come from top pool (players 1-5 for 2 courts)
+    # At least 3 of the top 4 should be on court 1 (pool is top 5, pick 4)
+    top_4_on_court1 = len(court1_players & {1, 2, 3, 4})
+    assert top_4_on_court1 >= 3, f"Expected at least 3 of top 4 on court 1, got {top_4_on_court1}"
+
+    # Court 1 should not have the bottom 3 players
+    assert court1_players.isdisjoint({6, 7, 8}) or len(court1_players & {6, 7, 8}) <= 1
 
 
 def test_seeded_pairing_handles_new_players():
-    """Test that new players (seed=0) go to lower courts"""
+    """Test that new players (seed=0) end up on lower courts"""
     players_with_seeds = [
         {'id': 1, 'seed_points': 850},
         {'id': 2, 'seed_points': 820},
@@ -42,13 +51,19 @@ def test_seeded_pairing_handles_new_players():
 
     pairings = generate_seeded_round1_pairings(players_with_seeds, num_courts=2)
 
-    # Court 1 should have experienced players (1, 2, 5, 6)
     court1_players = set(pairings[0])
-    assert court1_players == {1, 2, 5, 6}
-
-    # Court 2 should have new players (3, 4, 7, 8)
     court2_players = set(pairings[1])
-    assert court2_players == {3, 4, 7, 8}
+
+    # Experienced players (1, 2, 5, 6) should mostly be on court 1
+    # At least 3 of them should be on court 1
+    experienced = {1, 2, 5, 6}
+    experienced_on_court1 = len(court1_players & experienced)
+    assert experienced_on_court1 >= 3, f"Expected at least 3 experienced players on court 1"
+
+    # New players (3, 4, 7, 8) should mostly be on court 2
+    new_players = {3, 4, 7, 8}
+    new_on_court2 = len(court2_players & new_players)
+    assert new_on_court2 >= 3, f"Expected at least 3 new players on court 2"
 
 
 def test_seeded_pairing_balances_teams():

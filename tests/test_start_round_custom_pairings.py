@@ -73,7 +73,7 @@ def test_start_round1_uses_custom_pairings_if_saved(client):
 
     # Set admin session (required to start tournament in setup mode)
     with client_obj.session_transaction() as sess:
-        sess['is_admin'] = True
+        sess['logged_in_as_admin'] = True
 
     # Start Round 1
     response = client_obj.post(f'/tournament/{tournament_id}/start_round')
@@ -114,7 +114,7 @@ def test_start_round1_deletes_used_custom_pairings(client):
 
     # Set admin session (required to start tournament in setup mode)
     with client_obj.session_transaction() as sess:
-        sess['is_admin'] = True
+        sess['logged_in_as_admin'] = True
 
     # Start Round 1
     client_obj.post(f'/tournament/{tournament_id}/start_round')
@@ -135,7 +135,7 @@ def test_start_round1_uses_algorithm_if_no_custom_pairings(client):
 
     # Set admin session (required to start tournament in setup mode)
     with client_obj.session_transaction() as sess:
-        sess['is_admin'] = True
+        sess['logged_in_as_admin'] = True
 
     # Start Round 1 without saving custom pairings
     response = client_obj.post(f'/tournament/{tournament_id}/start_round')

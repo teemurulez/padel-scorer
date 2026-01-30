@@ -82,7 +82,7 @@ def test_start_round1_sets_active_status(client):
 
     # Set admin session (required to start tournament in setup mode)
     with client.session_transaction() as sess:
-        sess['is_admin'] = True
+        sess['logged_in_as_admin'] = True
 
     # Start Round 1 via POST to start_round
     response = client.post(f'/tournament/{tournament_id}/start_round', follow_redirects=False)

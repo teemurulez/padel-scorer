@@ -206,8 +206,8 @@ def init_db():
         ON tournament_players(player_id)
     ''')
 
-    # Create player_seeding view (calculates seed score from last 6 tournaments)
-    # seed_score = wins / matches (higher is better)
+    # Create player_seeding view (calculates seed score from last 6 tournaments + adjustments)
+    # seed_score = (wins + adjustment) / (matches + matches_adjustment) (higher is better)
     cursor.execute('''
         CREATE VIEW IF NOT EXISTS player_seeding AS
         WITH recent_tournaments AS (
@@ -224,24 +224,38 @@ def init_db():
             FROM tournament_players tp
             JOIN tournaments t ON tp.tournament_id = t.id
             WHERE t.status IN ('completed', 'archived')
+        ),
+        player_adjustments AS (
+            -- Get adjustments for current season
+            SELECT
+                player_id,
+                COALESCE(adjustment, 0) as wins_adj,
+                COALESCE(matches_adjustment, 0) as matches_adj
+            FROM player_points_adjustment adj
+            JOIN seasons s ON adj.season_id = s.id AND s.is_current = 1
         )
         SELECT
             pr.id as player_id,
             pr.first_name,
             pr.last_name,
-            COALESCE(SUM(rt.match_wins), 0) as total_wins,
-            COALESCE(SUM(rt.match_wins + rt.match_losses), 0) as total_matches,
+            COALESCE(SUM(rt.match_wins), 0) + COALESCE(pa.wins_adj, 0) as total_wins,
+            COALESCE(SUM(rt.match_wins + rt.match_losses), 0) + COALESCE(pa.matches_adj, 0) as total_matches,
             COUNT(rt.tournament_id) as recent_tournaments,
             CASE
-                WHEN COALESCE(SUM(rt.match_wins + rt.match_losses), 0) > 0
-                THEN ROUND(CAST(SUM(rt.match_wins) AS FLOAT) / SUM(rt.match_wins + rt.match_losses), 3)
+                WHEN (COALESCE(SUM(rt.match_wins + rt.match_losses), 0) + COALESCE(pa.matches_adj, 0)) > 0
+                THEN ROUND(
+                    CAST(COALESCE(SUM(rt.match_wins), 0) + COALESCE(pa.wins_adj, 0) AS FLOAT) /
+                    (COALESCE(SUM(rt.match_wins + rt.match_losses), 0) + COALESCE(pa.matches_adj, 0)),
+                    3
+                )
                 ELSE 0
             END as seed_score,
             -- Keep seed_points for backward compatibility
-            COALESCE(SUM(rt.match_wins), 0) as seed_points
+            COALESCE(SUM(rt.match_wins), 0) + COALESCE(pa.wins_adj, 0) as seed_points
         FROM player_registry pr
         LEFT JOIN recent_tournaments rt ON pr.id = rt.player_id AND rt.tournament_rank <= 6
-        GROUP BY pr.id, pr.first_name, pr.last_name
+        LEFT JOIN player_adjustments pa ON pr.id = pa.player_id
+        GROUP BY pr.id, pr.first_name, pr.last_name, pa.wins_adj, pa.matches_adj
         ORDER BY seed_score DESC, total_wins DESC, last_name ASC, first_name ASC
     ''')
 
@@ -286,6 +300,7 @@ def init_db():
             season_id INTEGER NOT NULL,
             adjustment INTEGER DEFAULT 0,
             tournaments_adjustment INTEGER DEFAULT 0,
+            matches_adjustment INTEGER DEFAULT 0,
             note TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -300,6 +315,8 @@ def init_db():
     columns = [row[1] for row in cursor.fetchall()]
     if 'tournaments_adjustment' not in columns:
         cursor.execute("ALTER TABLE player_points_adjustment ADD COLUMN tournaments_adjustment INTEGER DEFAULT 0")
+    if 'matches_adjustment' not in columns:
+        cursor.execute("ALTER TABLE player_points_adjustment ADD COLUMN matches_adjustment INTEGER DEFAULT 0")
 
     # Tournament edit history table (for tracking changes across edit sessions)
     cursor.execute('''

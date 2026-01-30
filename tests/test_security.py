@@ -517,7 +517,7 @@ class TestStartRoundProtection:
 
         # Set admin session
         with client_no_csrf.session_transaction() as sess:
-            sess['is_admin'] = True
+            sess['logged_in_as_admin'] = True
 
         # Admin should be able to start round
         response = client_no_csrf.post(f'/tournament/{tournament_id}/start_round', follow_redirects=False)

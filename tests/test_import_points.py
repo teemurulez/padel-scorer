@@ -245,3 +245,136 @@ def test_import_points_multiple_players(client):
     assert data['success'] is True
     assert data['imported'] == 3
     assert data['created'] == 3
+
+
+def test_import_points_with_matches(client):
+    """Test importing with matches column for seed ratio calculation"""
+    setup_admin_and_season(client)
+
+    response = client.post('/admin/players/import-points',
+        data=json.dumps({'players': [
+            {'firstName': 'Matti', 'lastName': 'Meikäläinen', 'wins': 5, 'tournaments': 2, 'matches': 8},
+            {'firstName': 'Maija', 'lastName': 'Virtanen', 'wins': 3, 'tournaments': 1, 'matches': 8},
+        ]}),
+        content_type='application/json'
+    )
+
+    data = json.loads(response.data)
+    assert data['success'] is True
+    assert data['imported'] == 2
+    assert data['created'] == 2
+
+    # Verify player was created with correct adjustments
+    with app.app_context():
+        db = get_db()
+        player = db.execute(
+            "SELECT id FROM player_registry WHERE first_name = 'Matti' AND last_name = 'Meikäläinen'"
+        ).fetchone()
+        assert player is not None
+
+        # Verify all adjustments were created correctly
+        adj = db.execute(
+            "SELECT adjustment, tournaments_adjustment, matches_adjustment FROM player_points_adjustment WHERE player_id = ?",
+            (player['id'],)
+        ).fetchone()
+        assert adj is not None
+        assert adj['adjustment'] == 5  # wins
+        assert adj['tournaments_adjustment'] == 2  # tournaments
+        assert adj['matches_adjustment'] == 8  # matches
+
+
+def test_import_points_matches_accumulates(client):
+    """Test that matches adjustment accumulates on multiple imports"""
+    setup_admin_and_season(client)
+
+    # First import
+    client.post('/admin/players/import-points',
+        data=json.dumps({'players': [
+            {'firstName': 'Test', 'lastName': 'Player', 'wins': 5, 'tournaments': 2, 'matches': 8}
+        ]}),
+        content_type='application/json'
+    )
+
+    # Second import for same player
+    response = client.post('/admin/players/import-points',
+        data=json.dumps({'players': [
+            {'firstName': 'Test', 'lastName': 'Player', 'wins': 3, 'tournaments': 1, 'matches': 8}
+        ]}),
+        content_type='application/json'
+    )
+
+    data = json.loads(response.data)
+    assert data['success'] is True
+
+    # Verify all adjustments accumulated correctly
+    with app.app_context():
+        db = get_db()
+        player = db.execute(
+            "SELECT id FROM player_registry WHERE first_name = 'Test'"
+        ).fetchone()
+        adj = db.execute(
+            "SELECT adjustment, tournaments_adjustment, matches_adjustment FROM player_points_adjustment WHERE player_id = ?",
+            (player['id'],)
+        ).fetchone()
+        assert adj['adjustment'] == 8  # 5 + 3
+        assert adj['tournaments_adjustment'] == 3  # 2 + 1
+        assert adj['matches_adjustment'] == 16  # 8 + 8
+
+
+def test_fix_matches_requires_login(client):
+    """Test that fix-matches requires admin login"""
+    response = client.post('/admin/players/fix-matches',
+        data=json.dumps({'matches_per_player': 8}),
+        content_type='application/json'
+    )
+    assert response.status_code == 302
+    assert '/admin/login' in response.location
+
+
+def test_fix_matches_updates_missing_matches(client):
+    """Test that fix-matches updates records with 0 matches_adjustment"""
+    setup_admin_and_season(client)
+
+    # First import without matches (simulating old import)
+    client.post('/admin/players/import-points',
+        data=json.dumps({'players': [
+            {'firstName': 'Matti', 'lastName': 'Meikäläinen', 'wins': 5, 'tournaments': 2, 'matches': 0},
+            {'firstName': 'Maija', 'lastName': 'Virtanen', 'wins': 3, 'tournaments': 1, 'matches': 0},
+        ]}),
+        content_type='application/json'
+    )
+
+    # Verify matches are 0
+    with app.app_context():
+        db = get_db()
+        player = db.execute(
+            "SELECT id FROM player_registry WHERE first_name = 'Matti'"
+        ).fetchone()
+        adj = db.execute(
+            "SELECT matches_adjustment FROM player_points_adjustment WHERE player_id = ?",
+            (player['id'],)
+        ).fetchone()
+        assert adj['matches_adjustment'] == 0
+
+    # Now fix the matches
+    response = client.post('/admin/players/fix-matches',
+        data=json.dumps({'matches_per_player': 8}),
+        content_type='application/json'
+    )
+
+    data = json.loads(response.data)
+    assert data['success'] is True
+    assert data['updated'] == 2
+    assert data['matches_per_player'] == 8
+
+    # Verify matches were updated
+    with app.app_context():
+        db = get_db()
+        player = db.execute(
+            "SELECT id FROM player_registry WHERE first_name = 'Matti'"
+        ).fetchone()
+        adj = db.execute(
+            "SELECT matches_adjustment FROM player_points_adjustment WHERE player_id = ?",
+            (player['id'],)
+        ).fetchone()
+        assert adj['matches_adjustment'] == 8

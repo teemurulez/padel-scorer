@@ -639,7 +639,7 @@ def start_round(tournament_id):
         return redirect(url_for('index'))
 
     # Prevent non-admin users from starting tournament in setup mode
-    if tournament['status'] == 'setup' and not session.get('is_admin'):
+    if tournament['status'] == 'setup' and not session.get('logged_in_as_admin'):
         flash('Vain ylläpitäjä voi aloittaa turnauksen')
         return redirect(url_for('index'))
 
@@ -2584,11 +2584,11 @@ def admin_dashboard():
                 pr.last_name,
                 COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as wins,
                 COUNT(DISTINCT t.id) + COALESCE(adj.tournaments_adjustment, 0) as tournaments_played,
-                COUNT(DISTINCT m.id) as matches_played,
+                COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0) as matches_played,
                 ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) AS FLOAT) /
                       NULLIF(COUNT(DISTINCT t.id) + COALESCE(adj.tournaments_adjustment, 0), 0), 2) as wins_per_tournament,
-                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
-                      NULLIF(COUNT(DISTINCT m.id), 0), 2) as win_rate,
+                ROUND(CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) AS FLOAT) /
+                      NULLIF(COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0), 0), 2) as win_rate,
                 COALESCE(adj.adjustment, 0) as adjustment,
                 COALESCE(adj.tournaments_adjustment, 0) as tournaments_adjustment,
                 COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) as total_points
@@ -2861,19 +2861,43 @@ def admin_players():
         flash('Ei aktiivista kautta')
         return redirect('/admin')
 
-    # Get all players with their season points (auto + adjustment)
-    # Uses same query logic as season_leaderboard (scores table)
+    # Get all players with their season stats (points, matches, tournaments)
+    # Combines auto-calculated values from completed matches with manual adjustments
     players = db.execute('''
         SELECT
             pr.id,
             pr.first_name,
             pr.last_name,
-            COALESCE(auto.auto_points, 0) as auto_points,
+            COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) as wins,
+            COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) as total_points,
             COALESCE(adj.adjustment, 0) as adjustment,
-            COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) as total_points
+            COALESCE(auto.auto_tournaments, 0) + COALESCE(adj.tournaments_adjustment, 0) as tournaments_played,
+            COALESCE(auto.auto_matches, 0) + COALESCE(adj.matches_adjustment, 0) as matches_played,
+            CASE
+                WHEN (COALESCE(auto.auto_tournaments, 0) + COALESCE(adj.tournaments_adjustment, 0)) > 0
+                THEN ROUND(
+                    CAST(COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) AS FLOAT) /
+                    (COALESCE(auto.auto_tournaments, 0) + COALESCE(adj.tournaments_adjustment, 0)),
+                    2
+                )
+                ELSE 0
+            END as wins_per_tournament,
+            CASE
+                WHEN (COALESCE(auto.auto_matches, 0) + COALESCE(adj.matches_adjustment, 0)) > 0
+                THEN ROUND(
+                    CAST(COALESCE(auto.auto_points, 0) + COALESCE(adj.adjustment, 0) AS FLOAT) /
+                    (COALESCE(auto.auto_matches, 0) + COALESCE(adj.matches_adjustment, 0)),
+                    2
+                )
+                ELSE 0
+            END as win_rate
         FROM player_registry pr
         LEFT JOIN (
-            SELECT pr2.id as player_id, COALESCE(SUM(s.points), 0) as auto_points
+            SELECT
+                pr2.id as player_id,
+                COALESCE(SUM(s.points), 0) as auto_points,
+                COUNT(DISTINCT m.id) as auto_matches,
+                COUNT(DISTINCT t.id) as auto_tournaments
             FROM player_registry pr2
             LEFT JOIN matches m ON (pr2.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id))
             LEFT JOIN rounds r ON m.round_id = r.id
@@ -2999,8 +3023,9 @@ def admin_import_player_points():
         last_name = player_data.get('lastName', '').strip()
         wins = player_data.get('wins', 0)
         tournaments = player_data.get('tournaments', 0)
+        matches = player_data.get('matches', 0)
 
-        if not first_name or not last_name or wins < 0 or tournaments < 0:
+        if not first_name or not last_name or wins < 0 or tournaments < 0 or matches < 0:
             continue
 
         # Check if player exists in registry
@@ -3022,22 +3047,24 @@ def admin_import_player_points():
 
         # Get current adjustments (if any)
         current_adj = db.execute('''
-            SELECT adjustment, tournaments_adjustment FROM player_points_adjustment
+            SELECT adjustment, tournaments_adjustment, matches_adjustment FROM player_points_adjustment
             WHERE player_id = ? AND season_id = ?
         ''', (player_id, current_season['id'])).fetchone()
 
         current_adjustment = current_adj['adjustment'] if current_adj else 0
         current_tournaments = current_adj['tournaments_adjustment'] if current_adj else 0
+        current_matches = current_adj['matches_adjustment'] if current_adj else 0
         new_adjustment = current_adjustment + wins
         new_tournaments = current_tournaments + tournaments
+        new_matches = current_matches + matches
 
         # Insert or update adjustment (add to existing)
         db.execute('''
-            INSERT INTO player_points_adjustment (player_id, season_id, adjustment, tournaments_adjustment, updated_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO player_points_adjustment (player_id, season_id, adjustment, tournaments_adjustment, matches_adjustment, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(player_id, season_id)
-            DO UPDATE SET adjustment = ?, tournaments_adjustment = ?, updated_at = CURRENT_TIMESTAMP
-        ''', (player_id, current_season['id'], new_adjustment, new_tournaments, new_adjustment, new_tournaments))
+            DO UPDATE SET adjustment = ?, tournaments_adjustment = ?, matches_adjustment = ?, updated_at = CURRENT_TIMESTAMP
+        ''', (player_id, current_season['id'], new_adjustment, new_tournaments, new_matches, new_adjustment, new_tournaments, new_matches))
 
         imported_count += 1
 
@@ -3047,6 +3074,48 @@ def admin_import_player_points():
         'success': True,
         'imported': imported_count,
         'created': created_count
+    })
+
+
+@app.route('/admin/players/fix-matches', methods=['POST'])
+@block_in_demo_mode
+def admin_fix_matches_adjustment():
+    """Fix matches_adjustment for existing players (admin only)
+
+    Used when historical data was imported without the matches column.
+    Sets matches_adjustment to the provided value for all players who have
+    wins but no matches recorded.
+    """
+    db = get_db_connection()
+
+    current_season = get_current_season(db)
+    if not current_season:
+        return jsonify({'success': False, 'error': 'Ei aktiivista kautta'}), 400
+
+    data = request.get_json()
+    if not data or 'matches_per_player' not in data:
+        return jsonify({'success': False, 'error': 'No matches_per_player provided'}), 400
+
+    matches_per_player = int(data['matches_per_player'])
+    if matches_per_player < 1:
+        return jsonify({'success': False, 'error': 'matches_per_player must be at least 1'}), 400
+
+    # Update all adjustments that have wins/tournaments but no matches
+    cursor = db.execute('''
+        UPDATE player_points_adjustment
+        SET matches_adjustment = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE season_id = ?
+          AND matches_adjustment = 0
+          AND (adjustment > 0 OR tournaments_adjustment > 0)
+    ''', (matches_per_player, current_season['id']))
+
+    updated_count = cursor.rowcount
+    db.commit()
+
+    return jsonify({
+        'success': True,
+        'updated': updated_count,
+        'matches_per_player': matches_per_player
     })
 
 
@@ -3908,13 +3977,15 @@ if not os.environ.get('SKIP_MIGRATIONS'):
             )
         ''')
 
-        # Migration: add tournaments_adjustment column if missing (for existing databases)
+        # Migration: add adjustment columns if missing (for existing databases)
         cursor = db.execute("PRAGMA table_info(player_points_adjustment)")
         columns = [row[1] for row in cursor.fetchall()]
         if 'tournaments_adjustment' not in columns:
             db.execute("ALTER TABLE player_points_adjustment ADD COLUMN tournaments_adjustment INTEGER DEFAULT 0")
+        if 'matches_adjustment' not in columns:
+            db.execute("ALTER TABLE player_points_adjustment ADD COLUMN matches_adjustment INTEGER DEFAULT 0")
 
-        # Update player_seeding view to use wins/matches ratio from last 6 tournaments
+        # Update player_seeding view to use wins/matches ratio from last 6 tournaments + adjustments
         db.execute("DROP VIEW IF EXISTS player_seeding")
         db.execute('''
             CREATE VIEW IF NOT EXISTS player_seeding AS
@@ -3931,23 +4002,36 @@ if not os.environ.get('SKIP_MIGRATIONS'):
                 FROM tournament_players tp
                 JOIN tournaments t ON tp.tournament_id = t.id
                 WHERE t.status IN ('completed', 'archived')
+            ),
+            player_adjustments AS (
+                SELECT
+                    player_id,
+                    COALESCE(adjustment, 0) as wins_adj,
+                    COALESCE(matches_adjustment, 0) as matches_adj
+                FROM player_points_adjustment adj
+                JOIN seasons s ON adj.season_id = s.id AND s.is_current = 1
             )
             SELECT
                 pr.id as player_id,
                 pr.first_name,
                 pr.last_name,
-                COALESCE(SUM(rt.match_wins), 0) as total_wins,
-                COALESCE(SUM(rt.match_wins + rt.match_losses), 0) as total_matches,
+                COALESCE(SUM(rt.match_wins), 0) + COALESCE(pa.wins_adj, 0) as total_wins,
+                COALESCE(SUM(rt.match_wins + rt.match_losses), 0) + COALESCE(pa.matches_adj, 0) as total_matches,
                 COUNT(rt.tournament_id) as recent_tournaments,
                 CASE
-                    WHEN COALESCE(SUM(rt.match_wins + rt.match_losses), 0) > 0
-                    THEN ROUND(CAST(SUM(rt.match_wins) AS FLOAT) / SUM(rt.match_wins + rt.match_losses), 3)
+                    WHEN (COALESCE(SUM(rt.match_wins + rt.match_losses), 0) + COALESCE(pa.matches_adj, 0)) > 0
+                    THEN ROUND(
+                        CAST(COALESCE(SUM(rt.match_wins), 0) + COALESCE(pa.wins_adj, 0) AS FLOAT) /
+                        (COALESCE(SUM(rt.match_wins + rt.match_losses), 0) + COALESCE(pa.matches_adj, 0)),
+                        3
+                    )
                     ELSE 0
                 END as seed_score,
-                COALESCE(SUM(rt.match_wins), 0) as seed_points
+                COALESCE(SUM(rt.match_wins), 0) + COALESCE(pa.wins_adj, 0) as seed_points
             FROM player_registry pr
             LEFT JOIN recent_tournaments rt ON pr.id = rt.player_id AND rt.tournament_rank <= 6
-            GROUP BY pr.id, pr.first_name, pr.last_name
+            LEFT JOIN player_adjustments pa ON pr.id = pa.player_id
+            GROUP BY pr.id, pr.first_name, pr.last_name, pa.wins_adj, pa.matches_adj
             ORDER BY seed_score DESC, total_wins DESC, last_name ASC, first_name ASC
         ''')
         print("✅ Player seeding view updated")

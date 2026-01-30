@@ -512,14 +512,15 @@
                 // Split by tab, comma, or semicolon
                 const parts = line.split(/[\t,;]/).map(p => p.trim()).filter(p => p);
 
-                if (parts.length < 3) {
-                    errors.push(`Rivi ${i+1}: Tarvitaan nimi, voitot ja turnauksia`);
+                if (parts.length < 4) {
+                    errors.push(`Rivi ${i+1}: Tarvitaan nimi, voitot, turnauksia ja ottelut`);
                     continue;
                 }
 
                 const fullName = parts[0].trim();
                 const wins = parseInt(parts[1]);
                 const tournaments = parseInt(parts[2]);
+                const matches = parseInt(parts[3]);
 
                 if (isNaN(wins)) {
                     errors.push(`Rivi ${i+1}: "${parts[1]}" ei ole numero`);
@@ -528,6 +529,11 @@
 
                 if (isNaN(tournaments)) {
                     errors.push(`Rivi ${i+1}: "${parts[2]}" ei ole numero`);
+                    continue;
+                }
+
+                if (isNaN(matches)) {
+                    errors.push(`Rivi ${i+1}: "${parts[3]}" ei ole numero`);
                     continue;
                 }
 
@@ -558,6 +564,7 @@
                     lastName,
                     wins,
                     tournaments,
+                    matches,
                     isExisting
                 });
             }
@@ -581,7 +588,8 @@
                     <td>${p.lastName}</td>
                     <td>${p.wins}</td>
                     <td>${p.tournaments}</td>
-                    <td>${p.isExisting ? '<span style="color: #666;">Lisätään +' + p.wins + '/' + p.tournaments + '</span>' : '<span style="color: #22c55e;">Uusi pelaaja</span>'}</td>
+                    <td>${p.matches}</td>
+                    <td>${p.isExisting ? '<span style="color: #666;">Lisätään +' + p.wins + '/' + p.tournaments + '/' + p.matches + '</span>' : '<span style="color: #22c55e;">Uusi pelaaja</span>'}</td>
                 </tr>
             `).join('');
 
@@ -621,6 +629,45 @@
                 alert('Verkkovirhe: ' + e.message);
                 btn.disabled = false;
                 btn.textContent = `Tuo ${importData.length} pelaajaa`;
+            }
+        }
+
+        async function fixMissingMatches() {
+            const matchesInput = document.getElementById('fix-matches-count');
+            const matchesPerPlayer = parseInt(matchesInput.value);
+
+            if (isNaN(matchesPerPlayer) || matchesPerPlayer < 1) {
+                alert('Syötä kelvollinen ottelumäärä (vähintään 1)');
+                return;
+            }
+
+            const btn = document.getElementById('fix-matches-btn');
+            btn.disabled = true;
+            btn.textContent = 'Korjataan...';
+
+            try {
+                const response = await fetch('/admin/players/fix-matches', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ matches_per_player: matchesPerPlayer })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert(`Korjattu ${result.updated} pelaajan ottelumäärä (${matchesPerPlayer} ottelua)`);
+                    window.location.reload();
+                } else {
+                    alert('Virhe: ' + (result.error || 'Tuntematon virhe'));
+                    btn.disabled = false;
+                    btn.textContent = 'Korjaa';
+                }
+            } catch (e) {
+                alert('Verkkovirhe: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = 'Korjaa';
             }
         }
 
@@ -664,6 +711,10 @@
             const confirmImportBtn = document.getElementById('import-confirm-btn');
             if (confirmImportBtn) {
                 confirmImportBtn.addEventListener('click', confirmImportPoints);
+            }
+            const fixMatchesBtn = document.getElementById('fix-matches-btn');
+            if (fixMatchesBtn) {
+                fixMatchesBtn.addEventListener('click', fixMissingMatches);
             }
 
             // Create tournament modal event listeners
@@ -942,9 +993,9 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="import-data">Liitä tiedot Excelistä (Nimi, Voitot, Turnauksia)</label>
-                    <textarea id="import-data" placeholder="Matti Meikäläinen&#9;5&#9;2&#10;Maija Virtanen&#9;3&#9;1&#10;..." rows="10" style="font-family: monospace;"></textarea>
-                    <p class="form-hint">Kopioi Excelistä kolme saraketta: Nimi, Voitot ja Turnauksia. Erottimena tab, pilkku tai puolipiste.</p>
+                    <label for="import-data">Liitä tiedot Excelistä (Nimi, Voitot, Turnauksia, Ottelut)</label>
+                    <textarea id="import-data" placeholder="Matti Meikäläinen&#9;5&#9;2&#9;8&#10;Maija Virtanen&#9;3&#9;1&#9;8&#10;..." rows="10" style="font-family: monospace;"></textarea>
+                    <p class="form-hint">Kopioi Excelistä neljä saraketta: Nimi, Voitot, Turnauksia ja Ottelut. Erottimena tab, pilkku tai puolipiste.</p>
                 </div>
 
                 <button type="button" class="btn-secondary" id="preview-import-btn">Esikatsele</button>
@@ -961,6 +1012,7 @@
                                     <th>Sukunimi</th>
                                     <th>Voitot</th>
                                     <th>Turnauksia</th>
+                                    <th>Ottelut</th>
                                     <th>Tila</th>
                                 </tr>
                             </thead>
@@ -972,6 +1024,21 @@
                 <div class="modal-footer" style="margin-top: 1rem;">
                     <button type="button" class="btn-secondary" id="cancel-import-btn">Peruuta</button>
                     <button type="button" class="btn-primary" id="import-confirm-btn" disabled>Tuo pisteet</button>
+                </div>
+
+                <!-- Fix missing matches data -->
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd;">
+                    <details>
+                        <summary style="cursor: pointer; color: #666; font-size: 0.9em;">Korjaa puuttuvat ottelumäärät</summary>
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: #f9f9f9; border-radius: 4px;">
+                            <p style="font-size: 0.85em; color: #666; margin-bottom: 0.5rem;">Jos olet tuonut pelaajadataa ilman ottelumäärää, voit korjata sen tässä:</p>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <input type="number" id="fix-matches-count" value="8" min="1" max="100" style="width: 60px; padding: 0.25rem;">
+                                <span style="font-size: 0.85em;">ottelua per pelaaja</span>
+                                <button type="button" class="btn-secondary" id="fix-matches-btn" style="padding: 0.25rem 0.5rem; font-size: 0.85em;">Korjaa</button>
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </div>
         </div>

@@ -230,7 +230,7 @@ def test_round1_uses_seeded_pairing(client):
 
     # Set admin session (required to start tournament in setup mode)
     with client.session_transaction() as sess:
-        sess['is_admin'] = True
+        sess['logged_in_as_admin'] = True
 
     # Start Round 1
     response = client.post('/tournament/1/start_round', follow_redirects=False)
@@ -252,7 +252,8 @@ def test_round1_uses_seeded_pairing(client):
 
         assert len(matches) == 2, "Should have 2 courts"
 
-        # Court 1 should have top 4 players (ids 1, 2, 3, 4)
+        # Court 1 should have players from top skill pool (rolling randomization)
+        # With 8 players and 2 courts, court 1 draws from top 5 players
         court1 = matches[0]
         court1_players = {
             court1['player1_id'],
@@ -260,10 +261,8 @@ def test_round1_uses_seeded_pairing(client):
             court1['player3_id'],
             court1['player4_id']
         }
-        assert court1_players == {1, 2, 3, 4}, \
-            f"Court 1 should have top 4 players (1,2,3,4), got {court1_players}"
 
-        # Court 2 should have bottom 4 players (ids 5, 6, 7, 8)
+        # Court 2 should have the remaining 4 players
         court2 = matches[1]
         court2_players = {
             court2['player1_id'],
@@ -271,8 +270,18 @@ def test_round1_uses_seeded_pairing(client):
             court2['player3_id'],
             court2['player4_id']
         }
-        assert court2_players == {5, 6, 7, 8}, \
-            f"Court 2 should have bottom 4 players (5,6,7,8), got {court2_players}"
+
+        # All 8 players should be assigned exactly once
+        all_players = court1_players | court2_players
+        assert all_players == {1, 2, 3, 4, 5, 6, 7, 8}, \
+            f"All 8 players should be assigned, got {all_players}"
+        assert court1_players.isdisjoint(court2_players), \
+            "No player should be on two courts"
+
+        # Court 1 should have mostly top players (at least 3 of top 4)
+        top_4_on_court1 = len(court1_players & {1, 2, 3, 4})
+        assert top_4_on_court1 >= 3, \
+            f"Court 1 should have at least 3 of top 4 players, got {top_4_on_court1}"
 
         # Verify tournament status changed to 'active'
         tournament = db.execute(
@@ -454,7 +463,7 @@ def test_round1_with_no_previous_tournaments(client):
 
     # Set admin session (required to start tournament in setup mode)
     with client.session_transaction() as sess:
-        sess['is_admin'] = True
+        sess['logged_in_as_admin'] = True
 
     # Start Round 1
     response = client.post('/tournament/1/start_round', follow_redirects=False)

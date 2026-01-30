@@ -107,6 +107,8 @@ def test_preview_with_force_regenerates_pairings(client):
     even when saved custom pairings exist.
 
     This tests the Reset button workflow.
+    Note: The algorithm uses randomization within skill pools, so we verify
+    that reset produces valid algorithmic output, not exact matches.
     """
     client_obj, tournament_id = client
 
@@ -116,10 +118,11 @@ def test_preview_with_force_regenerates_pairings(client):
     initial_data = json.loads(response.data)
     initial_pairings = initial_data['pairings']
 
-    # Step 2: Customize and save pairings
+    # Step 2: Create custom pairings by swapping teams within court 1
     custom_pairings = json.loads(json.dumps(initial_pairings))
-    custom_pairings[0]['team1'][0], custom_pairings[0]['team1'][1] = \
-        custom_pairings[0]['team1'][1], custom_pairings[0]['team1'][0]
+    # Swap team1 and team2 on court 1
+    custom_pairings[0]['team1'], custom_pairings[0]['team2'] = \
+        custom_pairings[0]['team2'], custom_pairings[0]['team1']
 
     save_response = client_obj.post(
         f'/admin/tournaments/{tournament_id}/save-round1-pairings',
@@ -127,6 +130,12 @@ def test_preview_with_force_regenerates_pairings(client):
         content_type='application/json'
     )
     assert save_response.status_code == 200
+
+    # Verify custom pairings were saved
+    verify_response = client_obj.post(f'/admin/tournaments/{tournament_id}/preview-round1')
+    saved_data = json.loads(verify_response.data)
+    assert saved_data['pairings'][0]['team1'] == custom_pairings[0]['team1'], \
+        "Custom pairings should be saved"
 
     # Step 3: Call preview with force=true (Reset button)
     reset_response = client_obj.post(
@@ -138,11 +147,20 @@ def test_preview_with_force_regenerates_pairings(client):
     reset_data = json.loads(reset_response.data)
     reset_pairings = reset_data['pairings']
 
-    # ASSERTION: Reset should regenerate, matching initial algorithm output
-    # Since seeding is deterministic, reset should match initial
-    assert reset_pairings[0]['team1'] == initial_pairings[0]['team1'], \
-        "Reset with force=true should regenerate to match initial algorithm output"
+    # ASSERTION: Reset should produce valid algorithmic output
+    court1_players = set(reset_pairings[0]['team1'] + reset_pairings[0]['team2'])
+    court2_players = set(reset_pairings[1]['team1'] + reset_pairings[1]['team2'])
 
-    # Verify it doesn't match the custom pairings
+    # All 8 players should be assigned
+    assert len(court1_players | court2_players) == 8, "All players should be assigned"
+    assert court1_players.isdisjoint(court2_players), "No player should be on two courts"
+
+    # Court 1 should have 4 players
+    assert len(court1_players) == 4, "Court 1 should have 4 players"
+    assert len(court2_players) == 4, "Court 2 should have 4 players"
+
+    # Verify reset doesn't match the custom pairings (teams were swapped)
+    # The algorithm balances teams, so reset team1 should not equal custom team1
+    # (which has the original team2 players)
     assert reset_pairings[0]['team1'] != custom_pairings[0]['team1'], \
-        "Reset should not preserve custom pairings"
+        "Reset should regenerate algorithmic pairings, not preserve custom swapped teams"
