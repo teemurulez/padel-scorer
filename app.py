@@ -156,15 +156,17 @@ db_dir = os.path.dirname(app.config['DATABASE'])
 if db_dir:
     os.makedirs(db_dir, exist_ok=True)
 
-# Initialize database (idempotent - uses CREATE TABLE IF NOT EXISTS)
-# Always run to ensure tables exist even if file was created empty
-# Must run in app context so init_db() can access app.config['DATABASE']
-with app.app_context():
-    init_db()
+# Database initialization flag - lazy init on first request for faster startup
+_db_initialized = False
 
 # Database connection helper
 def get_db_connection():
     """Get database connection, stored in Flask's g object"""
+    global _db_initialized
+    if not _db_initialized:
+        init_db()
+        _db_initialized = True
+        print("Database initialized successfully!")
     if 'db' not in g:
         g.db = get_db()
     return g.db
