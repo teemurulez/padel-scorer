@@ -3328,27 +3328,58 @@ def admin_tournament_edit_page(tournament_id):
     if not tournament:
         abort(404)
 
-    # Get players
+    # Get players with seed info and ranking
     players = db.execute('''
-        SELECT pr.id, pr.first_name, pr.last_name
+        SELECT
+            pr.id,
+            pr.first_name,
+            pr.last_name,
+            COALESCE(ps.seed_score, 0) as seed_score,
+            COALESCE(ps.total_wins, 0) as total_wins,
+            COALESCE(ps.total_matches, 0) as total_matches,
+            COALESCE(ps.recent_tournaments, 0) as recent_tournaments
         FROM player_registry pr
         JOIN tournament_players tp ON pr.id = tp.player_id
+        LEFT JOIN player_seeding ps ON pr.id = ps.player_id
         WHERE tp.tournament_id = ?
-        ORDER BY pr.first_name, pr.last_name
+        ORDER BY ps.seed_score DESC NULLS LAST, pr.first_name, pr.last_name
     ''', (tournament_id,)).fetchall()
 
-    # Get pairings with player names
+    # Calculate rankings (1-based, by seed_score) and create lookup
+    players_with_rank = []
+    player_seed_lookup = {}  # id -> {seed_score, seed_rank}
+    for idx, player in enumerate(players):
+        player_dict = dict(player)
+        player_dict['seed_rank'] = idx + 1
+        players_with_rank.append(player_dict)
+        player_seed_lookup[player['id']] = {
+            'seed_score': player['seed_score'],
+            'seed_rank': idx + 1,
+            'total_wins': player['total_wins'],
+            'total_matches': player['total_matches']
+        }
+    players = players_with_rank
+
+    # Get pairings with player names and seed info
     pairings_raw = db.execute('''
         SELECT p.*,
                p1.first_name || ' ' || p1.last_name as team1_player1_name,
                p2.first_name || ' ' || p2.last_name as team1_player2_name,
                p3.first_name || ' ' || p3.last_name as team2_player1_name,
-               p4.first_name || ' ' || p4.last_name as team2_player2_name
+               p4.first_name || ' ' || p4.last_name as team2_player2_name,
+               COALESCE(ps1.seed_score, 0) as team1_player1_seed,
+               COALESCE(ps2.seed_score, 0) as team1_player2_seed,
+               COALESCE(ps3.seed_score, 0) as team2_player1_seed,
+               COALESCE(ps4.seed_score, 0) as team2_player2_seed
         FROM round1_preview_pairings p
         LEFT JOIN player_registry p1 ON p.team1_player1_id = p1.id
         LEFT JOIN player_registry p2 ON p.team1_player2_id = p2.id
         LEFT JOIN player_registry p3 ON p.team2_player1_id = p3.id
         LEFT JOIN player_registry p4 ON p.team2_player2_id = p4.id
+        LEFT JOIN player_seeding ps1 ON p.team1_player1_id = ps1.player_id
+        LEFT JOIN player_seeding ps2 ON p.team1_player2_id = ps2.player_id
+        LEFT JOIN player_seeding ps3 ON p.team2_player1_id = ps3.player_id
+        LEFT JOIN player_seeding ps4 ON p.team2_player2_id = ps4.player_id
         WHERE p.tournament_id = ?
         ORDER BY p.court_number
     ''', (tournament_id,)).fetchall()
@@ -3389,6 +3420,7 @@ def admin_tournament_edit_page(tournament_id):
                           unassigned_players=unassigned_players,
                           can_start=can_start,
                           edit_history=edit_history,
+                          player_seed_lookup=player_seed_lookup,
                           demo_mode=session.get('demo_mode', False))
 
 
@@ -3881,6 +3913,44 @@ if not os.environ.get('SKIP_MIGRATIONS'):
         columns = [row[1] for row in cursor.fetchall()]
         if 'tournaments_adjustment' not in columns:
             db.execute("ALTER TABLE player_points_adjustment ADD COLUMN tournaments_adjustment INTEGER DEFAULT 0")
+
+        # Update player_seeding view to use wins/matches ratio from last 6 tournaments
+        db.execute("DROP VIEW IF EXISTS player_seeding")
+        db.execute('''
+            CREATE VIEW IF NOT EXISTS player_seeding AS
+            WITH recent_tournaments AS (
+                SELECT
+                    tp.player_id,
+                    tp.tournament_id,
+                    tp.match_wins,
+                    tp.match_losses,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY tp.player_id
+                        ORDER BY t.completed_at DESC
+                    ) as tournament_rank
+                FROM tournament_players tp
+                JOIN tournaments t ON tp.tournament_id = t.id
+                WHERE t.status IN ('completed', 'archived')
+            )
+            SELECT
+                pr.id as player_id,
+                pr.first_name,
+                pr.last_name,
+                COALESCE(SUM(rt.match_wins), 0) as total_wins,
+                COALESCE(SUM(rt.match_wins + rt.match_losses), 0) as total_matches,
+                COUNT(rt.tournament_id) as recent_tournaments,
+                CASE
+                    WHEN COALESCE(SUM(rt.match_wins + rt.match_losses), 0) > 0
+                    THEN ROUND(CAST(SUM(rt.match_wins) AS FLOAT) / SUM(rt.match_wins + rt.match_losses), 3)
+                    ELSE 0
+                END as seed_score,
+                COALESCE(SUM(rt.match_wins), 0) as seed_points
+            FROM player_registry pr
+            LEFT JOIN recent_tournaments rt ON pr.id = rt.player_id AND rt.tournament_rank <= 6
+            GROUP BY pr.id, pr.first_name, pr.last_name
+            ORDER BY seed_score DESC, total_wins DESC, last_name ASC, first_name ASC
+        ''')
+        print("✅ Player seeding view updated")
 
         db.commit()
 else:

@@ -131,18 +131,30 @@
                                 <h4>Tiimi 1</h4>
                                 <div class="player-slot {% if not court.team1_player1_id %}empty{% endif %}" data-player-id="{{ court.team1_player1_id or '' }}">
                                     {{ court.team1_player1_name or '[TYHJÄ]' }}
+                                    {% if court.team1_player1_id and player_seed_lookup.get(court.team1_player1_id) %}
+                                    <span class="seed-badge">#{{ player_seed_lookup[court.team1_player1_id].seed_rank }} ({{ "%.0f"|format(player_seed_lookup[court.team1_player1_id].seed_score * 100) }}%)</span>
+                                    {% endif %}
                                 </div>
                                 <div class="player-slot {% if not court.team1_player2_id %}empty{% endif %}" data-player-id="{{ court.team1_player2_id or '' }}">
                                     {{ court.team1_player2_name or '[TYHJÄ]' }}
+                                    {% if court.team1_player2_id and player_seed_lookup.get(court.team1_player2_id) %}
+                                    <span class="seed-badge">#{{ player_seed_lookup[court.team1_player2_id].seed_rank }} ({{ "%.0f"|format(player_seed_lookup[court.team1_player2_id].seed_score * 100) }}%)</span>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="team team2">
                                 <h4>Tiimi 2</h4>
                                 <div class="player-slot {% if not court.team2_player1_id %}empty{% endif %}" data-player-id="{{ court.team2_player1_id or '' }}">
                                     {{ court.team2_player1_name or '[TYHJÄ]' }}
+                                    {% if court.team2_player1_id and player_seed_lookup.get(court.team2_player1_id) %}
+                                    <span class="seed-badge">#{{ player_seed_lookup[court.team2_player1_id].seed_rank }} ({{ "%.0f"|format(player_seed_lookup[court.team2_player1_id].seed_score * 100) }}%)</span>
+                                    {% endif %}
                                 </div>
                                 <div class="player-slot {% if not court.team2_player2_id %}empty{% endif %}" data-player-id="{{ court.team2_player2_id or '' }}">
                                     {{ court.team2_player2_name or '[TYHJÄ]' }}
+                                    {% if court.team2_player2_id and player_seed_lookup.get(court.team2_player2_id) %}
+                                    <span class="seed-badge">#{{ player_seed_lookup[court.team2_player2_id].seed_rank }} ({{ "%.0f"|format(player_seed_lookup[court.team2_player2_id].seed_score * 100) }}%)</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -178,12 +190,18 @@
                         {% for player in unassigned_players %}
                         <div class="unassigned-player" data-player-id="{{ player.id }}">
                             {{ player.first_name }} {{ player.last_name }}
+                            {% if player.seed_rank %}
+                            <span class="seed-badge">#{{ player.seed_rank }} ({{ "%.0f"|format(player.seed_score * 100) }}%)</span>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     {% else %}
                         {% for player in players %}
                         <div class="unassigned-player" data-player-id="{{ player.id }}">
                             {{ player.first_name }} {{ player.last_name }}
+                            {% if player.seed_rank %}
+                            <span class="seed-badge">#{{ player.seed_rank }} ({{ "%.0f"|format(player.seed_score * 100) }}%)</span>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     {% endif %}

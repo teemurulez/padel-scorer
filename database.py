@@ -206,23 +206,43 @@ def init_db():
         ON tournament_players(player_id)
     ''')
 
-    # Create player_seeding view (calculates seed points from last 6 months)
+    # Create player_seeding view (calculates seed score from last 6 tournaments)
+    # seed_score = wins / matches (higher is better)
     cursor.execute('''
         CREATE VIEW IF NOT EXISTS player_seeding AS
+        WITH recent_tournaments AS (
+            -- Get last 6 completed tournaments per player
+            SELECT
+                tp.player_id,
+                tp.tournament_id,
+                tp.match_wins,
+                tp.match_losses,
+                ROW_NUMBER() OVER (
+                    PARTITION BY tp.player_id
+                    ORDER BY t.completed_at DESC
+                ) as tournament_rank
+            FROM tournament_players tp
+            JOIN tournaments t ON tp.tournament_id = t.id
+            WHERE t.status IN ('completed', 'archived')
+        )
         SELECT
             pr.id as player_id,
             pr.first_name,
             pr.last_name,
-            COALESCE(SUM(tp.total_points), 0) as seed_points,
-            COUNT(tp.tournament_id) as recent_tournaments
+            COALESCE(SUM(rt.match_wins), 0) as total_wins,
+            COALESCE(SUM(rt.match_wins + rt.match_losses), 0) as total_matches,
+            COUNT(rt.tournament_id) as recent_tournaments,
+            CASE
+                WHEN COALESCE(SUM(rt.match_wins + rt.match_losses), 0) > 0
+                THEN ROUND(CAST(SUM(rt.match_wins) AS FLOAT) / SUM(rt.match_wins + rt.match_losses), 3)
+                ELSE 0
+            END as seed_score,
+            -- Keep seed_points for backward compatibility
+            COALESCE(SUM(rt.match_wins), 0) as seed_points
         FROM player_registry pr
-        LEFT JOIN tournament_players tp ON pr.id = tp.player_id
-        LEFT JOIN tournaments t ON tp.tournament_id = t.id
-        WHERE (t.status IN ('completed', 'archived')
-               AND t.completed_at >= date('now', '-6 months'))
-            OR t.id IS NULL
+        LEFT JOIN recent_tournaments rt ON pr.id = rt.player_id AND rt.tournament_rank <= 6
         GROUP BY pr.id, pr.first_name, pr.last_name
-        ORDER BY seed_points DESC, last_name ASC, first_name ASC
+        ORDER BY seed_score DESC, total_wins DESC, last_name ASC, first_name ASC
     ''')
 
     # Create round1_preview_pairings table (Round 1 Court Assignment Editor)
