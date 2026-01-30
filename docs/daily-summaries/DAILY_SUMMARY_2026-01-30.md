@@ -1,7 +1,7 @@
 # Daily Summary - 2026-01-30
 
 ## Session Focus
-Enhanced bulk import with matches column, improved pairing randomization, and fixed authentication bugs.
+Enhanced bulk import, improved pairing randomization, fixed authentication bugs, and diagnosed critical SSE blocking issue on single-worker hosts.
 
 ## Completed Work
 
@@ -29,26 +29,44 @@ Enhanced bulk import with matches column, improved pairing randomization, and fi
 - Query now uses: `COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0)`
 - Win rate calculation properly accounts for historical match data
 
-### Safari CSRF Fix
-- Identified Safari-specific SESSION_COOKIE_SECURE issue on HTTP localhost
-- Cookies blocked when SECURE=True on non-HTTPS connection
-- Solution: Use FLASK_DEBUG=1 to disable secure cookie requirement locally
+### CSP Fix for Team Editing
+- Fixed "Tallenna" button not working when editing teams after score entry
+- CSP blocked inline `onclick` handlers
+- Converted to addEventListener approach (CSP compliant)
+
+### Critical: SSE Blocking Fix
+- **Root cause found:** Server-Sent Events (SSE) endpoint `/sse/round/<id>` held the single worker indefinitely
+- With 1 worker (PythonAnywhere free, Railway), SSE blocked ALL other requests
+- Symptoms: First page load fast, subsequent navigation slow (15-20s)
+- **Solution:** Added `DISABLE_SSE=1` environment variable to disable SSE on single-worker hosts
+- Both Railway and PythonAnywhere now fast with SSE disabled
+
+### Infrastructure Improvements
+- Lazy database initialization (faster worker startup)
+- SQLite timeout (10s) to prevent indefinite blocking
+- WAL mode for better concurrency (set once in init_db)
+- Request timing logs for debugging
 
 ## Files Changed
-- `app.py` - Import enhancement, fix-matches endpoint, session key fixes, Pelaajat query fix
-- `database.py` - Added `matches_adjustment` column migration
-- `seeded_pairing.py` - Rolling pool randomization algorithm
-- `templates/admin_dashboard.html` - 4-column import UI, fix-matches section
-- `tests/test_import_points.py` - New tests for matches import
-- `tests/test_seeded_pairing.py` - Updated for probabilistic randomization
-- 7 other test files - Session key fixes (`is_admin` → `logged_in_as_admin`)
+- `app.py` - SSE disable flag, lazy init, timing logs, CSP fixes
+- `database.py` - SQLite timeout, WAL mode in init
+- `seeded_pairing.py` - Rolling pool randomization
+- `templates/admin_dashboard.html` - 4-column import UI
+- `templates/confirm_match.html` - CSP-compliant event handlers
+- `static/js/shuffle.js` - addEventListener instead of onclick
+- `Procfile` - Preload and longer timeout for Railway
+- Multiple test files - Session key fixes
 
 ## Technical Notes
-- Rolling pool overflow: 2 players for 6+ courts, 1 for 2 or fewer courts
+- SSE is incompatible with single-worker deployments (blocks the only worker)
+- Set `DISABLE_SSE=1` on Railway and PythonAnywhere
 - All 203 tests passing
-- Project now at ~4,600 lines of Python code
+
+## Deployment
+- **Railway:** Set `DISABLE_SSE=1` and `SKIP_MIGRATIONS=1` in environment variables
+- **PythonAnywhere:** Add `os.environ['DISABLE_SSE'] = '1'` to WSGI config file
 
 ## Next Steps
-- Continue with any remaining UX improvements
-- Monitor Safari behavior in production
+- Consider polling-based alternative to SSE for live updates
+- Monitor performance on both platforms
 
