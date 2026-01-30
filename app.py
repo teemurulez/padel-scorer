@@ -1159,6 +1159,10 @@ def active_round(tournament_id, round_id):
 @app.route('/sse/round/<int:round_id>')
 def sse_round_stream(round_id):
     """Server-Sent Events stream for live round updates."""
+    # Disable SSE on hosts that don't support long-polling (e.g., PythonAnywhere with 1 worker)
+    if os.environ.get('DISABLE_SSE'):
+        return jsonify({'error': 'SSE disabled', 'message': 'Use polling instead'}), 503
+
     def event_stream():
         q = sse_broadcaster.subscribe(round_id)
         try:
