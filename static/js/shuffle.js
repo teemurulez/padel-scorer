@@ -218,7 +218,7 @@ class TeamShuffler {
 // Global Functions
 let teamShuffler;
 
-async function confirmAndStartMatch() {
+async function confirmAndStartMatch(e) {
     const config = teamShuffler.getCurrentConfiguration();
 
     // Validate 4 unique players
@@ -237,7 +237,7 @@ async function confirmAndStartMatch() {
     }
 
     // Disable button to prevent double-submit
-    const btn = event.target;
+    const btn = e?.target || document.getElementById('saveTeamsBtn');
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = '⏳ Tallennetaan...';
@@ -288,4 +288,8 @@ function resetToOriginal() {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     teamShuffler = new TeamShuffler();
+
+    // Attach event listeners (CSP compliant - no inline handlers)
+    document.getElementById('saveTeamsBtn')?.addEventListener('click', confirmAndStartMatch);
+    document.getElementById('resetTeamsBtn')?.addEventListener('click', resetToOriginal);
 });
