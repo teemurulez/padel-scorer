@@ -179,6 +179,22 @@ def close_db(_):
         db.close()
 
 @app.before_request
+def log_request_start():
+    """Log request timing"""
+    import time
+    g.request_start_time = time.time()
+    print(f"[REQ START] {request.method} {request.path}")
+
+@app.after_request
+def log_request_end(response):
+    """Log request duration"""
+    import time
+    if hasattr(g, 'request_start_time'):
+        duration = time.time() - g.request_start_time
+        print(f"[REQ END] {request.method} {request.path} - {duration:.3f}s - {response.status_code}")
+    return response
+
+@app.before_request
 def check_admin_session():
     """Check admin authentication and session timeout before each request"""
     # Only check for admin routes (except login and setup)
