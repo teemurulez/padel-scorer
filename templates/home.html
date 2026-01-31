@@ -91,26 +91,33 @@
             margin-bottom: 1.5rem;
             box-shadow: 0 4px 12px rgba(255, 215, 0, 0.15);
         }
-        .tournament-card-active .status-line {
+        .tournament-card-active .title-row {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            justify-content: space-between;
+            gap: 1rem;
             margin-bottom: 0.5rem;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #155724;
-        }
-        .tournament-card-active .status-dot {
-            width: 10px;
-            height: 10px;
-            background: #28a745;
-            border-radius: 50%;
         }
         .tournament-card-active h2 {
-            margin: 0 0 0.5rem 0;
+            margin: 0;
             font-size: 1.4rem;
             font-weight: 700;
             color: #1a1a1a;
+        }
+        .tournament-card-active .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #155724;
+            white-space: nowrap;
+        }
+        .tournament-card-active .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #28a745;
+            border-radius: 50%;
         }
         .tournament-card-active .info-line {
             color: #666;
@@ -308,11 +315,13 @@
             {# State A: Active tournament(s) exist #}
             {% for tournament in active_tournaments %}
             <div class="tournament-card-active">
-                <div class="status-line">
-                    <span class="status-dot"></span>
-                    Käynnissä
+                <div class="title-row">
+                    <h2>{{ tournament['name'] }}</h2>
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        Käynnissä
+                    </div>
                 </div>
-                <h2>{{ tournament['name'] }}</h2>
                 <p class="info-line">
                     {% if tournament['current_round'] %}
                     <span>Kierros {{ tournament['current_round'] }}</span>

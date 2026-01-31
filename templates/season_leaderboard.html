@@ -375,7 +375,7 @@
         {% set tournament = item['tournament'] %}
         {% set stats = item['stats'] %}
         <div class="tournament-card">
-            <div class="tournament-header" onclick="toggleTournament({{ tournament['id'] }})">
+            <div class="tournament-header" data-tournament-id="{{ tournament['id'] }}">
                 <span class="toggle-icon" id="icon-{{ tournament['id'] }}">▶</span>
                 <span class="tournament-name">{{ tournament['name'] }}</span>
                 <span class="tournament-meta">{{ stats['rounds'] }} kier.</span>
@@ -438,20 +438,25 @@
     </div>
 
     <script nonce="{{ csp_nonce }}">
-        function toggleTournament(tournamentId) {
-            const details = document.getElementById('tournament-' + tournamentId);
-            const icon = document.getElementById('icon-' + tournamentId);
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.tournament-header').forEach(function(header) {
+                header.addEventListener('click', function() {
+                    const tournamentId = this.dataset.tournamentId;
+                    const details = document.getElementById('tournament-' + tournamentId);
+                    const icon = document.getElementById('icon-' + tournamentId);
 
-            if (details.classList.contains('show')) {
-                details.classList.remove('show');
-                icon.classList.remove('expanded');
-                icon.textContent = '▶';
-            } else {
-                details.classList.add('show');
-                icon.classList.add('expanded');
-                icon.textContent = '▼';
-            }
-        }
+                    if (details.classList.contains('show')) {
+                        details.classList.remove('show');
+                        icon.classList.remove('expanded');
+                        icon.textContent = '▶';
+                    } else {
+                        details.classList.add('show');
+                        icon.classList.add('expanded');
+                        icon.textContent = '▼';
+                    }
+                });
+            });
+        });
     </script>
 </body>
 </html>
