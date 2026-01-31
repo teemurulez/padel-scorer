@@ -796,14 +796,43 @@
             const courtsSelect = document.getElementById('num_courts');
             const minPlayersSpan = document.getElementById('min_players');
             const selectedCourtsSpan = document.getElementById('selected_courts');
+            const courtStartFrom = document.getElementById('court_start_from');
+            const courtSkip = document.getElementById('court_skip');
+            const courtLabelsPreview = document.getElementById('court_labels_preview');
+
+            function updateCourtPreview() {
+                const numCourts = parseInt(courtsSelect.value) || 0;
+                const startFrom = parseInt(courtStartFrom.value) || 1;
+                const skipRaw = courtSkip.value.trim();
+
+                let skipCourts = [];
+                if (skipRaw) {
+                    skipCourts = skipRaw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                }
+
+                // Generate court labels
+                let courts = [];
+                let current = startFrom;
+                while (courts.length < numCourts) {
+                    if (!skipCourts.includes(current)) {
+                        courts.push(current);
+                    }
+                    current++;
+                }
+
+                courtLabelsPreview.textContent = courts.length > 0 ? courts.join(', ') : '-';
+
+                // Update player count
+                const minPlayers = numCourts * 4;
+                minPlayersSpan.textContent = minPlayers;
+                selectedCourtsSpan.textContent = numCourts;
+            }
 
             if (courtsSelect) {
-                courtsSelect.addEventListener('change', function() {
-                    const courts = parseInt(this.value) || 0;
-                    const minPlayers = courts * 4;
-                    minPlayersSpan.textContent = minPlayers;
-                    selectedCourtsSpan.textContent = courts;
-                });
+                courtsSelect.addEventListener('change', updateCourtPreview);
+                courtStartFrom.addEventListener('input', updateCourtPreview);
+                courtSkip.addEventListener('input', updateCourtPreview);
+                updateCourtPreview();  // Initial update
             }
         });
 
@@ -1090,6 +1119,18 @@
                             <option value="10">10 kenttää (40 pelaajaa)</option>
                         </select>
                     </div>
+
+                    <div class="form-group" style="display: flex; gap: 1rem;">
+                        <div style="flex: 1;">
+                            <label for="court_start_from">Aloitusnumero</label>
+                            <input type="number" id="court_start_from" name="court_start_from" value="1" min="1" max="99" style="width: 100%;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label for="court_skip">Ohita kentät</label>
+                            <input type="text" id="court_skip" name="court_skip" placeholder="esim. 7 tai 3, 7" style="width: 100%;">
+                        </div>
+                    </div>
+                    <p class="form-hint" id="court_preview" style="margin-top: -0.5rem;">Kentät: <span id="court_labels_preview">1, 2, 3</span></p>
 
                     <div class="form-group">
                         <label for="players">Pelaajien nimet (yksi per rivi)</label>

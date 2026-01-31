@@ -85,6 +85,39 @@ def set_current_season(db, season_id):
     )
     db.commit()
 
+
+def generate_court_labels(num_courts, start_from=1, skip_courts=None):
+    """Generate list of court numbers.
+
+    Args:
+        num_courts: Number of courts needed
+        start_from: Starting court number (default 1)
+        skip_courts: List of court numbers to skip
+
+    Returns:
+        List of court numbers, e.g., [1, 2, 3, 4, 5, 6, 8, 9]
+    """
+    skip_courts = skip_courts or []
+    courts = []
+    current = start_from
+    while len(courts) < num_courts:
+        if current not in skip_courts:
+            courts.append(current)
+        current += 1
+    return courts
+
+
+def get_court_labels(tournament):
+    """Get court labels for a tournament.
+
+    Returns list of court numbers from court_labels JSON, or generates
+    sequential [1, 2, ..., num_courts] if not set.
+    """
+    court_labels_json = tournament['court_labels'] if 'court_labels' in tournament.keys() else None
+    if court_labels_json:
+        return json.loads(court_labels_json)
+    return list(range(1, tournament['num_courts'] + 1))
+
 def get_setup_tournaments(db, season_id):
     """Get tournaments in 'setup' status for a season"""
     return db.execute(
@@ -660,6 +693,7 @@ def start_round(tournament_id):
         ).fetchall()
         num_players = len(players)
         num_courts = tournament['num_courts']
+        court_labels = get_court_labels(tournament)
 
         # Validate we have enough players (4 per court)
         required_players = num_courts * 4
@@ -765,13 +799,14 @@ def start_round(tournament_id):
                 players_with_seeds = [dict(p) for p in players_with_seeds]
                 court_assignments = generate_seeded_round1_pairings(players_with_seeds, num_courts)
 
-                # Create matches from seeded assignments
-                for court_num, player_ids in enumerate(court_assignments, start=1):
+                # Create matches from seeded assignments using court labels
+                for court_idx, player_ids in enumerate(court_assignments):
+                    court_label = court_labels[court_idx] if court_idx < len(court_labels) else court_idx + 1
                     db.execute(
                         '''INSERT INTO matches
                            (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
                            VALUES (?, ?, ?, ?, ?, ?)''',
-                        (round_id, court_num, *player_ids)
+                        (round_id, court_label, *player_ids)
                     )
 
                 flash('Round 1 started with seeded pairings (based on recent performance)')
@@ -792,13 +827,14 @@ def start_round(tournament_id):
             # Generate new pairings
             court_assignments = generate_next_round_pairings(previous_matches, num_courts)
 
-            # Create matches from assignments
-            for court_num, players_on_court in enumerate(court_assignments, start=1):
+            # Create matches from assignments using court labels
+            for court_idx, players_on_court in enumerate(court_assignments):
+                court_label = court_labels[court_idx] if court_idx < len(court_labels) else court_idx + 1
                 db.execute(
                     '''INSERT INTO matches
                        (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
                        VALUES (?, ?, ?, ?, ?, ?)''',
-                    (round_id, court_num, *players_on_court)
+                    (round_id, court_label, *players_on_court)
                 )
 
             # Add feedback message
@@ -3325,6 +3361,24 @@ def admin_create_tournament():
         flash('Invalid number of courts.')
         return redirect('/admin')
 
+    # Parse court numbering options
+    try:
+        start_from = int(request.form.get('court_start_from', 1))
+    except (ValueError, TypeError):
+        start_from = 1
+
+    skip_courts_raw = request.form.get('court_skip', '').strip()
+    skip_courts = []
+    if skip_courts_raw:
+        try:
+            skip_courts = [int(x.strip()) for x in skip_courts_raw.split(',') if x.strip()]
+        except ValueError:
+            flash('Ohitettavat kentät tulee antaa pilkulla erotettuna (esim. "7" tai "3, 7").')
+            return redirect('/admin')
+
+    # Generate court labels
+    court_labels = generate_court_labels(num_courts, start_from, skip_courts)
+
     player_names_raw = request.form.get('players', '')
     if not player_names_raw:
         flash('Player names are required.')
@@ -3343,8 +3397,8 @@ def admin_create_tournament():
 
     # Create tournament
     cursor = db.execute(
-        'INSERT INTO tournaments (name, num_courts, status, season_id) VALUES (?, ?, ?, ?)',
-        (tournament_name, num_courts, 'setup', current_season['id'])
+        'INSERT INTO tournaments (name, num_courts, status, season_id, court_labels) VALUES (?, ?, ?, ?, ?)',
+        (tournament_name, num_courts, 'setup', current_season['id'], json.dumps(court_labels))
     )
     tournament_id = cursor.lastrowid
 

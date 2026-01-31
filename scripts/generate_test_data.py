@@ -6,6 +6,7 @@ Creates 3 tournaments with different player counts and 5+ rounds each.
 import sqlite3
 import random
 import os
+import json
 from datetime import datetime, timedelta
 
 DATABASE = os.environ.get('DATABASE_PATH', 'instance/padel.db')
@@ -50,18 +51,23 @@ def create_players(conn, players_data):
     conn.commit()
     return player_ids
 
-def create_tournament(conn, name, season_id, player_ids, num_courts, num_rounds, skill_levels):
+def create_tournament(conn, name, season_id, player_ids, num_courts, num_rounds, skill_levels, court_labels=None):
     """
     Create a tournament with rounds and matches.
     skill_levels: dict mapping player_id to skill (0.0-1.0), higher = more likely to win
+    court_labels: list of court numbers (e.g., [1,2,3,4,5,6,8,9]) or None for sequential
     """
     cursor = conn.cursor()
 
+    # Generate default court labels if not provided
+    if court_labels is None:
+        court_labels = list(range(1, num_courts + 1))
+
     # Create tournament
     cursor.execute('''
-        INSERT INTO tournaments (name, num_courts, season_id, status, created_at)
-        VALUES (?, ?, ?, 'completed', ?)
-    ''', (name, num_courts, season_id, datetime.now().isoformat()))
+        INSERT INTO tournaments (name, num_courts, season_id, status, created_at, court_labels)
+        VALUES (?, ?, ?, 'completed', ?, ?)
+    ''', (name, num_courts, season_id, datetime.now().isoformat(), json.dumps(court_labels)))
     tournament_id = cursor.lastrowid
 
     # Add players to tournament
@@ -89,8 +95,9 @@ def create_tournament(conn, name, season_id, player_ids, num_courts, num_rounds,
         random.shuffle(shuffled)
 
         # Create matches for each court
-        for court in range(1, num_courts + 1):
-            base_idx = (court - 1) * 4
+        for court_idx in range(num_courts):
+            court_label = court_labels[court_idx]
+            base_idx = court_idx * 4
             if base_idx + 3 >= len(shuffled):
                 # Not enough players for this court, wrap around
                 match_players = [shuffled[i % len(shuffled)] for i in range(base_idx, base_idx + 4)]
@@ -109,12 +116,12 @@ def create_tournament(conn, name, season_id, player_ids, num_courts, num_rounds,
 
             winning_team = 1 if team1_score > team2_score else 2
 
-            # Create match
+            # Create match using actual court label
             cursor.execute('''
                 INSERT INTO matches (round_id, court_number, player1_id, player2_id,
                                    player3_id, player4_id, winning_team, completed, version)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1)
-            ''', (round_id, court, p1, p2, p3, p4, winning_team))
+            ''', (round_id, court_label, p1, p2, p3, p4, winning_team))
             match_id = cursor.lastrowid
 
             # Record scores - winners get 1 point
@@ -147,17 +154,22 @@ def create_tournament(conn, name, season_id, player_ids, num_courts, num_rounds,
     print(f"Created tournament '{name}' with {len(player_ids)} players, {num_rounds} rounds")
     return tournament_id
 
-def create_active_tournament(conn, name, season_id, player_ids, num_courts):
+def create_active_tournament(conn, name, season_id, player_ids, num_courts, court_labels=None):
     """
     Create an active tournament with round 1 in progress (matches not yet completed).
+    court_labels: list of court numbers (e.g., [1,2,3,4,5,6,8,9]) or None for sequential
     """
     cursor = conn.cursor()
 
+    # Generate default court labels if not provided
+    if court_labels is None:
+        court_labels = list(range(1, num_courts + 1))
+
     # Create tournament with 'active' status
     cursor.execute('''
-        INSERT INTO tournaments (name, num_courts, season_id, status, created_at)
-        VALUES (?, ?, ?, 'active', ?)
-    ''', (name, num_courts, season_id, datetime.now().isoformat()))
+        INSERT INTO tournaments (name, num_courts, season_id, status, created_at, court_labels)
+        VALUES (?, ?, ?, 'active', ?, ?)
+    ''', (name, num_courts, season_id, datetime.now().isoformat(), json.dumps(court_labels)))
     tournament_id = cursor.lastrowid
 
     # Add players to tournament
@@ -175,18 +187,19 @@ def create_active_tournament(conn, name, season_id, player_ids, num_courts):
     round_id = cursor.lastrowid
 
     # Create matches for each court (4 players per court)
-    for court in range(1, num_courts + 1):
-        base_idx = (court - 1) * 4
+    for court_idx in range(num_courts):
+        court_label = court_labels[court_idx]
+        base_idx = court_idx * 4
         if base_idx + 3 < len(player_ids):
             p1, p2, p3, p4 = player_ids[base_idx:base_idx + 4]
             cursor.execute('''
                 INSERT INTO matches (round_id, court_number, player1_id, player2_id,
                                    player3_id, player4_id, completed, version)
                 VALUES (?, ?, ?, ?, ?, ?, 0, 1)
-            ''', (round_id, court, p1, p2, p3, p4))
+            ''', (round_id, court_label, p1, p2, p3, p4))
 
     conn.commit()
-    print(f"Created active tournament '{name}' with {len(player_ids)} players, {num_courts} courts, round 1 in progress")
+    print(f"Created active tournament '{name}' with {len(player_ids)} players, courts {court_labels}, round 1 in progress")
     return tournament_id
 
 def get_existing_players(conn):
@@ -233,33 +246,43 @@ def main():
     all_player_ids = [p[0] for p in all_players]
 
     # Tournament 1: Large tournament - use all players (or up to 16)
+    # Use realistic court numbers (1-4, skip 7 if we have more courts)
     t1_count = min(num_players, 16)
     t1_courts = max(2, t1_count // 4)
     t1_players = all_player_ids[:t1_count]
+    # Courts 1, 2, 3, 4 for 4 courts
+    t1_court_labels = list(range(1, t1_courts + 1))
     create_tournament(conn, "Tammikuun Mestaruus", season_id, t1_players,
-                     num_courts=t1_courts, num_rounds=6, skill_levels=skill_map)
+                     num_courts=t1_courts, num_rounds=6, skill_levels=skill_map,
+                     court_labels=t1_court_labels)
 
-    # Tournament 2: Medium tournament - mix of players
+    # Tournament 2: Medium tournament - use courts starting from 5
     t2_count = min(num_players, 12)
     t2_courts = max(2, t2_count // 4)
     # Take every other player for variety
     t2_players = [all_player_ids[i] for i in range(0, num_players, 2)][:t2_count]
     if len(t2_players) < 8:
         t2_players = all_player_ids[:8]
+    # Courts 5, 6, 8 (skip 7) - simulating real venue
+    t2_court_labels = [5, 6, 8][:t2_courts] if t2_courts <= 3 else list(range(5, 5 + t2_courts))
     create_tournament(conn, "Helmikuun Haaste", season_id, t2_players,
-                     num_courts=t2_courts, num_rounds=5, skill_levels=skill_map)
+                     num_courts=t2_courts, num_rounds=5, skill_levels=skill_map,
+                     court_labels=t2_court_labels)
 
-    # Tournament 3: Small intense tournament - 8 players
+    # Tournament 3: Small intense tournament - 8 players, courts 1-2
     t3_players = all_player_ids[:8]
     create_tournament(conn, "Mestarin Cup", season_id, t3_players,
-                     num_courts=2, num_rounds=7, skill_levels=skill_map)
+                     num_courts=2, num_rounds=7, skill_levels=skill_map,
+                     court_labels=[1, 2])
 
-    # Tournament 4: Active tournament - use different subset of players
+    # Tournament 4: Active tournament - courts 1, 2, 3 (or more)
     t4_count = min(num_players, 12)
     t4_courts = max(2, t4_count // 4)
     # Use players from the middle/end for variety
     t4_players = all_player_ids[2:2+t4_count] if num_players > 10 else all_player_ids[:t4_count]
-    create_active_tournament(conn, "Marraskuu 2", season_id, t4_players, num_courts=t4_courts)
+    t4_court_labels = list(range(1, t4_courts + 1))
+    create_active_tournament(conn, "Marraskuu 2", season_id, t4_players,
+                            num_courts=t4_courts, court_labels=t4_court_labels)
 
     conn.close()
     print("\nTest data generation complete!")

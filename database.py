@@ -338,6 +338,12 @@ def init_db():
         ON tournament_edit_history(tournament_id)
     ''')
 
+    # Add court_labels column to tournaments table (custom court numbers)
+    cursor.execute("PRAGMA table_info(tournaments)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'court_labels' not in columns:
+        cursor.execute("ALTER TABLE tournaments ADD COLUMN court_labels TEXT")
+
     conn.commit()
     conn.close()
 
