@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 
 DATABASE = 'instance/padel.db'
 
-def clear_data(conn):
-    """Clear existing tournament data but keep admin users"""
+def clear_data(conn, keep_players=True):
+    """Clear existing tournament data but keep admin users and optionally players"""
     cursor = conn.cursor()
     # Delete in order respecting foreign keys
     cursor.execute('DELETE FROM scores')
@@ -19,10 +19,12 @@ def clear_data(conn):
     cursor.execute('DELETE FROM tournament_players')
     cursor.execute('DELETE FROM round1_preview_pairings')
     cursor.execute('DELETE FROM tournaments')
-    cursor.execute('DELETE FROM player_registry')
+    cursor.execute('DELETE FROM player_points_adjustment')
+    if not keep_players:
+        cursor.execute('DELETE FROM player_registry')
     cursor.execute('DELETE FROM seasons')
     conn.commit()
-    print("Cleared existing data")
+    print("Cleared existing data" + (" (kept players)" if keep_players else ""))
 
 def create_season(conn, name):
     """Create a season and return its ID"""
@@ -186,99 +188,84 @@ def create_active_tournament(conn, name, season_id, player_ids, num_courts):
     print(f"Created active tournament '{name}' with {len(player_ids)} players, {num_courts} courts, round 1 in progress")
     return tournament_id
 
+def get_existing_players(conn):
+    """Get existing players from the database"""
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, first_name, last_name FROM player_registry ORDER BY id')
+    rows = cursor.fetchall()
+    return [(row[0], f"{row[1]} {row[2]}") for row in rows]
+
+
 def main():
     conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
 
-    # Clear existing data
-    clear_data(conn)
+    # Clear existing tournament data but keep players
+    clear_data(conn, keep_players=True)
 
     # Create season
     season_id = create_season(conn, "Kevat 2026")
     print(f"Created season 'Kevat 2026' (ID: {season_id})")
 
-    # Create diverse set of players with Finnish names
-    all_players_data = [
-        # Strong players
-        ("Mikko", "Virtanen"),    # Dominant player
-        ("Anni", "Korhonen"),     # Strong player
-        ("Jukka", "Makinen"),     # Strong player
-        # Medium players
-        ("Sari", "Nieminen"),
-        ("Timo", "Heikkinen"),
-        ("Laura", "Hamalainen"),
-        ("Petri", "Laine"),
-        ("Minna", "Koskinen"),
-        # Casual players
-        ("Kari", "Jarvinen"),
-        ("Tiina", "Lehtonen"),
-        ("Antti", "Saarinen"),
-        ("Hanna", "Tuominen"),
-        # Newer players
-        ("Ville", "Rantanen"),
-        ("Elina", "Salonen"),
-        ("Juha", "Lahtinen"),
-        ("Riikka", "Ahonen"),
-        # Additional for variety
-        ("Markku", "Ojala"),
-        ("Kirsi", "Maki"),
-        ("Seppo", "Lindqvist"),
-        ("Anne", "Karjalainen"),
-    ]
+    # Use existing players from database
+    all_players = get_existing_players(conn)
 
-    all_players = create_players(conn, all_players_data)
-    print(f"Created {len(all_players)} players")
+    if len(all_players) < 8:
+        print(f"ERROR: Need at least 8 players in database, found {len(all_players)}")
+        print("Add players via admin interface first, then run this script.")
+        conn.close()
+        return
 
-    # Assign skill levels (higher = better)
-    skill_map = {
-        all_players[0][0]: 0.85,   # Mikko - dominant
-        all_players[1][0]: 0.80,   # Anni - strong
-        all_players[2][0]: 0.75,   # Jukka - strong
-        all_players[3][0]: 0.65,   # Sari - medium-high
-        all_players[4][0]: 0.60,   # Timo - medium
-        all_players[5][0]: 0.58,   # Laura - medium
-        all_players[6][0]: 0.55,   # Petri - medium
-        all_players[7][0]: 0.52,   # Minna - medium
-        all_players[8][0]: 0.48,   # Kari - medium-low
-        all_players[9][0]: 0.45,   # Tiina - casual
-        all_players[10][0]: 0.42,  # Antti - casual
-        all_players[11][0]: 0.40,  # Hanna - casual
-        all_players[12][0]: 0.35,  # Ville - newer
-        all_players[13][0]: 0.33,  # Elina - newer
-        all_players[14][0]: 0.30,  # Juha - newer
-        all_players[15][0]: 0.28,  # Riikka - newer
-        all_players[16][0]: 0.50,  # Markku - average
-        all_players[17][0]: 0.47,  # Kirsi - average
-        all_players[18][0]: 0.55,  # Seppo - medium
-        all_players[19][0]: 0.38,  # Anne - lower
-    }
+    print(f"Using {len(all_players)} existing players:")
+    for pid, name in all_players:
+        print(f"  - {name} (ID: {pid})")
 
-    # Tournament 1: Big tournament - 16 players, 3 courts, 6 rounds
-    t1_players = [p[0] for p in all_players[:16]]
+    # Assign random skill levels to players (higher = better)
+    # This creates variety in match outcomes
+    skill_map = {}
+    for i, (pid, name) in enumerate(all_players):
+        # Distribute skill levels somewhat randomly but spread out
+        base_skill = 0.3 + (0.5 * (len(all_players) - i) / len(all_players))
+        skill_map[pid] = base_skill + random.uniform(-0.1, 0.1)
+
+    num_players = len(all_players)
+    all_player_ids = [p[0] for p in all_players]
+
+    # Tournament 1: Large tournament - use all players (or up to 16)
+    t1_count = min(num_players, 16)
+    t1_courts = max(2, t1_count // 4)
+    t1_players = all_player_ids[:t1_count]
     create_tournament(conn, "Tammikuun Mestaruus", season_id, t1_players,
-                     num_courts=3, num_rounds=6, skill_levels=skill_map)
+                     num_courts=t1_courts, num_rounds=6, skill_levels=skill_map)
 
-    # Tournament 2: Medium tournament - 12 players, 2 courts, 5 rounds
-    # Mix of skill levels - some new players, some experienced
-    t2_players = [all_players[i][0] for i in [0, 3, 5, 7, 9, 11, 12, 14, 16, 17, 18, 19]]
+    # Tournament 2: Medium tournament - mix of players
+    t2_count = min(num_players, 12)
+    t2_courts = max(2, t2_count // 4)
+    # Take every other player for variety
+    t2_players = [all_player_ids[i] for i in range(0, num_players, 2)][:t2_count]
+    if len(t2_players) < 8:
+        t2_players = all_player_ids[:8]
     create_tournament(conn, "Helmikuun Haaste", season_id, t2_players,
-                     num_courts=2, num_rounds=5, skill_levels=skill_map)
+                     num_courts=t2_courts, num_rounds=5, skill_levels=skill_map)
 
-    # Tournament 3: Small intense tournament - 8 players, 2 courts, 7 rounds
-    # More competitive - top players battle it out
-    t3_players = [all_players[i][0] for i in [0, 1, 2, 3, 4, 5, 6, 7]]
+    # Tournament 3: Small intense tournament - 8 players
+    t3_players = all_player_ids[:8]
     create_tournament(conn, "Mestarin Cup", season_id, t3_players,
                      num_courts=2, num_rounds=7, skill_levels=skill_map)
 
-    # Tournament 4: Active tournament - 12 players, 3 courts, round 1 in progress
-    t4_players = [all_players[i][0] for i in [1, 2, 4, 5, 7, 8, 10, 11, 13, 14, 16, 17]]
-    create_active_tournament(conn, "Illan Peli", season_id, t4_players, num_courts=3)
+    # Tournament 4: Active tournament - use different subset of players
+    t4_count = min(num_players, 12)
+    t4_courts = max(2, t4_count // 4)
+    # Use players from the middle/end for variety
+    t4_players = all_player_ids[2:2+t4_count] if num_players > 10 else all_player_ids[:t4_count]
+    create_active_tournament(conn, "Marraskuu 2", season_id, t4_players, num_courts=t4_courts)
 
     conn.close()
     print("\nTest data generation complete!")
-    print("- 1 season")
-    print("- 20 players with varying skill levels")
-    print("- 3 completed tournaments (16p/6r, 12p/5r, 8p/7r)")
-    print("- 1 active tournament (12p, 3 courts, round 1 in progress)")
+    print(f"- 1 season")
+    print(f"- {num_players} players (existing)")
+    print(f"- 3 completed tournaments")
+    print(f"- 1 active tournament")
 
 if __name__ == '__main__':
     main()
