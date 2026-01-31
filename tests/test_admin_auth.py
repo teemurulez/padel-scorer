@@ -434,3 +434,107 @@ def test_admin_logout_requires_post(client):
     response = client.get('/admin/logout', follow_redirects=False)
     # Should be method not allowed or redirect
     assert response.status_code in [302, 405]
+
+
+def test_admin_can_start_setup_tournament(client):
+    """Test that logged-in admin can start a tournament in setup mode.
+
+    This verifies the session key fix (logged_in_as_admin vs is_admin).
+    Previously, the code checked 'is_admin' but login set 'logged_in_as_admin',
+    causing the 'Aloita' button to fail for admins.
+    """
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+
+    # Create admin, season, players and setup tournament
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.execute('INSERT INTO seasons (name, is_current) VALUES (?, 1)', ('Test Season',))
+        season_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Create 8 players for a valid tournament
+        for i in range(8):
+            db.execute(
+                'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+                (f'Player{i}', f'Test{i}')
+            )
+
+        db.execute(
+            'INSERT INTO tournaments (name, num_courts, season_id, status) VALUES (?, ?, ?, ?)',
+            ('Setup Tournament', 2, season_id, 'setup')
+        )
+        tournament_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Add players to tournament
+        players = db.execute('SELECT id FROM player_registry').fetchall()
+        for player in players:
+            db.execute(
+                'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
+                (tournament_id, player['id'])
+            )
+        db.commit()
+
+    # Login as admin
+    client.post('/admin/login', data={'password': 'testpass123'})
+
+    # Verify session has correct key
+    with client.session_transaction() as sess:
+        assert sess.get('logged_in_as_admin') is True
+
+    # Admin should be able to start the tournament
+    response = client.post(f'/tournament/{tournament_id}/start_round', follow_redirects=False)
+
+    # Should redirect to active tournament (not back to index with error)
+    assert response.status_code == 302
+    assert '/tournament/' in response.location
+    assert 'login' not in response.location.lower()
+
+
+def test_non_admin_cannot_start_setup_tournament(client):
+    """Test that non-admin users cannot start a tournament in setup mode."""
+    from database import get_db
+    from werkzeug.security import generate_password_hash
+
+    # Create admin, season and setup tournament (but don't login)
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            'INSERT INTO admin_users (password_hash) VALUES (?)',
+            (generate_password_hash('testpass123', method='pbkdf2:sha256'),)
+        )
+        db.execute('INSERT INTO seasons (name, is_current) VALUES (?, 1)', ('Test Season',))
+        season_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Create 8 players
+        for i in range(8):
+            db.execute(
+                'INSERT INTO player_registry (first_name, last_name) VALUES (?, ?)',
+                (f'Player{i}', f'Test{i}')
+            )
+
+        db.execute(
+            'INSERT INTO tournaments (name, num_courts, season_id, status) VALUES (?, ?, ?, ?)',
+            ('Setup Tournament', 2, season_id, 'setup')
+        )
+        tournament_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Add players to tournament
+        players = db.execute('SELECT id FROM player_registry').fetchall()
+        for player in players:
+            db.execute(
+                'INSERT INTO tournament_players (tournament_id, player_id) VALUES (?, ?)',
+                (tournament_id, player['id'])
+            )
+        db.commit()
+
+    # Try to start tournament without logging in
+    response = client.post(f'/tournament/{tournament_id}/start_round', follow_redirects=True)
+
+    # Should show error message about admin-only access
+    assert 'ylläpitäjä'.encode('utf-8') in response.data.lower() or \
+           b'admin' in response.data.lower() or \
+           response.request.path == '/'  # Redirected to home
