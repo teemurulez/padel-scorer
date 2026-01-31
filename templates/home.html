@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if season %}{{ season.name }}{% else %}Padel Paroni{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+        body::before {
+            display: none;
+        }
+        .page-watermark {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background-image: url('/static/images/padel-paroni-logo.png');
+            background-repeat: repeat;
+            background-size: 200px auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+            transform: rotate(-15deg);
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 1rem;
+            background: white;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .page-header {
+            background: white;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            margin: -1rem -1rem 1.5rem -1rem;
+        }
+        .page-header img {
+            height: 40px;
+            width: auto;
+            margin-bottom: 0.75rem;
+        }
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0 0 0.25rem 0;
+            letter-spacing: -0.5px;
+        }
+        .page-header p {
+            color: #666;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
+        /* Messages */
+        .messages {
+            margin: 0 0 1rem 0;
+        }
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            text-align: center;
+        }
+        .message.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        /* Active tournament card - prominent */
+        .tournament-card-active {
+            background: #f9f9f9;
+            border: 3px solid #FFD700;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.15);
+        }
+        .tournament-card-active .status-line {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #155724;
+        }
+        .tournament-card-active .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #28a745;
+            border-radius: 50%;
+        }
+        .tournament-card-active h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        .tournament-card-active .info-line {
+            color: #666;
+            font-size: 0.9rem;
+            margin: 0 0 1.25rem 0;
+        }
+        .tournament-card-active .info-line span {
+            margin-right: 0.5rem;
+        }
+
+        /* Content box for no tournament state */
+        .content-box {
+            background: #f9f9f9;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .content-box .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .content-box h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 0 0 0.75rem 0;
+        }
+        .content-box p {
+            color: #666;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* Setup tournament card - muted */
+        .setup-section {
+            margin-bottom: 1.5rem;
+        }
+        .setup-section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #666;
+            margin: 0 0 0.75rem 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .tournament-card-setup {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .tournament-card-setup .status-icon {
+            font-size: 1.25rem;
+        }
+        .tournament-card-setup .info {
+            flex: 1;
+        }
+        .tournament-card-setup .name {
+            font-weight: 600;
+            color: #1a1a1a;
+            font-size: 0.95rem;
+        }
+        .tournament-card-setup .meta {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        /* Buttons */
+        .btn-primary-action {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            min-height: 56px;
+            background: #FFD700;
+            color: #1a1a1a;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-primary-action:active {
+            transform: scale(0.98);
+            background: #e6c200;
+        }
+        .btn-secondary-action {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            min-height: 48px;
+            background: white;
+            color: #666;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .btn-secondary-action:active {
+            background: #f5f5f5;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Season info */
+        .season-info {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            text-align: center;
+        }
+        .season-info strong {
+            color: #1a1a1a;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+        .season-info span {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        .page-footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        .page-footer .admin-link {
+            color: #999;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .page-footer .admin-link:hover {
+            color: #666;
+            text-decoration: underline;
+        }
+        .page-footer .copyright {
+            margin-top: 1rem;
+            color: #bbb;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-watermark"></div>
+    <div class="container">
+        <div class="page-header">
+            <a href="{{ url_for('index') }}" style="text-decoration: none;">
+                <img src="{{ url_for('static', filename='images/padel-paroni-logo.png') }}" alt="Padel Paroni">
+            </a>
+            <a href="{{ url_for('index') }}" style="text-decoration: none; color: inherit;">
+                <h1>{% if season %}{{ season.name }}{% else %}Padel Paroni{% endif %}</h1>
+            </a>
+            {% if active_tournaments %}
+            <p>Tervetuloa</p>
+            {% elif setup_tournaments %}
+            <p>Turnaus valmistelussa</p>
+            {% else %}
+            <p>{% if season %}{{ season.name }}{% endif %}</p>
+            {% endif %}
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="messages">
+                    {% for category, message in messages %}
+                        <div class="message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if active_tournaments %}
+            {# State A: Active tournament(s) exist #}
+            {% for tournament in active_tournaments %}
+            <div class="tournament-card-active">
+                <div class="status-line">
+                    <span class="status-dot"></span>
+                    Käynnissä
+                </div>
+                <h2>{{ tournament['name'] }}</h2>
+                <p class="info-line">
+                    {% if tournament['current_round'] %}
+                    <span>Kierros {{ tournament['current_round'] }}</span>
+                    {% endif %}
+                    {% if tournament['player_count'] %}
+                    <span>{{ tournament['player_count'] }} pelaajaa</span>
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-primary-action">
+                    Siirry turnaukseen
+                </a>
+            </div>
+            {% endfor %}
+
+            {% if setup_tournaments %}
+            <div class="setup-section">
+                <p class="setup-section-title">Muut turnaukset</p>
+                {% for tournament in setup_tournaments %}
+                <div class="tournament-card-setup">
+                    <span class="status-icon">&#x23F3;</span>
+                    <div class="info">
+                        <div class="name">{{ tournament['name'] }}</div>
+                        <div class="meta">Valmistelussa{% if tournament['player_count'] %} · {{ tournament['player_count'] }} pelaajaa{% endif %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="actions">
+                <a href="{{ url_for('season_leaderboard') }}" class="btn-secondary-action">
+                    Kauden tulokset
+                </a>
+            </div>
+
+        {% elif setup_tournaments %}
+            {# State B: Only setup tournaments #}
+            <div class="content-box">
+                <div class="icon">&#x23F3;</div>
+                <h2>Turnaus valmistelussa</h2>
+                <p>
+                    {{ setup_tournaments[0]['name'] }}<br>
+                    {% if setup_tournaments[0]['player_count'] %}
+                    {{ setup_tournaments[0]['player_count'] }} pelaajaa ilmoittautunut
+                    {% else %}
+                    Turnaus alkaa pian
+                    {% endif %}
+                </p>
+            </div>
+
+            {% if setup_tournaments|length > 1 %}
+            <div class="setup-section">
+                <p class="setup-section-title">Muut turnaukset</p>
+                {% for tournament in setup_tournaments[1:] %}
+                <div class="tournament-card-setup">
+                    <span class="status-icon">&#x23F3;</span>
+                    <div class="info">
+                        <div class="name">{{ tournament['name'] }}</div>
+                        <div class="meta">Valmistelussa{% if tournament['player_count'] %} · {{ tournament['player_count'] }} pelaajaa{% endif %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="actions">
+                <a href="{{ url_for('season_leaderboard') }}" class="btn-primary-action">
+                    Kauden tulokset
+                </a>
+            </div>
+
+        {% else %}
+            {# State C: No tournaments #}
+            <div class="content-box">
+                <div class="icon">&#x1F3BE;</div>
+                <h2>Ei aktiivista turnausta</h2>
+                <p>
+                    Turnaus ei ole käynnissä.<br>
+                    Tarkista myöhemmin tai ota yhteyttä järjestäjään!
+                </p>
+
+                {% if season %}
+                <div class="season-info">
+                    <strong>{{ season.name }}</strong>
+                    <span>{{ season.tournament_count }} turnaus{{ 'ta' if season.tournament_count != 1 else '' }} tällä kaudella</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="actions">
+                <a href="{{ url_for('season_leaderboard') }}" class="btn-primary-action">
+                    Kauden tulokset
+                </a>
+            </div>
+        {% endif %}
+
+        <div class="page-footer">
+            <a href="{{ url_for('admin_dashboard') }}" target="_blank" class="admin-link">Ylläpito</a>
+            <div class="copyright">© 2026 Padel Paroni. Kaikki oikeudet pidätetään.</div>
+        </div>
+    </div>
+</body>
+</html>

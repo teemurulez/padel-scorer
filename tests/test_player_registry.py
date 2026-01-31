@@ -66,6 +66,13 @@ def init_test_db():
             ended_at TIMESTAMP
         );
 
+        CREATE TABLE rounds (
+            id INTEGER PRIMARY KEY,
+            tournament_id INTEGER,
+            round_number INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- Create player_seeding view
         CREATE VIEW player_seeding AS
         SELECT

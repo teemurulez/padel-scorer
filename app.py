@@ -583,62 +583,49 @@ def health_check_db():
 
 @app.route('/')
 def index():
-    """Home page - smart entry point for scorekeepers/players"""
+    """Home page - consistent landing page for all users"""
     db = get_db_connection()
 
-    # Query active tournaments
+    # Query active tournaments with round and player info
     active_tournaments = db.execute(
-        '''SELECT * FROM tournaments
-           WHERE status = 'active'
-           ORDER BY created_at DESC'''
+        '''SELECT t.*,
+                  (SELECT COUNT(*) FROM tournament_players WHERE tournament_id = t.id) as player_count,
+                  (SELECT MAX(round_number) FROM rounds WHERE tournament_id = t.id) as current_round
+           FROM tournaments t
+           WHERE t.status = 'active'
+           ORDER BY t.created_at DESC'''
     ).fetchall()
 
-    # Query setup tournaments
+    # Query setup tournaments with player count
     setup_tournaments = db.execute(
-        '''SELECT * FROM tournaments
-           WHERE status = 'setup'
-           ORDER BY created_at DESC'''
+        '''SELECT t.*,
+                  (SELECT COUNT(*) FROM tournament_players WHERE tournament_id = t.id) as player_count
+           FROM tournaments t
+           WHERE t.status = 'setup'
+           ORDER BY t.created_at DESC'''
     ).fetchall()
 
-    active_count = len(active_tournaments)
-    setup_count = len(setup_tournaments)
-    total_count = active_count + setup_count
+    current_season = get_current_season(db)
 
-    # Case 1: Exactly 1 active tournament and no setup - auto-redirect
-    if active_count == 1 and setup_count == 0:
-        tournament_id = active_tournaments[0]['id']
-        return redirect(url_for('active_tournament', tournament_id=tournament_id))
+    # Get season info for display
+    season_info = None
+    if current_season:
+        tournament_count = db.execute(
+            "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
+            (current_season['id'],)
+        ).fetchone()['count']
 
-    # Case 2: Multiple tournaments (active or setup) - show selection
-    elif total_count > 0:
-        current_season = get_current_season(db)
-        # Combine active and setup tournaments
-        all_tournaments = list(active_tournaments) + list(setup_tournaments)
-        return render_template('tournament_selection.html',
-                             tournaments=all_tournaments,
-                             season=current_season)
+        season_name = current_season['name'] if 'name' in current_season.keys() else f"Season {current_season['year']}"
 
-    # Case 3: No tournaments at all - show message
-    else:
-        current_season = get_current_season(db)
+        season_info = {
+            'name': season_name,
+            'tournament_count': tournament_count
+        }
 
-        # Get tournament count for season info
-        season_info = None
-        if current_season:
-            tournament_count = db.execute(
-                "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
-                (current_season['id'],)
-            ).fetchone()['count']
-
-            # Handle both old schema (year) and new schema (name)
-            season_name = current_season['name'] if 'name' in current_season.keys() else f"Season {current_season['year']}"
-
-            season_info = {
-                'name': season_name,
-                'tournament_count': tournament_count
-            }
-
-        return render_template('no_active_tournament.html', season=season_info)
+    return render_template('home.html',
+                         active_tournaments=active_tournaments,
+                         setup_tournaments=setup_tournaments,
+                         season=season_info)
 
 @app.route('/tournament/<int:tournament_id>/start_round', methods=['GET', 'POST'])
 def start_round(tournament_id):
@@ -3941,19 +3928,6 @@ def admin_logout():
     session.clear()
     flash('You have been logged out successfully.')
     return redirect('/admin/login')
-
-@app.route('/test/selection')
-def test_selection():
-    tournaments = [
-        {'id': 1, 'name': 'Tournament A', 'status': 'active', 'created_at': '2025-12-31'},
-        {'id': 2, 'name': 'Tournament B', 'status': 'setup', 'created_at': '2025-12-31'}
-    ]
-    return render_template('tournament_selection.html', tournaments=tournaments)
-
-@app.route('/test/noactive')
-def test_noactive():
-    season = {'name': 'Winter 2025', 'tournament_count': 5}
-    return render_template('no_active_tournament.html', season=season)
 
 # Run migrations on startup if needed (skip with SKIP_MIGRATIONS=1 for faster startup)
 if not os.environ.get('SKIP_MIGRATIONS'):
