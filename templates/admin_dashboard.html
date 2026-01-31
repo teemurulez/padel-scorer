@@ -1095,7 +1095,7 @@
                 <button type="button" class="modal-close" id="close-create-tournament-btn">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="create-tournament-form" method="POST" action="/admin/tournaments/create">
+                <form id="create-tournament-form" class="create-tournament-form" method="POST" action="/admin/tournaments/create">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                     <div class="form-group">
@@ -1120,14 +1120,14 @@
                         </select>
                     </div>
 
-                    <div class="form-group" style="display: flex; gap: 1rem;">
-                        <div style="flex: 1;">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
                             <label for="court_start_from">Aloitusnumero</label>
-                            <input type="number" id="court_start_from" name="court_start_from" value="1" min="1" max="99" style="width: 100%;">
+                            <input type="text" id="court_start_from" name="court_start_from" value="1" inputmode="numeric" pattern="[0-9]*">
                         </div>
-                        <div style="flex: 1;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
                             <label for="court_skip">Ohita kentät</label>
-                            <input type="text" id="court_skip" name="court_skip" placeholder="esim. 7 tai 3, 7" style="width: 100%;">
+                            <input type="text" id="court_skip" name="court_skip" placeholder="esim. 7 tai 3, 7">
                         </div>
                     </div>
                     <p class="form-hint" id="court_preview" style="margin-top: -0.5rem;">Kentät: <span id="court_labels_preview">1, 2, 3</span></p>
@@ -1145,9 +1145,9 @@
                         <div id="create-validation-list" class="validation-list"></div>
                     </div>
 
-                    <div class="modal-footer">
-                        <button type="button" class="btn-secondary" id="cancel-create-tournament-btn">Peruuta</button>
-                        <button type="submit" class="btn-primary">Luo turnaus</button>
+                    <div class="modal-footer" style="align-items: center;">
+                        <button type="button" class="btn-secondary" id="cancel-create-tournament-btn" style="height: 48px; margin: 0;">Peruuta</button>
+                        <button type="submit" class="btn-primary" style="height: 48px; margin: 0;">Luo turnaus</button>
                     </div>
                 </form>
             </div>

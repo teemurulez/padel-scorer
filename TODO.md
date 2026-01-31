@@ -1,10 +1,10 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-01-29
+> **Last updated:** 2026-01-31
 
 ## Project Status
 
-The app is **production-ready** with security hardening complete. Core features work well. All 199 tests pass.
+**PUBLIC BETA** - App released for club-wide testing. All 203 tests pass.
 
 ## Completed Items
 
@@ -29,31 +29,76 @@ The app is **production-ready** with security hardening complete. Core features 
 - [x] Fix season standings for players with only imported points (done 2026-01-28)
 - [x] Railway persistent volume with DATABASE_PATH config (done 2026-01-29)
 - [x] Seasons tab accordion redesign (done 2026-01-29)
+- [x] SSE blocking fix with DISABLE_SSE env var (done 2026-01-30)
+- [x] Rolling pool randomization for Round 1 (done 2026-01-30)
+- [x] Consistent main page (no auto-redirect) (done 2026-01-31)
+- [x] Custom court numbers per tournament (done 2026-01-31)
+- [x] Player profile chart fix (done 2026-01-31)
+- [x] Player profile watermark background (done 2026-01-31)
 
 ## Next Steps
 
-### 1. Production Deployment
+### 1. Monitor Public Beta
 
-**Railway (configured):**
-- `runtime.txt` - Python 3.10.12
-- `Procfile` - gunicorn web server
-- Set `SECRET_KEY` environment variable in Railway dashboard
-
-**Alternative: PythonAnywhere**
-- See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** for step-by-step guide.
+- Gather feedback from club testers
+- Monitor Railway logs for errors
+- Fix any issues reported by users
 
 ### 2. Optional Improvements
 
 **Performance:**
+- Consider polling-based alternative to SSE for live updates
 - Set up UptimeRobot (free) to ping app every 5 min to prevent cold starts
 
-**Additional Security (lower priority):**
-- (Database connection management fixed 2026-01-27)
-
 **UX Ideas:**
-- (Live updates implemented via SSE 2026-01-27)
 - Move tournament edit flash messages into "Viimeisimmät muutokset" expandable area
 - Reduce visual clutter in seasons accordion (simplify tournament table, compact layout)
+
+### 3. Deployment Notes
+
+**Railway (deployed):**
+- `DISABLE_SSE=1` and `SKIP_MIGRATIONS=1` set
+- Persistent volume at `/data/padel.db`
+
+**PythonAnywhere (alternative):**
+- See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** for setup
+
+## Recent Changes (2026-01-31)
+
+**PUBLIC BETA RELEASE**
+
+**Custom Court Numbers:**
+- Tournaments can now have custom court numbers (e.g., 1,2,3,4,5,6,8,9 - skipping 7)
+- UI fields: "Aloitusnumero" (start from) and "Ohita kentät" (skip courts)
+- Live preview of court numbers in creation form
+- Backwards compatible (existing tournaments unaffected)
+
+**Player Profile Improvements:**
+- Fixed bar chart showing equal heights for different values
+- Added logo watermark background (consistent with other public pages)
+
+**UI Polish:**
+- Fixed form field heights (number inputs match text inputs)
+- Fixed button alignment in modal footer
+- Consistent main page (no auto-redirect to single tournament)
+
+---
+
+## Recent Changes (2026-01-30)
+
+**SSE Blocking Fix:**
+- Root cause: SSE held single worker indefinitely on Railway/PythonAnywhere
+- Solution: Added `DISABLE_SSE=1` env var to disable SSE on single-worker hosts
+
+**Rolling Pool Randomization:**
+- New algorithm for Round 1 pairings adds randomness within skill tiers
+- Prevents "always same partners" problem
+
+**Authentication & Import Fixes:**
+- Fixed session key mismatch (`is_admin` vs `logged_in_as_admin`)
+- Extended bulk import to 4 columns (Name, Wins, Tournaments, Matches)
+
+---
 
 ## Recent Changes (2026-01-29)
 
