@@ -5,9 +5,10 @@ Creates 3 tournaments with different player counts and 5+ rounds each.
 """
 import sqlite3
 import random
+import os
 from datetime import datetime, timedelta
 
-DATABASE = 'instance/padel.db'
+DATABASE = os.environ.get('DATABASE_PATH', 'instance/padel.db')
 
 def clear_data(conn, keep_players=True):
     """Clear existing tournament data but keep admin users and optionally players"""

@@ -354,6 +354,18 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Test Data Generation -->
+                <div class="data-section" style="margin-top: 2rem;">
+                    <h3>Testidata</h3>
+                    <p style="color: var(--error); margin-bottom: 1rem; font-weight: 500;">
+                        Varoitus: Tämä poistaa kaikki turnaukset ja luo uudet testiturnaukset. Pelaajat säilyvät.
+                    </p>
+                    <form action="{{ url_for('admin_generate_test_data') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn-danger">Luo testidata</button>
+                    </form>
+                </div>
             </div>
         </div>
     </main>

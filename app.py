@@ -2531,6 +2531,140 @@ def admin_activate_season(season_id):
     return redirect('/admin')
 
 
+@app.route('/admin/generate-test-data', methods=['POST'])
+@block_in_demo_mode
+def admin_generate_test_data():
+    """Generate test data (admin only) - for testing/demo purposes."""
+    if not session.get('logged_in_as_admin'):
+        flash('Vain ylläpitäjä voi suorittaa tämän toiminnon')
+        return redirect('/admin/login')
+
+    db = get_db_connection()
+
+    # Clear existing tournament data but keep players
+    db.execute('DELETE FROM scores')
+    db.execute('DELETE FROM matches')
+    db.execute('DELETE FROM rounds')
+    db.execute('DELETE FROM tournament_players')
+    db.execute('DELETE FROM round1_preview_pairings')
+    db.execute('DELETE FROM tournaments')
+    db.execute('DELETE FROM player_points_adjustment')
+    db.execute('DELETE FROM seasons')
+    db.commit()
+
+    # Create season
+    db.execute("INSERT INTO seasons (name, is_current) VALUES ('Kevat 2026', 1)")
+    season_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+    # Get existing players
+    players = db.execute('SELECT id FROM player_registry ORDER BY id').fetchall()
+    player_ids = [p['id'] for p in players]
+
+    if len(player_ids) < 8:
+        flash(f'Tarvitaan vähintään 8 pelaajaa. Löytyi vain {len(player_ids)}.')
+        return redirect('/admin')
+
+    import random
+
+    # Assign random skill levels
+    skill_map = {}
+    for i, pid in enumerate(player_ids):
+        base_skill = 0.3 + (0.5 * (len(player_ids) - i) / len(player_ids))
+        skill_map[pid] = base_skill + random.uniform(-0.1, 0.1)
+
+    def create_test_tournament(name, t_player_ids, num_courts, num_rounds, status='completed'):
+        db.execute(
+            "INSERT INTO tournaments (name, num_courts, season_id, status) VALUES (?, ?, ?, ?)",
+            (name, num_courts, season_id, status)
+        )
+        tid = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        for pid in t_player_ids:
+            db.execute(
+                "INSERT INTO tournament_players (tournament_id, player_id, total_points, match_wins, match_losses) VALUES (?, ?, 0, 0, 0)",
+                (tid, pid)
+            )
+
+        player_stats = {pid: {'wins': 0, 'losses': 0} for pid in t_player_ids}
+
+        for round_num in range(1, num_rounds + 1):
+            round_status = 'completed' if status == 'completed' else ('in_progress' if round_num == 1 else 'pending')
+            db.execute("INSERT INTO rounds (tournament_id, round_number, status) VALUES (?, ?, ?)",
+                      (tid, round_num, round_status))
+            round_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+            shuffled = t_player_ids.copy()
+            random.shuffle(shuffled)
+
+            for court in range(1, num_courts + 1):
+                base_idx = (court - 1) * 4
+                if base_idx + 3 >= len(shuffled):
+                    match_players = [shuffled[i % len(shuffled)] for i in range(base_idx, base_idx + 4)]
+                else:
+                    match_players = shuffled[base_idx:base_idx + 4]
+
+                p1, p2, p3, p4 = match_players
+                team1_skill = skill_map.get(p1, 0.5) + skill_map.get(p2, 0.5)
+                team2_skill = skill_map.get(p3, 0.5) + skill_map.get(p4, 0.5)
+                team1_score = team1_skill + random.uniform(-0.3, 0.3)
+                team2_score = team2_skill + random.uniform(-0.3, 0.3)
+                winning_team = 1 if team1_score > team2_score else 2
+
+                completed = 1 if status == 'completed' else 0
+                db.execute(
+                    "INSERT INTO matches (round_id, court_number, player1_id, player2_id, player3_id, player4_id, winning_team, completed, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+                    (round_id, court, p1, p2, p3, p4, winning_team if completed else None, completed)
+                )
+                match_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+                if completed:
+                    winners = [p1, p2] if winning_team == 1 else [p3, p4]
+                    losers = [p3, p4] if winning_team == 1 else [p1, p2]
+                    for pid in winners:
+                        db.execute("INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, 1)", (match_id, pid))
+                        player_stats[pid]['wins'] += 1
+                    for pid in losers:
+                        db.execute("INSERT INTO scores (match_id, player_id, points) VALUES (?, ?, 0)", (match_id, pid))
+                        player_stats[pid]['losses'] += 1
+
+            if status != 'completed':
+                break  # Only create round 1 for active tournaments
+
+        for pid, stats in player_stats.items():
+            db.execute(
+                "UPDATE tournament_players SET total_points = ?, match_wins = ?, match_losses = ? WHERE tournament_id = ? AND player_id = ?",
+                (stats['wins'], stats['wins'], stats['losses'], tid, pid)
+            )
+
+        return tid
+
+    num_players = len(player_ids)
+
+    # Tournament 1: Large
+    t1_count = min(num_players, 16)
+    t1_courts = max(2, t1_count // 4)
+    create_test_tournament("Tammikuun Mestaruus", player_ids[:t1_count], t1_courts, 6)
+
+    # Tournament 2: Medium
+    t2_players = [player_ids[i] for i in range(0, num_players, 2)][:min(num_players, 12)]
+    if len(t2_players) < 8:
+        t2_players = player_ids[:8]
+    create_test_tournament("Helmikuun Haaste", t2_players, max(2, len(t2_players) // 4), 5)
+
+    # Tournament 3: Small
+    create_test_tournament("Mestarin Cup", player_ids[:8], 2, 7)
+
+    # Tournament 4: Active
+    t4_count = min(num_players, 12)
+    t4_players = player_ids[2:2+t4_count] if num_players > 10 else player_ids[:t4_count]
+    create_test_tournament("Marraskuu 2", t4_players, max(2, t4_count // 4), 1, status='active')
+
+    db.commit()
+
+    flash(f'Testidata luotu: 1 kausi, {num_players} pelaajaa, 4 turnausta')
+    return redirect('/admin')
+
+
 @app.route('/admin')
 def admin_dashboard():
     """Admin dashboard main page with season management"""
