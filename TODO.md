@@ -36,6 +36,10 @@
 - [x] Player profile chart fix (done 2026-01-31)
 - [x] Player profile watermark background (done 2026-01-31)
 
+## Known Bugs
+
+- [ ] Tournament creation modal closes on validation error (wrong player count) - should stay open and preserve data
+
 ## Next Steps
 
 ### 1. Monitor Public Beta

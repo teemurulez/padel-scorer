@@ -163,6 +163,16 @@ body.edit-page {
     font-weight: 600;
 }
 
+.header-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.header-buttons .btn-secondary.copied {
+    background: #28a745;
+    color: white;
+}
+
 .validation-warning {
     color: #e65100;
     margin-left: 0.5rem;

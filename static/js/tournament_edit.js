@@ -432,6 +432,64 @@ function clearSearch() {
     }
 }
 
+// Copy pairings to clipboard in text format
+function copyPairingsToClipboard() {
+    const courts = document.querySelectorAll('.court-card');
+    const lines = [];
+
+    courts.forEach(court => {
+        const courtNumber = court.dataset.court;
+        const team1Slots = court.querySelectorAll('.team1 .player-slot');
+        const team2Slots = court.querySelectorAll('.team2 .player-slot');
+
+        // Get player names (excluding seed badges)
+        const getPlayerName = (slot) => {
+            // Clone the slot to avoid modifying the original
+            const clone = slot.cloneNode(true);
+            // Remove seed badges
+            const badges = clone.querySelectorAll('.seed-badge');
+            badges.forEach(b => b.remove());
+            return clone.textContent.trim();
+        };
+
+        const team1Player1 = getPlayerName(team1Slots[0]);
+        const team1Player2 = getPlayerName(team1Slots[1]);
+        const team2Player1 = getPlayerName(team2Slots[0]);
+        const team2Player2 = getPlayerName(team2Slots[1]);
+
+        // Skip if any slot is empty
+        if (team1Player1 === '[TYHJÄ]' || team1Player2 === '[TYHJÄ]' ||
+            team2Player1 === '[TYHJÄ]' || team2Player2 === '[TYHJÄ]') {
+            return;
+        }
+
+        const line = `Kenttä ${courtNumber}: ${team1Player1} & ${team1Player2} vs ${team2Player1} & ${team2Player2}`;
+        lines.push(line);
+    });
+
+    if (lines.length === 0) {
+        alert('Ei kopioitavia pareja. Luo ensin parit.');
+        return;
+    }
+
+    const text = lines.join('\n');
+
+    navigator.clipboard.writeText(text).then(() => {
+        // Visual feedback
+        const btn = document.getElementById('copy-pairings-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Kopioitu!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('copied');
+        }, 2000);
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        alert('Kopiointi epäonnistui. Kopioi manuaalisesti:\n\n' + text);
+    });
+}
+
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize empty slots
@@ -464,6 +522,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Pairings panel - regenerate button
     const regenerateBtn = document.getElementById('regenerate-btn');
     if (regenerateBtn) regenerateBtn.addEventListener('click', regeneratePairings);
+
+    // Copy pairings button
+    const copyBtn = document.getElementById('copy-pairings-btn');
+    if (copyBtn) copyBtn.addEventListener('click', copyPairingsToClipboard);
 
     // Search
     const searchInput = document.getElementById('player-search');
