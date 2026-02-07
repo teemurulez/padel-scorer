@@ -43,6 +43,18 @@
 
 - [ ] Tournament creation modal closes on validation error (wrong player count) - should stay open and preserve data
 
+## Technical Debt
+
+- [ ] Extract tournament count fallback logic to helper function (duplicated in index and season_leaderboard routes) and add test
+
+## Edge Cases Handled (2026-02-07)
+
+- No pairings generated → shows alert "Ei kopioitavia pareja"
+- Clipboard API failure → fallback alert with copyable text
+- No actual tournaments (only imported) → falls back to MAX(tournaments_adjustment)
+- NULL adjustment values → COALESCE handles gracefully
+- Zero matches (for win_rate) → NULLIF prevents division by zero
+
 ## Next Steps
 
 ### 1. Monitor Public Beta
