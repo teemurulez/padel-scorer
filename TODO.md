@@ -1,10 +1,10 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-01-31
+> **Last updated:** 2026-02-07
 
 ## Project Status
 
-**PUBLIC BETA** - App released for club-wide testing. All 203 tests pass.
+**PUBLIC BETA** - App released for club-wide testing. All 205 tests pass.
 
 ## Completed Items
 
@@ -35,6 +35,9 @@
 - [x] Custom court numbers per tournament (done 2026-01-31)
 - [x] Player profile chart fix (done 2026-01-31)
 - [x] Player profile watermark background (done 2026-01-31)
+- [x] Copy pairings export button for round 1 (done 2026-02-07)
+- [x] Fix imported matches not showing in season standings (done 2026-02-07)
+- [x] Fix tournament count for imported tournaments (done 2026-02-07)
 
 ## Known Bugs
 
@@ -66,6 +69,24 @@
 
 **PythonAnywhere (alternative):**
 - See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** for setup
+
+## Recent Changes (2026-02-07)
+
+**Copy Pairings Export:**
+- Added "Kopioi parit" button to tournament edit page
+- Copies round 1 pairings to clipboard: `Kenttä X: Name & Name vs Name & Name`
+- Visual feedback shows "Kopioitu!" after copying
+
+**Bug Fixes:**
+- Season standings now correctly shows imported match counts
+- Win rate calculation includes imported matches
+- Tournament count shows imported tournaments when no actual tournaments exist
+
+**Production:**
+- Initialized Railway database for February tournament
+- Imported January tournament results
+
+---
 
 ## Recent Changes (2026-01-31)
 
