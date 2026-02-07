@@ -47,6 +47,25 @@
 
 - [ ] Extract tournament count fallback logic to helper function (duplicated in index and season_leaderboard routes) and add test
 
+## Code Review Backlog
+
+**High Impact (tournament-critical):**
+- [x] Pairing algorithm - rolling pool randomization, seeded pairing (reviewed 2026-02-07)
+  - [ ] **Critical:** Add validation/truncation when extra players exist (design with user)
+  - [ ] **Important:** Add tests for larger tournaments 6+ courts (design with user)
+  - [ ] **Minor:** Add zero courts validation
+  - [ ] **Minor:** Clarify docstring about pool boundaries (design with user)
+- [ ] Score entry flow - entering results, team shuffling, result correction
+- [ ] Tournament lifecycle - Setup → Active → Completed transitions
+
+**Security-focused:**
+- [ ] Admin authentication - login, session handling, CSRF protection
+- [ ] Bulk import - user input handling, data validation
+
+**Complex logic:**
+- [ ] Leaderboard calculations - season stats, player rankings, win rates
+- [ ] Player seeding view - SQL view that calculates seed scores
+
 ## Edge Cases Handled (2026-02-07)
 
 - No pairings generated → shows alert "Ei kopioitavia pareja"
