@@ -45,17 +45,35 @@ Production preparation for tomorrow's tournament, copy pairings export feature, 
 - Whitespace cleaned with regex: `.replace(/\s+/g, ' ').trim()`
 - CSP compliance: all event handlers use addEventListener, no inline handlers
 
+## Code Reviews
+
+### Review 1: Today's Changes (Copy Pairings + Bug Fixes)
+- **Verdict:** Approved for production
+- SQL queries correct with proper NULL handling
+- JavaScript CSP-compliant, handles edge cases
+- Security checks passed
+
+### Review 2: Pairing Algorithm
+- **Verdict:** Safe for tomorrow (with caveats)
+- **Critical finding:** Extra players not handled correctly - middle-ranked players can be skipped
+- **Workaround:** Ensure exactly `num_courts × 4` players before generating pairings
+- **Action items added to TODO** (require design discussion)
+
 ## Test Results
 - 205 tests passing, 3 skipped
 - No new backend tests needed (copy feature is client-side JavaScript)
 
 ## Deployment
-- Three commits pushed to Railway:
+- Six commits pushed to Railway:
   1. `feat: add copy pairings button for round 1 export`
   2. `fix: clean whitespace in copy pairings output`
   3. `fix: include imported matches in season standings`
+  4. `docs: add daily summary and update TODO for 2026-02-07`
+  5. `docs: add technical debt and edge cases from code review`
+  6. `docs: add pairing algorithm review findings to TODO`
 
 ## Next Steps
 - Tomorrow's tournament (2026-02-08)
+- Ensure exactly `num_courts × 4` players before generating pairings
 - Monitor production during tournament
-- Fix modal validation bug (low priority)
+- After tournament: design session for pairing algorithm improvements
