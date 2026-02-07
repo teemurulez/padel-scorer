@@ -643,10 +643,20 @@ def index():
     # Get season info for display
     season_info = None
     if current_season:
-        tournament_count = db.execute(
+        # Count actual tournaments
+        actual_tournament_count = db.execute(
             "SELECT COUNT(*) as count FROM tournaments WHERE season_id = ?",
             (current_season['id'],)
         ).fetchone()['count']
+
+        # Get max imported tournaments (when no actual tournaments exist)
+        imported_tournament_count = db.execute(
+            "SELECT COALESCE(MAX(tournaments_adjustment), 0) as count FROM player_points_adjustment WHERE season_id = ?",
+            (current_season['id'],)
+        ).fetchone()['count']
+
+        # Use actual count if exists, otherwise use imported count
+        tournament_count = actual_tournament_count if actual_tournament_count > 0 else imported_tournament_count
 
         season_name = current_season['name'] if 'name' in current_season.keys() else f"Season {current_season['year']}"
 
@@ -1504,11 +1514,11 @@ def season_leaderboard():
             pr.first_name,
             pr.last_name,
             COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
-            COUNT(DISTINCT m.id) as total_matches,
+            COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0) as total_matches,
             COUNT(DISTINCT t.id) + COALESCE(adj.tournaments_adjustment, 0) as total_tournaments,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
-                NULLIF(COUNT(DISTINCT m.id), 0) * 100,
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) AS FLOAT) /
+                NULLIF(COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0), 0) * 100,
                 1
             ) as win_rate,
             COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) as total_points
@@ -1548,7 +1558,17 @@ def season_leaderboard():
             'stats': tournament_stats
         })
 
-    tournament_count = len(tournaments)
+    # Count actual tournaments, or use imported tournament count if none exist
+    actual_tournament_count = len(tournaments)
+    if actual_tournament_count > 0:
+        tournament_count = actual_tournament_count
+    else:
+        # Get max imported tournaments
+        imported_count = db.execute(
+            "SELECT COALESCE(MAX(tournaments_adjustment), 0) as count FROM player_points_adjustment WHERE season_id = ?",
+            (current_season['id'],)
+        ).fetchone()['count']
+        tournament_count = imported_count
 
     # Check if there are any previous seasons (archived seasons)
     has_previous_seasons = db.execute(
