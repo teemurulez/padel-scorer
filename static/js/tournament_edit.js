@@ -449,7 +449,8 @@ function copyPairingsToClipboard() {
             // Remove seed badges
             const badges = clone.querySelectorAll('.seed-badge');
             badges.forEach(b => b.remove());
-            return clone.textContent.trim();
+            // Clean up whitespace (tabs, newlines, multiple spaces)
+            return clone.textContent.replace(/\s+/g, ' ').trim();
         };
 
         const team1Player1 = getPlayerName(team1Slots[0]);
