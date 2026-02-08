@@ -140,6 +140,107 @@ def test_generate_next_round_pairings_moves_winners_up():
     # Losers: 1, 2, 7, 8 should be on court 2
     assert set(court2) == {1, 2, 7, 8}
 
+def _make_match(court_number, p1, p2, p3, p4, winning_team):
+    """Helper to create a match dict."""
+    return {
+        'id': court_number,
+        'court_number': court_number,
+        'player1_id': p1,
+        'player2_id': p2,
+        'player3_id': p3,
+        'player4_id': p4,
+        'winning_team': winning_team,
+        'completed': 1,
+    }
+
+
+def test_movement_3_courts_winners_move_up_one():
+    """With 3 courts, winners move up exactly 1 court, losers down 1."""
+    previous_matches = [
+        _make_match(1, 1, 2, 3, 4, winning_team=1),      # C1: 1,2 win
+        _make_match(2, 5, 6, 7, 8, winning_team=1),      # C2: 5,6 win
+        _make_match(3, 9, 10, 11, 12, winning_team=1),   # C3: 9,10 win
+    ]
+
+    result = generate_next_round_pairings(previous_matches, num_courts=3)
+
+    # Court 1: C1 winners (stay) + C2 winners (up 1)
+    assert set(result[0]) == {1, 2, 5, 6}
+    # Court 2: C1 losers (down 1) + C3 winners (up 1)
+    assert set(result[1]) == {3, 4, 9, 10}
+    # Court 3: C2 losers (down 1) + C3 losers (stay)
+    assert set(result[2]) == {7, 8, 11, 12}
+
+
+def test_movement_4_courts_winners_move_up_one():
+    """With 4 courts, court 4 winner should go to court 3, not court 2."""
+    previous_matches = [
+        _make_match(1, 1, 2, 3, 4, winning_team=1),      # C1: 1,2 win
+        _make_match(2, 5, 6, 7, 8, winning_team=1),      # C2: 5,6 win
+        _make_match(3, 9, 10, 11, 12, winning_team=1),   # C3: 9,10 win
+        _make_match(4, 13, 14, 15, 16, winning_team=1),  # C4: 13,14 win
+    ]
+
+    result = generate_next_round_pairings(previous_matches, num_courts=4)
+
+    # Court 1: C1 winners (stay) + C2 winners (up 1)
+    assert set(result[0]) == {1, 2, 5, 6}
+    # Court 2: C1 losers (down 1) + C3 winners (up 1)
+    assert set(result[1]) == {3, 4, 9, 10}
+    # Court 3: C2 losers (down 1) + C4 winners (up 1)
+    assert set(result[2]) == {7, 8, 13, 14}
+    # Court 4: C3 losers (down 1) + C4 losers (stay)
+    assert set(result[3]) == {11, 12, 15, 16}
+
+
+def test_movement_6_courts_court4_winner_goes_to_court3():
+    """Regression test for reported bug: court 4 winner went to court 2 instead of 3."""
+    previous_matches = [
+        _make_match(1, 1, 2, 3, 4, winning_team=1),
+        _make_match(2, 5, 6, 7, 8, winning_team=1),
+        _make_match(3, 9, 10, 11, 12, winning_team=1),
+        _make_match(4, 13, 14, 15, 16, winning_team=1),
+        _make_match(5, 17, 18, 19, 20, winning_team=1),
+        _make_match(6, 21, 22, 23, 24, winning_team=1),
+    ]
+
+    result = generate_next_round_pairings(previous_matches, num_courts=6)
+
+    # Court 1: C1 winners (stay) + C2 winners (up 1)
+    assert set(result[0]) == {1, 2, 5, 6}
+    # Court 2: C1 losers (down 1) + C3 winners (up 1)
+    assert set(result[1]) == {3, 4, 9, 10}
+    # Court 3: C2 losers (down 1) + C4 winners (up 1) — the reported bug
+    assert set(result[2]) == {7, 8, 13, 14}
+    # Court 4: C3 losers (down 1) + C5 winners (up 1)
+    assert set(result[3]) == {11, 12, 17, 18}
+    # Court 5: C4 losers (down 1) + C6 winners (up 1)
+    assert set(result[4]) == {15, 16, 21, 22}
+    # Court 6: C5 losers (down 1) + C6 losers (stay)
+    assert set(result[5]) == {19, 20, 23, 24}
+
+
+def test_movement_mixed_winners_across_courts():
+    """Test with different teams winning on different courts."""
+    previous_matches = [
+        _make_match(1, 1, 2, 3, 4, winning_team=2),      # C1: 3,4 win
+        _make_match(2, 5, 6, 7, 8, winning_team=1),      # C2: 5,6 win
+        _make_match(3, 9, 10, 11, 12, winning_team=2),   # C3: 11,12 win
+        _make_match(4, 13, 14, 15, 16, winning_team=1),  # C4: 13,14 win
+    ]
+
+    result = generate_next_round_pairings(previous_matches, num_courts=4)
+
+    # Court 1: C1 winners {3,4} + C2 winners {5,6}
+    assert set(result[0]) == {3, 4, 5, 6}
+    # Court 2: C1 losers {1,2} + C3 winners {11,12}
+    assert set(result[1]) == {1, 2, 11, 12}
+    # Court 3: C2 losers {7,8} + C4 winners {13,14}
+    assert set(result[2]) == {7, 8, 13, 14}
+    # Court 4: C3 losers {9,10} + C4 losers {15,16}
+    assert set(result[3]) == {9, 10, 15, 16}
+
+
 def test_generate_pairings_handles_incomplete_matches():
     """Test that algorithm handles incomplete previous round gracefully"""
     previous_matches = [

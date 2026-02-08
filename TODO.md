@@ -1,10 +1,10 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-02-07
+> **Last updated:** 2026-02-08
 
 ## Project Status
 
-**PUBLIC BETA** - App released for club-wide testing. All 205 tests pass.
+**PUBLIC BETA** - App released for club-wide testing. All 209 tests pass.
 
 ## Completed Items
 
@@ -38,14 +38,20 @@
 - [x] Copy pairings export button for round 1 (done 2026-02-07)
 - [x] Fix imported matches not showing in season standings (done 2026-02-07)
 - [x] Fix tournament count for imported tournaments (done 2026-02-07)
+- [x] Fix court movement algorithm for 3+ courts (done 2026-02-08)
 
 ## Known Bugs
 
 - [ ] Tournament creation modal closes on validation error (wrong player count) - should stay open and preserve data
 
+## Feature Requests
+
+- [ ] Auto-calculate number of courts from player list (player count / 4) in tournament creation modal
+
 ## Technical Debt
 
 - [ ] Extract tournament count fallback logic to helper function (duplicated in index and season_leaderboard routes) and add test
+- [ ] Review all features that were only tested with 2 courts — verify they work correctly with 4-8 courts (the court movement bug went unnoticed because tests only covered 2 courts)
 
 ## Code Review Backlog
 
@@ -100,6 +106,21 @@
 
 **PythonAnywhere (alternative):**
 - See **[docs/PYTHONANYWHERE_DEPLOYMENT.md](docs/PYTHONANYWHERE_DEPLOYMENT.md)** for setup
+
+## Recent Changes (2026-02-08)
+
+**Critical Bug Fix - Court Movement Algorithm:**
+- Players were jumping multiple courts instead of moving one court up/down
+- Root cause: algorithm concatenated all winners + all losers, then distributed sequentially
+- Only worked correctly with 2 courts; with 3+ courts players skipped courts
+- Fix: proper interleaving — winners move up 1, losers move down 1, boundary courts stay
+- Added 4 new tests (3, 4, 6 courts, mixed winners) — 209 tests total
+- Bug discovered during first real tournament with 5 courts
+
+**Admin Password Reset:**
+- Reset Railway admin password via `railway ssh`
+
+---
 
 ## Recent Changes (2026-02-07)
 

@@ -142,51 +142,51 @@ def generate_next_round_pairings(previous_matches, num_courts):
                 f"Cannot generate pairings: Match {match.get('id')} has incomplete matches"
             )
 
-    # Step 1: Separate all winners and losers by court
-    # Sort matches by court number
+    # Step 1: Separate winners and losers per court
     sorted_matches = sorted(previous_matches, key=lambda m: m['court_number'])
 
-    all_winners = []
-    all_losers = []
+    court_winners = []  # court_winners[i] = [w1, w2] from court i
+    court_losers = []   # court_losers[i] = [l1, l2] from court i
 
     for match in sorted_matches:
         if match['winning_team'] == 1:
-            # Team 1 won
             winners = [match['player1_id'], match['player2_id']]
             losers = [match['player3_id'], match['player4_id']]
         else:
-            # Team 2 won
             winners = [match['player3_id'], match['player4_id']]
             losers = [match['player1_id'], match['player2_id']]
 
-        all_winners.extend(winners)
-        all_losers.extend(losers)
+        court_winners.append(winners)
+        court_losers.append(losers)
 
-    # Step 2: Combine winners first, then losers
-    # This puts all winners at the top courts, all losers at bottom courts
-    sorted_players = all_winners + all_losers
+    n = len(court_winners)
 
-    # Step 3: Redistribute to new courts
-    # Top 4 players -> Court 1
-    # Next 4 players -> Court 2, etc.
+    # Step 2: Interleave - winners move up 1 court, losers move down 1 court
+    # Court 1: court 1 winners (stay) + court 2 winners (up 1)
+    # Court K: court K-1 losers (down 1) + court K+1 winners (up 1)
+    # Court N: court N-1 losers (down 1) + court N losers (stay)
     final_courts = []
 
-    for court_idx in range(num_courts):
-        start = court_idx * 4
-        end = start + 4
+    for court_idx in range(n):
+        if court_idx == 0:
+            # Top court: winners from court 1 stay + winners from court 2 move up
+            court_players = court_winners[0] + court_winners[1] if n > 1 else court_winners[0]
+        elif court_idx == n - 1:
+            # Bottom court: losers from court N-1 move down + losers from court N stay
+            court_players = court_losers[court_idx - 1] + court_losers[court_idx]
+        else:
+            # Middle courts: losers from above (down 1) + winners from below (up 1)
+            court_players = court_losers[court_idx - 1] + court_winners[court_idx + 1]
 
-        if end > len(sorted_players):
+        if len(court_players) < 4:
             break
 
-        # Get 4 players for this court
-        court_players = sorted_players[start:end]
         p1, p2, p3, p4 = court_players
 
-        # Check if default pairing has previous teammates
+        # Step 3: Separate previous teammates within each court
         p1_teammates = get_previous_teammates(p1, previous_matches)
 
         if p2 in p1_teammates:
-            # Swap to separate teammates
             p2, p3 = p3, p2
 
         final_courts.append([p1, p2, p3, p4])
