@@ -98,3 +98,58 @@ def test_seeded_pairing_handles_partial_court():
     # Should raise ValueError when not enough players
     with pytest.raises(ValueError, match="Not enough players for 2 courts"):
         generate_seeded_round1_pairings(players_with_seeds, num_courts=2)
+
+
+def test_seeded_pairing_6_courts_all_players_assigned():
+    """Test seeded pairing with 24 players for 6 courts (base_overflow=2 branch)."""
+    players_with_seeds = [
+        {'id': i, 'seed_points': 1000 - i * 30}
+        for i in range(1, 25)
+    ]
+
+    pairings = generate_seeded_round1_pairings(players_with_seeds, num_courts=6)
+
+    assert len(pairings) == 6
+
+    all_assigned = set()
+    for court in pairings:
+        assert len(court) == 4
+        court_set = set(court)
+        assert len(court_set) == 4, f"Duplicate player on court: {court}"
+        assert court_set.isdisjoint(all_assigned), f"Player assigned to multiple courts"
+        all_assigned.update(court_set)
+
+    assert all_assigned == set(range(1, 25))
+
+
+def test_seeded_pairing_6_courts_skill_tiers_respected():
+    """Top seeds should end up on higher courts, bottom seeds on lower courts."""
+    players_with_seeds = [
+        {'id': i, 'seed_points': 1000 - i * 30}
+        for i in range(1, 25)
+    ]
+
+    # Run multiple times to account for randomization
+    # Pool size is 6 (4 + base_overflow=2) so P(>=3 of top 4 selected) ~ 60%
+    # Use enough trials and a conservative threshold for statistical reliability
+    top_4_on_court1_count = 0
+    bottom_4_on_last_court_count = 0
+    trials = 100
+
+    for _ in range(trials):
+        pairings = generate_seeded_round1_pairings(players_with_seeds, num_courts=6)
+        court1_players = set(pairings[0])
+        court6_players = set(pairings[5])
+
+        # At least 3 of top 4 should be on court 1
+        if len(court1_players & {1, 2, 3, 4}) >= 3:
+            top_4_on_court1_count += 1
+        # At least 3 of bottom 4 should be on court 6
+        if len(court6_players & {21, 22, 23, 24}) >= 3:
+            bottom_4_on_last_court_count += 1
+
+    # With pool-based randomization (pool=6, pick=4), the probability of
+    # getting >=3 of top/bottom 4 on the expected court is ~60% per trial.
+    # With 100 trials, expect ~60 successes; threshold of 40% is very safe.
+    assert top_4_on_court1_count >= trials * 0.4, f"Top seeds on court 1 only {top_4_on_court1_count}/{trials} times"
+    assert bottom_4_on_last_court_count >= trials * 0.4, f"Bottom seeds on court 6 only {bottom_4_on_last_court_count}/{trials} times"
