@@ -258,3 +258,48 @@ def test_generate_pairings_handles_incomplete_matches():
     # Should raise error or handle gracefully
     with pytest.raises(ValueError, match="incomplete matches"):
         generate_next_round_pairings(previous_matches, num_courts=1)
+
+
+@pytest.mark.parametrize("num_courts", [3, 4, 5, 6, 8])
+def test_movement_rules_hold_for_n_courts(num_courts):
+    """Every winner moves up exactly 1 court (or stays at court 1).
+    Every loser moves down exactly 1 court (or stays at last court)."""
+    num_players = num_courts * 4
+    # All team 1 wins for predictable validation
+    matches = [
+        _make_match(c + 1, c*4+1, c*4+2, c*4+3, c*4+4, winning_team=1)
+        for c in range(num_courts)
+    ]
+
+    result = generate_next_round_pairings(matches, num_courts=num_courts)
+
+    assert len(result) == num_courts
+
+    all_assigned = set()
+    for court in result:
+        assert len(court) == 4
+        all_assigned.update(court)
+
+    # All players assigned exactly once
+    assert len(all_assigned) == num_players
+    assert all_assigned == set(range(1, num_players + 1))
+
+    # Court 1: winners from court 1 (stay) + winners from court 2 (up 1)
+    assert set(result[0]) == {1, 2, 5, 6}
+
+    # Last court: losers from court N-1 (down 1) + losers from court N (stay)
+    last = num_courts - 1
+    last_c = num_courts
+    prev_c = num_courts - 1
+    expected_last = {prev_c*4-1, prev_c*4, last_c*4-1, last_c*4}
+    assert set(result[last]) == expected_last
+
+    # Middle courts: losers from above + winners from below
+    for k in range(1, num_courts - 1):
+        above = k - 1  # 0-indexed court above
+        below = k + 1  # 0-indexed court below
+        expected = {
+            above*4+3, above*4+4,       # losers from court above
+            below*4+1, below*4+2        # winners from court below
+        }
+        assert set(result[k]) == expected, f"Court {k+1} mismatch"
