@@ -1,4 +1,5 @@
 # tests/test_court_movement.py
+import random
 import pytest
 from court_movement import get_previous_teammates, sort_players_by_court_position, assign_teams_with_separation, generate_next_round_pairings
 
@@ -303,3 +304,72 @@ def test_movement_rules_hold_for_n_courts(num_courts):
             below*4+1, below*4+2        # winners from court below
         }
         assert set(result[k]) == expected, f"Court {k+1} mismatch"
+
+
+def test_multi_round_stability_6_courts_7_rounds():
+    """Simulate 7 rounds with 6 courts. Every round must satisfy movement rules."""
+    num_courts = 6
+    num_players = num_courts * 4  # 24
+    random.seed(42)
+
+    # Round 1: arbitrary initial placement
+    player_ids = list(range(1, num_players + 1))
+    current_matches = []
+    for c in range(num_courts):
+        p = player_ids[c*4:(c+1)*4]
+        winning_team = random.choice([1, 2])
+        current_matches.append(_make_match(c + 1, p[0], p[1], p[2], p[3], winning_team=winning_team))
+
+    for round_num in range(2, 8):  # Rounds 2-7
+        result = generate_next_round_pairings(current_matches, num_courts=num_courts)
+
+        assert len(result) == num_courts, f"Round {round_num}: expected {num_courts} courts"
+
+        # All players assigned exactly once
+        all_players = set()
+        for court in result:
+            assert len(court) == 4, f"Round {round_num}: court has {len(court)} players"
+            all_players.update(court)
+        assert len(all_players) == num_players, f"Round {round_num}: {len(all_players)} players instead of {num_players}"
+        assert all_players == set(range(1, num_players + 1)), f"Round {round_num}: wrong player set"
+
+        # Verify movement rules: check each player moved correctly
+        # Build lookup: player -> court in previous round, and win/loss status
+        prev_court = {}
+        prev_won = {}
+        for match in current_matches:
+            court_num = match['court_number']
+            if match['winning_team'] == 1:
+                winners = {match['player1_id'], match['player2_id']}
+                losers = {match['player3_id'], match['player4_id']}
+            else:
+                winners = {match['player3_id'], match['player4_id']}
+                losers = {match['player1_id'], match['player2_id']}
+            for pid in winners:
+                prev_court[pid] = court_num
+                prev_won[pid] = True
+            for pid in losers:
+                prev_court[pid] = court_num
+                prev_won[pid] = False
+
+        for court_idx, court_players in enumerate(result):
+            new_court = court_idx + 1
+            for pid in court_players:
+                old_court = prev_court[pid]
+                won = prev_won[pid]
+                if won:
+                    if old_court == 1:
+                        assert new_court == 1, f"Round {round_num}: player {pid} won on court 1 but moved to court {new_court}"
+                    else:
+                        assert new_court == old_court - 1, f"Round {round_num}: player {pid} won on court {old_court} but moved to court {new_court} (expected {old_court - 1})"
+                else:
+                    if old_court == num_courts:
+                        assert new_court == num_courts, f"Round {round_num}: player {pid} lost on court {num_courts} but moved to court {new_court}"
+                    else:
+                        assert new_court == old_court + 1, f"Round {round_num}: player {pid} lost on court {old_court} but moved to court {new_court} (expected {old_court + 1})"
+
+        # Prepare matches for next round with random winners
+        current_matches = []
+        for c_idx, court in enumerate(result):
+            winning_team = random.choice([1, 2])
+            current_matches.append(_make_match(c_idx + 1, court[0], court[1], court[2], court[3], winning_team=winning_team))
