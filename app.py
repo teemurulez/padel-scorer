@@ -1720,29 +1720,27 @@ def player_profile(player_id):
             pr.first_name,
             pr.last_name,
             COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) as total_wins,
-            COUNT(DISTINCT m.id) as total_matches,
+            COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0) as total_matches,
             ROUND(
-                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
-                NULLIF(COUNT(DISTINCT m.id), 0) * 100,
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) AS FLOAT) /
+                NULLIF(COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0), 0) * 100,
                 1
             ) as win_rate,
-            SUM(s.points) as total_points,
-            COUNT(DISTINCT t.id) as tournaments_played
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) as total_points,
+            COUNT(DISTINCT t.id) + COALESCE(adj.tournaments_adjustment, 0) as tournaments_played
         FROM player_registry pr
+        LEFT JOIN player_points_adjustment adj ON (pr.id = adj.player_id AND adj.season_id = ?)
         LEFT JOIN matches m ON (
-            pr.id = m.player1_id OR
-            pr.id = m.player2_id OR
-            pr.id = m.player3_id OR
-            pr.id = m.player4_id
+            pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id)
+            AND m.completed = 1
         )
         LEFT JOIN rounds r ON m.round_id = r.id
-        LEFT JOIN tournaments t ON r.tournament_id = t.id
+        LEFT JOIN tournaments t ON r.tournament_id = t.id AND t.season_id = ?
         LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
         WHERE pr.id = ?
-          AND t.season_id = ?
-          AND m.completed = 1
+          AND (adj.adjustment IS NOT NULL OR adj.tournaments_adjustment IS NOT NULL OR t.id IS NOT NULL)
         GROUP BY pr.id, pr.first_name, pr.last_name
-    """, (player_id, current_season['id'])).fetchone()
+    """, (current_season['id'], current_season['id'], player_id)).fetchone()
 
     # Calculate wins per tournament
     wins_per_tournament = None
@@ -1760,28 +1758,26 @@ def player_profile(player_id):
         all_standings = db.execute("""
             SELECT
                 pr.id,
-                COALESCE(SUM(s.points), 0) as total_points,
+                COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) as total_points,
                 ROUND(
-                    CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) AS FLOAT) /
-                    NULLIF(COUNT(DISTINCT m.id), 0) * 100,
+                    CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) AS FLOAT) /
+                    NULLIF(COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0), 0) * 100,
                     1
                 ) as win_rate
             FROM player_registry pr
+            LEFT JOIN player_points_adjustment adj ON (pr.id = adj.player_id AND adj.season_id = ?)
             LEFT JOIN matches m ON (
-                pr.id = m.player1_id OR
-                pr.id = m.player2_id OR
-                pr.id = m.player3_id OR
-                pr.id = m.player4_id
+                pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id)
+                AND m.completed = 1
             )
             LEFT JOIN rounds r ON m.round_id = r.id
-            LEFT JOIN tournaments t ON r.tournament_id = t.id
+            LEFT JOIN tournaments t ON r.tournament_id = t.id AND t.season_id = ?
             LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
-            WHERE t.season_id = ?
-              AND m.completed = 1
+            WHERE adj.adjustment IS NOT NULL OR adj.tournaments_adjustment IS NOT NULL OR t.id IS NOT NULL
             GROUP BY pr.id
-            HAVING COALESCE(SUM(s.points), 0) > 0
+            HAVING total_points > 0 OR COUNT(DISTINCT t.id) + COALESCE(adj.tournaments_adjustment, 0) > 0
             ORDER BY total_points DESC, win_rate DESC
-        """, (current_season['id'],)).fetchall()
+        """, (current_season['id'], current_season['id'])).fetchall()
 
         # Calculate rank with proper tie handling
         current_rank = 1
