@@ -393,7 +393,12 @@ async function startTournament() {
         // Save first, then start
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = `/start-round/${tournamentId}`;
+        form.action = `/tournament/${tournamentId}/start_round`;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = document.querySelector('input[name="csrf_token"]').value;
+        form.appendChild(csrfInput);
         document.body.appendChild(form);
         form.submit();
     }
