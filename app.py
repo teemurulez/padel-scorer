@@ -1073,6 +1073,48 @@ def confirm_match_teams(tournament_id, round_id, court_number):
         players=players
     )
 
+@app.route('/api/tournament/<int:tournament_id>/pairings-text')
+def api_tournament_pairings_text(tournament_id):
+    """Return current round pairings as copyable text"""
+    db = get_db_connection()
+
+    tournament = db.execute('SELECT * FROM tournaments WHERE id = ?', (tournament_id,)).fetchone()
+    if not tournament:
+        return jsonify({'error': 'Tournament not found'}), 404
+
+    # Get the latest round
+    current_round = db.execute(
+        'SELECT * FROM rounds WHERE tournament_id = ? ORDER BY round_number DESC LIMIT 1',
+        (tournament_id,)
+    ).fetchone()
+    if not current_round:
+        return jsonify({'error': 'No rounds found'}), 404
+
+    matches = db.execute('''
+        SELECT m.court_number,
+               p1.first_name || ' ' || p1.last_name as player1_name,
+               p2.first_name || ' ' || p2.last_name as player2_name,
+               p3.first_name || ' ' || p3.last_name as player3_name,
+               p4.first_name || ' ' || p4.last_name as player4_name
+        FROM matches m
+        JOIN player_registry p1 ON m.player1_id = p1.id
+        JOIN player_registry p2 ON m.player2_id = p2.id
+        JOIN player_registry p3 ON m.player3_id = p3.id
+        JOIN player_registry p4 ON m.player4_id = p4.id
+        WHERE m.round_id = ?
+        ORDER BY m.court_number
+    ''', (current_round['id'],)).fetchall()
+
+    lines = []
+    for m in matches:
+        lines.append(f"Kenttä {m['court_number']}: {m['player1_name']} & {m['player2_name']} vs {m['player3_name']} & {m['player4_name']}")
+
+    return jsonify({
+        'text': '\n'.join(lines),
+        'round_number': current_round['round_number'],
+        'tournament_name': tournament['name']
+    })
+
 @app.route('/tournament/<int:tournament_id>')
 def active_tournament(tournament_id):
     """Show active round for tournament"""

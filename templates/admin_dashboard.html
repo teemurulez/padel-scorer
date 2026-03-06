@@ -105,6 +105,7 @@
                                             </form>
                                             <a href="{{ url_for('admin_tournament_edit_page', tournament_id=tournament['id']) }}" class="btn-secondary btn-small">Muokkaa</a>
                                             {% elif tournament['status'] == 'active' %}
+                                            <button type="button" class="btn-secondary btn-small copy-pairings-btn" data-tournament-id="{{ tournament['id'] }}">Kopioi parit</button>
                                             <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-secondary btn-small">Näytä</a>
                                             <form method="POST" action="{{ url_for('end_tournament', tournament_id=tournament['id']) }}" style="display:inline;" class="confirm-form" data-confirm="Lopeta turnaus '{{ tournament['name'] }}'?">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1075,6 +1076,24 @@
                     }
                 });
             }
+
+            // Copy pairings buttons
+            document.querySelectorAll('.copy-pairings-btn').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const tournamentId = this.dataset.tournamentId;
+                    try {
+                        const response = await fetch(`/api/tournament/${tournamentId}/pairings-text`);
+                        if (!response.ok) throw new Error('Failed to fetch pairings');
+                        const data = await response.json();
+                        await navigator.clipboard.writeText(data.text);
+                        const originalText = this.textContent;
+                        this.textContent = 'Kopioitu!';
+                        setTimeout(() => { this.textContent = originalText; }, 2000);
+                    } catch (error) {
+                        alert('Parien kopiointi epäonnistui.');
+                    }
+                });
+            });
         });
     </script>
 
