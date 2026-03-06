@@ -3615,7 +3615,47 @@ def admin_tournament_edit_page(tournament_id):
     if not tournament:
         abort(404)
 
-    # Get players with seed info and ranking
+    # Get season leaderboard rankings for badge display
+    season_id = tournament['season_id']
+    all_standings = db.execute("""
+        SELECT
+            pr.id,
+            COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) as total_points,
+            ROUND(
+                CAST(COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) AS FLOAT) /
+                NULLIF(COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0), 0) * 100,
+                1
+            ) as win_rate
+        FROM player_registry pr
+        LEFT JOIN player_points_adjustment adj ON (pr.id = adj.player_id AND adj.season_id = ?)
+        LEFT JOIN matches m ON (
+            pr.id IN (m.player1_id, m.player2_id, m.player3_id, m.player4_id)
+            AND m.completed = 1
+        )
+        LEFT JOIN rounds r ON m.round_id = r.id
+        LEFT JOIN tournaments t ON r.tournament_id = t.id AND t.season_id = ?
+        LEFT JOIN scores s ON (s.match_id = m.id AND s.player_id = pr.id)
+        WHERE adj.adjustment IS NOT NULL OR adj.tournaments_adjustment IS NOT NULL OR t.id IS NOT NULL
+        GROUP BY pr.id
+        HAVING total_points > 0 OR COUNT(DISTINCT t.id) + COALESCE(adj.tournaments_adjustment, 0) > 0
+        ORDER BY total_points DESC, win_rate DESC
+    """, (season_id, season_id)).fetchall()
+
+    # Build season rank lookup with tie handling
+    season_rank_lookup = {}
+    current_rank = 1
+    for idx, row in enumerate(all_standings):
+        if idx > 0:
+            prev = all_standings[idx - 1]
+            if row['total_points'] != prev['total_points'] or row['win_rate'] != prev['win_rate']:
+                current_rank = idx + 1
+        season_rank_lookup[row['id']] = {
+            'season_rank': current_rank,
+            'total_points': row['total_points'],
+            'win_rate': row['win_rate']
+        }
+
+    # Get players registered for this tournament
     players = db.execute('''
         SELECT
             pr.id,
@@ -3632,16 +3672,17 @@ def admin_tournament_edit_page(tournament_id):
         ORDER BY ps.seed_score DESC NULLS LAST, pr.first_name, pr.last_name
     ''', (tournament_id,)).fetchall()
 
-    # Calculate rankings (1-based, by seed_score) and create lookup
+    # Attach season rank to players and create lookup for template
     players_with_rank = []
     player_seed_lookup = {}  # id -> {seed_score, seed_rank}
-    for idx, player in enumerate(players):
+    for player in players:
         player_dict = dict(player)
-        player_dict['seed_rank'] = idx + 1
+        rank_info = season_rank_lookup.get(player['id'])
+        player_dict['seed_rank'] = rank_info['season_rank'] if rank_info else None
         players_with_rank.append(player_dict)
         player_seed_lookup[player['id']] = {
             'seed_score': player['seed_score'],
-            'seed_rank': idx + 1,
+            'seed_rank': rank_info['season_rank'] if rank_info else None,
             'total_wins': player['total_wins'],
             'total_matches': player['total_matches']
         }
