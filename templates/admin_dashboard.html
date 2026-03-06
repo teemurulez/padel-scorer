@@ -355,6 +355,22 @@
                     </table>
                 </div>
 
+                <!-- Empty Database -->
+                <div class="data-section" style="margin-top: 2rem;">
+                    <h3>Tyhjennä tietokanta</h3>
+                    <p style="color: var(--error); margin-bottom: 1rem; font-weight: 500;">
+                        Varoitus: Tämä poistaa KAIKEN datan (kaudet, turnaukset, pelaajat, tulokset). Toimintoa ei voi peruuttaa.
+                    </p>
+                    <form id="empty-db-form" action="{{ url_for('admin_empty_database') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div style="margin-bottom: 1rem;">
+                            <label for="empty-confirm" style="display: block; margin-bottom: 0.5rem;">Kirjoita TYHJENNÄ vahvistaaksesi:</label>
+                            <input type="text" id="empty-confirm" autocomplete="off" style="padding: 0.5rem; width: 200px;">
+                        </div>
+                        <button type="submit" id="empty-btn" class="btn-danger" disabled>Tyhjennä tietokanta</button>
+                    </form>
+                </div>
+
                 <!-- Test Data Generation -->
                 <div class="data-section" style="margin-top: 2rem;">
                     <h3>Testidata</h3>
@@ -1018,6 +1034,44 @@
                     } catch (error) {
                         console.error('Backup error:', error);
                         alert('Automaattinen varmuuskopio epäonnistui. Palautusta ei suoritettu.');
+                    }
+                });
+            }
+
+            // Empty database functionality
+            const emptyConfirm = document.getElementById('empty-confirm');
+            const emptyBtn = document.getElementById('empty-btn');
+            const emptyForm = document.getElementById('empty-db-form');
+
+            if (emptyConfirm && emptyBtn && emptyForm) {
+                emptyConfirm.addEventListener('input', function() {
+                    emptyBtn.disabled = emptyConfirm.value.trim().toUpperCase() !== 'TYHJENNÄ';
+                });
+
+                emptyForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+
+                    // Download automatic backup first
+                    try {
+                        const backupResponse = await fetch('{{ url_for("admin_export_database_json") }}');
+                        if (!backupResponse.ok) {
+                            alert('Automaattinen varmuuskopio epäonnistui. Tyhjennystä ei suoritettu.');
+                            return;
+                        }
+                        const backupBlob = await backupResponse.blob();
+                        const backupUrl = URL.createObjectURL(backupBlob);
+                        const backupLink = document.createElement('a');
+                        backupLink.href = backupUrl;
+                        backupLink.download = `backup-before-empty-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+                        backupLink.click();
+                        URL.revokeObjectURL(backupUrl);
+
+                        setTimeout(() => {
+                            emptyForm.submit();
+                        }, 500);
+                    } catch (error) {
+                        console.error('Backup error:', error);
+                        alert('Automaattinen varmuuskopio epäonnistui. Tyhjennystä ei suoritettu.');
                     }
                 });
             }

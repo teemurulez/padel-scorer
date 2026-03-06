@@ -1657,10 +1657,10 @@ def season_history():
                          seasons_data=seasons_data,
                          has_previous_seasons=len(archived_seasons) > 0)
 
-@app.route('/leaderboard/clear-all', methods=['POST'])
-def clear_all_data():
+@app.route('/admin/empty-database', methods=['POST'])
+@block_in_demo_mode
+def admin_empty_database():
     """Clear all tournament and player data - complete reset (admin only)"""
-    # Require admin authentication
     if not session.get('logged_in_as_admin'):
         flash('Vain ylläpitäjä voi tyhjentää datan')
         return redirect(url_for('admin_login'))
@@ -1668,20 +1668,25 @@ def clear_all_data():
     db = get_db_connection()
 
     # Delete in correct order (foreign key constraints)
-    db.execute('DELETE FROM scores')
-    db.execute('DELETE FROM matches')
-    db.execute('DELETE FROM rounds')
-    db.execute('DELETE FROM tournaments')
-    db.execute('DELETE FROM player_registry')
+    tables = [
+        'scores', 'matches', 'rounds', 'round1_preview_pairings',
+        'tournament_edit_history', 'player_points_adjustment',
+        'player_seeding', 'tournament_players', 'tournaments',
+        'player_registry', 'seasons'
+    ]
+    for table in tables:
+        try:
+            db.execute(f'DELETE FROM {table}')
+        except Exception:
+            pass  # Table might not exist
 
     # Reset auto-increment counters
-    db.execute('''DELETE FROM sqlite_sequence
-                  WHERE name IN ('tournaments', 'rounds', 'matches', 'scores', 'player_registry')''')
+    db.execute('DELETE FROM sqlite_sequence')
 
     db.commit()
 
-    flash('All data cleared successfully! Starting fresh season.')
-    return redirect(url_for('index'))
+    flash('Tietokanta tyhjennetty onnistuneesti.')
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/player/<int:player_id>/profile')
 def player_profile(player_id):
