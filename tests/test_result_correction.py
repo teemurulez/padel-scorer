@@ -224,8 +224,8 @@ class TestAdminRecalculateRound:
         # Should redirect with error flash
         assert response.status_code == 302
 
-    def test_recalculate_with_completed_matches_blocked(self, admin_client):
-        """Test that recalculate is blocked if round has completed matches"""
+    def test_recalculate_with_completed_matches_allowed(self, admin_client):
+        """Test that recalculate works even when round has completed matches"""
         with app.app_context():
             db = get_db()
             tournament_id, round_ids = create_tournament_with_rounds(db, num_rounds=2)
@@ -233,8 +233,19 @@ class TestAdminRecalculateRound:
 
         response = admin_client.post(f'/admin/tournament/{tournament_id}/round/{round_ids[1]}/recalculate')
 
-        # Should redirect with error
+        # Should redirect (recalculation happens)
         assert response.status_code == 302
+
+        # Verify scores were cleared and new matches created
+        with app.app_context():
+            db = get_db()
+            matches = db.execute(
+                "SELECT * FROM matches WHERE round_id = ?", (round_ids[1],)
+            ).fetchall()
+            assert len(matches) > 0
+            # All new matches should be incomplete
+            for m in matches:
+                assert m['completed'] == 0
 
     def test_recalculate_success(self, admin_client):
         """Test successful round recalculation"""
@@ -368,14 +379,22 @@ class TestActiveRoundRecalculateButton:
         assert response.status_code == 200
         assert 'Laske kierros uudelleen'.encode('utf-8') not in response.data
 
-    def test_recalculate_button_hidden_when_matches_completed(self, admin_client):
-        """Test that recalculate button is hidden when matches are completed"""
+    def test_recalculate_button_shown_when_matches_completed(self, admin_client):
+        """Test that recalculate button is shown even when matches are completed"""
         with app.app_context():
             db = get_db()
             tournament_id, round_ids = create_tournament_with_rounds(db, num_rounds=2)
-            # Round 2 matches are already completed
+            # Round 2 matches are already completed (default from helper)
+            # Backdate round 2 and add correction to trigger needs_recalculation
+            db.execute("UPDATE rounds SET created_at = datetime('now', '-1 hour') WHERE id = ?", (round_ids[1],))
+            db.execute(
+                '''INSERT INTO tournament_edit_history (tournament_id, change_type, change_data)
+                   VALUES (?, 'result_corrected', ?)''',
+                (tournament_id, json.dumps({'round_id': round_ids[0], 'old_winning_team': 1, 'new_winning_team': 2}))
+            )
+            db.commit()
 
         response = admin_client.get(f'/tournament/{tournament_id}/round/{round_ids[1]}')
 
         assert response.status_code == 200
-        assert 'Laske kierros uudelleen'.encode('utf-8') not in response.data
+        assert 'Laske kierros uudelleen'.encode('utf-8') in response.data

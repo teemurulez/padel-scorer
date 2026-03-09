@@ -356,14 +356,12 @@
             Edellisen kierroksen tuloksia on muutettu. Kierros täytyy laskea uudelleen.
         </div>
         {% set completed_count = matches|selectattr('completed')|list|length %}
-        {% if completed_count == 0 %}
-        <form action="{{ url_for('admin_recalculate_round', tournament_id=tournament_id, round_id=round_data['id']) }}" method="POST" style="margin-bottom: 1rem;" onsubmit="return confirm('Haluatko varmasti laskea kierroksen uudelleen? Nykyiset parit poistetaan ja luodaan uudet edellisen kierroksen tulosten perusteella.');">
+        <form action="{{ url_for('admin_recalculate_round', tournament_id=tournament_id, round_id=round_data['id']) }}" method="POST" style="margin-bottom: 1rem;" onsubmit="return confirm('{% if completed_count > 0 %}VAROITUS: Kierroksella on {{ completed_count }} valmista ottelua. Kaikki tulokset poistetaan!\n\n{% endif %}Haluatko varmasti laskea kierroksen uudelleen? Nykyiset parit poistetaan ja luodaan uudet edellisen kierroksen tulosten perusteella.');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn-primary-action" style="background: #dc3545; color: white; width: 100%;">
                 Laske kierros uudelleen
             </button>
         </form>
-        {% endif %}
         {% endif %}
 
         <!-- Matches section (live-updated via SSE) -->

@@ -4145,11 +4145,6 @@ def admin_recalculate_round(tournament_id, round_id):
         (round_id,)
     ).fetchall()
 
-    completed_matches = [m for m in matches if m['completed']]
-    if completed_matches:
-        flash('Kierroksella on jo tuloksia. Vain aloittamattoman kierroksen voi laskea uudelleen.')
-        return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
-
     # Get previous round matches
     previous_round = db.execute(
         'SELECT * FROM rounds WHERE tournament_id = ? AND round_number = ?',
