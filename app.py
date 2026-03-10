@@ -3406,23 +3406,28 @@ def admin_create_tournament():
     """Create new tournament from admin dashboard (ADMIN)"""
     db = get_db_connection()
 
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def error_response(message):
+        if is_ajax:
+            return jsonify({'error': message}), 400
+        flash(message)
+        return redirect('/admin')
+
     # Check for current season
     current_season = get_current_season(db)
     if not current_season:
-        flash('No active season. Please create or activate a season first.')
-        return redirect('/admin')
+        return error_response('No active season. Please create or activate a season first.')
 
     # Validate form inputs
     tournament_name = request.form.get('tournament_name', '').strip()
     if not tournament_name:
-        flash('Tournament name is required.')
-        return redirect('/admin')
+        return error_response('Tournament name is required.')
 
     try:
         num_courts = int(request.form.get('num_courts'))
     except (ValueError, TypeError):
-        flash('Invalid number of courts.')
-        return redirect('/admin')
+        return error_response('Invalid number of courts.')
 
     # Parse court numbering options
     try:
@@ -3436,16 +3441,14 @@ def admin_create_tournament():
         try:
             skip_courts = [int(x.strip()) for x in skip_courts_raw.split(',') if x.strip()]
         except ValueError:
-            flash('Ohitettavat kentät tulee antaa pilkulla erotettuna (esim. "7" tai "3, 7").')
-            return redirect('/admin')
+            return error_response('Ohitettavat kentät tulee antaa pilkulla erotettuna (esim. "7" tai "3, 7").')
 
     # Generate court labels
     court_labels = generate_court_labels(num_courts, start_from, skip_courts)
 
     player_names_raw = request.form.get('players', '')
     if not player_names_raw:
-        flash('Player names are required.')
-        return redirect('/admin')
+        return error_response('Player names are required.')
 
     player_names = player_names_raw.strip().split('\n')
 
@@ -3455,8 +3458,7 @@ def admin_create_tournament():
     # Validate player count (admin route requires exact count for proper pairing)
     required_players = num_courts * 4
     if len(player_names) != required_players:
-        flash(f'Need exactly {required_players} players for {num_courts} courts. You entered {len(player_names)} players.')
-        return redirect('/admin')
+        return error_response(f'Need exactly {required_players} players for {num_courts} courts. You entered {len(player_names)} players.')
 
     # Create tournament
     cursor = db.execute(
@@ -3498,9 +3500,10 @@ def admin_create_tournament():
 
     db.commit()
 
-    flash(f'Tournament "{tournament_name}" created successfully!')
+    if is_ajax:
+        return jsonify({'success': True}), 200
 
-    # Redirect back to admin dashboard
+    flash(f'Tournament "{tournament_name}" created successfully!')
     return redirect('/admin')
 
 

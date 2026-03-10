@@ -488,6 +488,7 @@
         function openCreateTournamentModal() {
             document.getElementById('create-tournament-modal').classList.add('active');
             document.body.style.overflow = 'hidden';
+            document.getElementById('create-tournament-error').style.display = 'none';
         }
 
         function closeCreateTournamentModal() {
@@ -758,6 +759,45 @@
             const cancelCreateTournamentBtn = document.getElementById('cancel-create-tournament-btn');
             if (cancelCreateTournamentBtn) {
                 cancelCreateTournamentBtn.addEventListener('click', closeCreateTournamentModal);
+            }
+
+            // Submit create tournament form via AJAX
+            const createTournamentForm = document.getElementById('create-tournament-form');
+            if (createTournamentForm) {
+                createTournamentForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const errorDiv = document.getElementById('create-tournament-error');
+                    const submitBtn = document.getElementById('create-tournament-submit-btn');
+                    errorDiv.style.display = 'none';
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Luodaan...';
+
+                    try {
+                        const formData = new FormData(createTournamentForm);
+                        const response = await fetch(createTournamentForm.action, {
+                            method: 'POST',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRFToken': formData.get('csrf_token')
+                            },
+                            body: formData
+                        });
+
+                        const result = await response.json();
+                        if (response.ok && result.success) {
+                            window.location.href = '/admin';
+                        } else {
+                            errorDiv.textContent = result.error || 'Tuntematon virhe';
+                            errorDiv.style.display = 'block';
+                        }
+                    } catch (err) {
+                        errorDiv.textContent = 'Verkkovirhe: ' + err.message;
+                        errorDiv.style.display = 'block';
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Luo turnaus';
+                    }
+                });
             }
 
             // Validate players button
@@ -1218,9 +1258,11 @@
                         <div id="create-validation-list" class="validation-list"></div>
                     </div>
 
+                    <div id="create-tournament-error" style="display: none; background: #fee; color: #c00; border: 1px solid #c00; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 0.95rem;"></div>
+
                     <div class="modal-footer" style="align-items: center;">
                         <button type="button" class="btn-secondary" id="cancel-create-tournament-btn" style="height: 48px; margin: 0;">Peruuta</button>
-                        <button type="submit" class="btn-primary" style="height: 48px; margin: 0;">Luo turnaus</button>
+                        <button type="submit" class="btn-primary" id="create-tournament-submit-btn" style="height: 48px; margin: 0;">Luo turnaus</button>
                     </div>
                 </form>
             </div>
