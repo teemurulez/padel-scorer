@@ -55,7 +55,7 @@
             font-size: 2rem;
             font-weight: 800;
             color: #1a1a1a;
-            margin: 0 0 0.5rem 0;
+            margin: 0 0 0.25rem 0;
             letter-spacing: -0.5px;
         }
         .status-badge {
@@ -292,7 +292,7 @@
 
         <div class="actions">
             {% if tournament['status'] != 'completed' %}
-            <a href="{{ url_for('active_tournament', tournament_id=tournament['id']) }}" class="btn-primary-action">
+            <a href="{{ url_for('play.active_tournament', tournament_id=tournament['id']) }}" class="btn-primary-action">
                 Takaisin turnaukseen
             </a>
             {% else %}

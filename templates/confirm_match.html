@@ -106,62 +106,6 @@
             color: #999;
             font-weight: 600;
         }
-        .player-slot {
-            background: white;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: move;
-            user-select: none;
-            min-height: 50px;
-            transition: all 0.2s ease;
-            border: 2px solid #FFD700;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .player-slot:last-child {
-            margin-bottom: 0;
-        }
-        .player-slot:hover {
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-            background: #FFFEF0;
-        }
-        .player-slot.dragging {
-            opacity: 0.5;
-            transform: scale(0.95);
-        }
-        .player-slot.swapped {
-            animation: flash 0.4s ease;
-        }
-        @keyframes flash {
-            0%, 100% { background: white; }
-            50% { background: #FFF9C4; }
-        }
-        .player-name {
-            font-size: 1rem;
-            font-weight: 500;
-            color: #333;
-        }
-        .drag-handle {
-            font-size: 1.25rem;
-            color: #999;
-            cursor: grab;
-            user-select: none;
-        }
-        .drag-handle:active {
-            cursor: grabbing;
-        }
-        .vs-divider {
-            font-size: 1rem;
-            font-weight: bold;
-            color: #ccc;
-            flex-shrink: 0;
-            padding-top: 3rem;
-        }
-
         /* Buttons */
         .actions {
             display: flex;
@@ -254,10 +198,6 @@
                 padding-top: 0;
                 text-align: center;
             }
-            .player-slot {
-                min-height: 60px;
-                padding: 1.25rem 1rem;
-            }
         }
     </style>
 </head>
@@ -330,7 +270,7 @@
         </div>
 
         <div class="back-link">
-            <a href="{{ url_for('active_round', tournament_id=tournament.id, round_id=round.id) }}">← Takaisin</a>
+            <a href="{{ url_for('play.active_round', tournament_id=tournament.id, round_id=round.id) }}">← Takaisin</a>
         </div>
 
         <div class="page-footer">

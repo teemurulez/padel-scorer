@@ -246,11 +246,11 @@
             </button>
 
             {% if is_editing %}
-            <a href="{{ url_for('confirm_match_teams', tournament_id=match['tournament_id'], round_id=match['round_id'], court_number=match['court_number']) }}"
+            <a href="{{ url_for('play.confirm_match_teams', tournament_id=match['tournament_id'], round_id=match['round_id'], court_number=match['court_number']) }}"
                class="btn-secondary-action" style="margin-bottom: 0.5rem;">Muokkaa joukkueita</a>
             {% endif %}
 
-            <a href="{{ url_for('active_round', tournament_id=match['tournament_id'], round_id=match['round_id']) }}"
+            <a href="{{ url_for('play.active_round', tournament_id=match['tournament_id'], round_id=match['round_id']) }}"
                class="btn-secondary-action">← Takaisin</a>
         </form>
 
@@ -288,7 +288,7 @@
                     });
 
                     if (response.ok) {
-                        window.location.href = '{{ url_for("active_round", tournament_id=match["tournament_id"], round_id=match["round_id"]) }}';
+                        window.location.href = '{{ url_for("play.active_round", tournament_id=match["tournament_id"], round_id=match["round_id"]) }}';
                     } else if (response.status === 409) {
                         alert('Joku muu on muokannut tätä ottelua. Sivu ladataan uudelleen.');
                         window.location.reload();

@@ -22,7 +22,7 @@
 
         {% if current_round %}
             <p class="info-text">Kierros {{ current_round['round_number'] }} on käynnissä.</p>
-            <a href="{{ url_for('active_round', tournament_id=tournament['id'], round_id=current_round['id']) }}"
+            <a href="{{ url_for('play.active_round', tournament_id=tournament['id'], round_id=current_round['id']) }}"
                class="btn-primary">Näytä nykyinen kierros</a>
         {% else %}
             <p class="info-text">Valmis aloittamaan uuden kierroksen satunnaisilla pareilla!</p>

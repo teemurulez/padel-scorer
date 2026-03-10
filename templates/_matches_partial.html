@@ -33,15 +33,15 @@
 
         {% if not match['completed'] %}
         <div class="match-actions">
-            <a href="{{ url_for('score_entry', match_id=match['id']) }}" class="btn-primary-action">
+            <a href="{{ url_for('play.score_entry', match_id=match['id']) }}" class="btn-primary-action">
                 Syötä tulos
             </a>
-            <a href="{{ url_for('confirm_match_teams', tournament_id=tournament_id, round_id=round_data['id'], court_number=match['court_number']) }}" class="btn-secondary-action">
+            <a href="{{ url_for('play.confirm_match_teams', tournament_id=tournament_id, round_id=round_data['id'], court_number=match['court_number']) }}" class="btn-secondary-action">
                 Muokkaa joukkueita
             </a>
         </div>
         {% else %}
-        <a href="{{ url_for('score_entry', match_id=match['id']) }}" class="completed-badge">
+        <a href="{{ url_for('play.score_entry', match_id=match['id']) }}" class="completed-badge">
             ✓ Joukkue {{ match['winning_team'] }} voitti
             <small>Muokkaa tulosta</small>
         </a>

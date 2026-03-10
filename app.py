@@ -41,30 +41,13 @@ from config import Config
 from database import get_db, init_db
 from court_movement import generate_next_round_pairings
 from werkzeug.security import generate_password_hash, check_password_hash
+from helpers import (
+    block_in_demo_mode, get_court_labels, get_db_connection, get_player,
+    get_result_correction_scenario, validate_round1_pairings,
+    validate_saved_pairings_still_valid,
+)
+from play_routes import play_bp, init_play_routes
 
-
-def block_in_demo_mode(f):
-    """Decorator to block write operations in demo mode.
-
-    Returns a friendly message instead of executing the function.
-    Works with both AJAX (JSON) and form submissions (redirect with flash).
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if session.get('demo_mode'):
-            # Check if this is an AJAX request
-            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({
-                    'success': False,
-                    'demo': True,
-                    'message': 'Demo-tila: toimintoa ei suoritettu'
-                }), 200
-            else:
-                flash('👾 Demo-tila: toimintoa ei suoritettu')
-                # Redirect back to referrer or admin page
-                return redirect(request.referrer or '/admin')
-        return f(*args, **kwargs)
-    return decorated_function
 
 # Season Management Helpers
 def get_current_season(db):
@@ -106,17 +89,6 @@ def generate_court_labels(num_courts, start_from=1, skip_courts=None):
         current += 1
     return courts
 
-
-def get_court_labels(tournament):
-    """Get court labels for a tournament.
-
-    Returns list of court numbers from court_labels JSON, or generates
-    sequential [1, 2, ..., num_courts] if not set.
-    """
-    court_labels_json = tournament['court_labels'] if 'court_labels' in tournament.keys() else None
-    if court_labels_json:
-        return json.loads(court_labels_json)
-    return list(range(1, tournament['num_courts'] + 1))
 
 def get_setup_tournaments(db, season_id):
     """Get tournaments in 'setup' status for a season"""
@@ -184,25 +156,14 @@ class SSEBroadcaster:
 
 sse_broadcaster = SSEBroadcaster()
 
+# Register play blueprint (score entry flow)
+init_play_routes(sse_broadcaster)
+app.register_blueprint(play_bp)
+
 # Ensure database directory exists
 db_dir = os.path.dirname(app.config['DATABASE'])
 if db_dir:
     os.makedirs(db_dir, exist_ok=True)
-
-# Database initialization flag - lazy init on first request for faster startup
-_db_initialized = False
-
-# Database connection helper
-def get_db_connection():
-    """Get database connection, stored in Flask's g object"""
-    global _db_initialized
-    if not _db_initialized:
-        init_db()
-        _db_initialized = True
-        print("Database initialized successfully!")
-    if 'db' not in g:
-        g.db = get_db()
-    return g.db
 
 @app.teardown_appcontext
 def close_db(_):
@@ -287,204 +248,6 @@ def inject_csp_nonce():
     """Make csp_nonce available in all templates"""
     return {'csp_nonce': getattr(g, 'csp_nonce', '')}
 
-
-def get_player(player_id):
-    """
-    Helper to get player with backward compatibility.
-    Tries Phase 3 player_registry first, falls back to Phase 2 players table.
-    """
-    db = get_db_connection()
-
-    # Try Phase 3 registry first
-    result = db.execute(
-        'SELECT id, first_name, last_name FROM player_registry WHERE id = ?',
-        (player_id,)
-    ).fetchone()
-
-    if result:
-        return dict(result)
-
-    # Fallback to Phase 2 players table
-    result = db.execute(
-        'SELECT id, name FROM players WHERE id = ?',
-        (player_id,)
-    ).fetchone()
-
-    if result:
-        # Split name into first/last (best effort)
-        parts = result['name'].split(' ', 1)
-        return {
-            'id': result['id'],
-            'first_name': parts[0] if len(parts) > 0 else 'Unknown',
-            'last_name': parts[1] if len(parts) > 1 else ''
-        }
-
-    # Player not found - return placeholder
-    return {
-        'id': player_id,
-        'first_name': '[Deleted',
-        'last_name': f'Player {player_id}]'
-    }
-
-def get_result_correction_scenario(match_id, db):
-    """
-    Determine if a match result can be safely edited.
-
-    Returns dict with:
-        - scenario: 1 (safe to edit) or 2 (next round exists)
-        - can_edit: boolean (True for scenario 1, False for scenario 2 unless admin)
-        - next_round_id: ID of next round if scenario 2
-        - message: Warning text for user (Finnish)
-    """
-    # Get match and round info
-    match = db.execute(
-        '''SELECT m.*, r.tournament_id, r.round_number
-           FROM matches m
-           JOIN rounds r ON m.round_id = r.id
-           WHERE m.id = ?''',
-        (match_id,)
-    ).fetchone()
-
-    if not match:
-        return {'scenario': None, 'can_edit': False, 'message': 'Ottelua ei löydy'}
-
-    # Check if next round exists
-    next_round = db.execute(
-        '''SELECT id, round_number FROM rounds
-           WHERE tournament_id = ? AND round_number = ?''',
-        (match['tournament_id'], match['round_number'] + 1)
-    ).fetchone()
-
-    if next_round:
-        # Scenario 2: Next round exists
-        return {
-            'scenario': 2,
-            'can_edit': False,
-            'next_round_id': next_round['id'],
-            'current_round_id': match['round_id'],
-            'tournament_id': match['tournament_id'],
-            'message': 'Seuraava kierros on jo alkanut. Tuloksen muuttaminen vaatii kierroksen uudelleenlaskemisen.'
-        }
-    else:
-        # Scenario 1: Safe to edit
-        return {
-            'scenario': 1,
-            'can_edit': True,
-            'next_round_id': None,
-            'current_round_id': match['round_id'],
-            'tournament_id': match['tournament_id'],
-            'message': None
-        }
-
-def validate_round1_pairings(tournament_id, pairings, db):
-    """
-    Validate custom Round 1 pairings before saving.
-
-    Args:
-        tournament_id: ID of tournament
-        pairings: List of dicts with court, team1, team2
-        db: Database connection
-
-    Returns:
-        List of error messages (empty if valid)
-    """
-    errors = []
-
-    # Get valid player IDs for this tournament
-    tournament_players = db.execute(
-        'SELECT player_id FROM tournament_players WHERE tournament_id = ?',
-        (tournament_id,)
-    ).fetchall()
-    valid_player_ids = {p['player_id'] for p in tournament_players}
-
-    if not valid_player_ids:
-        errors.append("Tournament has no players assigned")
-        return errors
-
-    all_players = []
-
-    for court in pairings:
-        court_players = court['team1'] + court['team2']
-
-        # Validate all players exist in tournament
-        for pid in court_players:
-            if pid not in valid_player_ids:
-                errors.append(f"Player {pid} not in tournament")
-
-        # Validate no duplicates within court
-        if len(court_players) != len(set(court_players)):
-            errors.append(f"Duplicate players in Court {court['court']}")
-
-        # Validate each team has exactly 2 players
-        if len(court['team1']) != 2:
-            errors.append(f"Court {court['court']} team1 must have 2 players (has {len(court['team1'])})")
-        if len(court['team2']) != 2:
-            errors.append(f"Court {court['court']} team2 must have 2 players (has {len(court['team2'])})")
-
-        all_players.extend(court_players)
-
-    # Validate no duplicates across courts
-    if len(all_players) != len(set(all_players)):
-        errors.append("Player assigned to multiple courts")
-
-    # Validate all tournament players are assigned
-    if set(all_players) != valid_player_ids:
-        missing = valid_player_ids - set(all_players)
-        errors.append(f"Not all players assigned. Missing player IDs: {missing}")
-
-    return errors
-
-def validate_saved_pairings_still_valid(tournament_id, db):
-    """
-    Check if saved Round 1 pairings match current tournament players.
-    Deletes invalid pairings if mismatch detected.
-
-    Args:
-        tournament_id: ID of tournament
-        db: Database connection
-
-    Returns:
-        True if pairings valid, False if invalid (and deleted)
-    """
-    try:
-        saved_pairings = db.execute(
-            'SELECT * FROM round1_preview_pairings WHERE tournament_id = ?',
-            (tournament_id,)
-        ).fetchall()
-    except sqlite3.OperationalError:
-        # Table doesn't exist (old schema) - skip validation
-        return True
-
-    if not saved_pairings:
-        return True  # No saved pairings, nothing to validate
-
-    # Extract all player IDs from saved pairings
-    pairing_player_ids = set()
-    for p in saved_pairings:
-        pairing_player_ids.update([
-            p['team1_player1_id'],
-            p['team1_player2_id'],
-            p['team2_player1_id'],
-            p['team2_player2_id']
-        ])
-
-    # Get current tournament players
-    current_players = db.execute(
-        'SELECT player_id FROM tournament_players WHERE tournament_id = ?',
-        (tournament_id,)
-    ).fetchall()
-    current_player_ids = {p['player_id'] for p in current_players}
-
-    # If mismatch, delete invalid pairings
-    if pairing_player_ids != current_player_ids:
-        db.execute(
-            'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
-            (tournament_id,)
-        )
-        db.commit()
-        return False  # Invalid pairings deleted
-
-    return True  # Pairings valid
 
 def format_round1_pairings_for_frontend(tournament_id, db):
     """
@@ -670,764 +433,10 @@ def index():
                          setup_tournaments=setup_tournaments,
                          season=season_info)
 
-@app.route('/tournament/<int:tournament_id>/start_round', methods=['GET', 'POST'])
-def start_round(tournament_id):
-    """Generate a new round with randomized pairs"""
-    db = get_db_connection()
-    tournament = db.execute(
-        'SELECT * FROM tournaments WHERE id = ?', (tournament_id,)
-    ).fetchone()
-
-    if not tournament:
-        flash('Tournament not found')
-        return redirect(url_for('index'))
-
-    if tournament['status'] == 'completed':
-        flash('Turnaus on päättynyt')
-        return redirect(url_for('index'))
-
-    # Prevent non-admin users from starting tournament in setup mode
-    if tournament['status'] == 'setup' and not session.get('logged_in_as_admin'):
-        flash('Vain ylläpitäjä voi aloittaa turnauksen')
-        return redirect(url_for('index'))
-
-    if request.method == 'POST':
-        # Get players for this tournament only (Phase 3)
-        players = db.execute(
-            '''SELECT pr.id
-               FROM player_registry pr
-               JOIN tournament_players tp ON pr.id = tp.player_id
-               WHERE tp.tournament_id = ?
-               ORDER BY RANDOM()''',
-            (tournament_id,)
-        ).fetchall()
-        num_players = len(players)
-        num_courts = tournament['num_courts']
-        court_labels = get_court_labels(tournament)
-
-        # Validate we have enough players (4 per court)
-        required_players = num_courts * 4
-        if num_players < required_players:
-            flash(f'Need {required_players} players for {num_courts} courts. You have {num_players}.')
-            return redirect(url_for('index'))
-
-        # Get or create current round
-        last_round = db.execute(
-            'SELECT * FROM rounds WHERE tournament_id = ? ORDER BY round_number DESC LIMIT 1',
-            (tournament_id,)
-        ).fetchone()
-
-        # If there's a previous round (round 2+), ensure it's complete before starting new round
-        if last_round:
-            incomplete_matches = db.execute(
-                '''SELECT COUNT(*) as count FROM matches
-                   WHERE round_id = ? AND completed = 0''',
-                (last_round['id'],)
-            ).fetchone()
-
-            if incomplete_matches['count'] > 0:
-                flash(f'Cannot start new round: Round {last_round["round_number"]} has incomplete matches. Please complete all matches first.')
-                return redirect(url_for('active_round', tournament_id=tournament_id, round_id=last_round['id']))
-
-        round_number = 1 if not last_round else last_round['round_number'] + 1
-
-        cursor = db.execute(
-            'INSERT INTO rounds (tournament_id, round_number) VALUES (?, ?)',
-            (tournament_id, round_number)
-        )
-        round_id = cursor.lastrowid
-
-        # Determine pairing strategy
-        if round_number == 1:
-            # Round 1: Validate and check for saved custom pairings
-            pairings_valid = validate_saved_pairings_still_valid(tournament_id, db)
-
-            if pairings_valid:
-                try:
-                    saved_pairings = db.execute("""
-                        SELECT * FROM round1_preview_pairings
-                        WHERE tournament_id = ?
-                        ORDER BY court_number
-                    """, (tournament_id,)).fetchall()
-                except sqlite3.OperationalError:
-                    # Table doesn't exist (old schema)
-                    saved_pairings = []
-            else:
-                saved_pairings = []
-                flash('⚠️ Saved Round 1 pairings were invalid - using seeded pairings', 'warning')
-
-            if saved_pairings:
-                # Use saved custom pairings
-                for pairing in saved_pairings:
-                    db.execute('''
-                        INSERT INTO matches
-                        (round_id, court_number, player1_id, player2_id,
-                         player3_id, player4_id)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    ''', (
-                        round_id,
-                        pairing['court_number'],
-                        pairing['team1_player1_id'],
-                        pairing['team1_player2_id'],
-                        pairing['team2_player1_id'],
-                        pairing['team2_player2_id']
-                    ))
-
-                # Delete used pairings
-                db.execute(
-                    'DELETE FROM round1_preview_pairings WHERE tournament_id = ?',
-                    (tournament_id,)
-                )
-
-                flash('Round 1 started with your custom pairings!')
-            else:
-                # Use seeding algorithm (existing code)
-                from seeded_pairing import generate_seeded_round1_pairings
-
-                # Get players with their seed points from player_seeding view
-                # Only include players registered for this tournament
-                try:
-                    players_with_seeds = db.execute("""
-                        SELECT
-                            p.id,
-                            COALESCE(ps.seed_points, 0) as seed_points
-                        FROM player_registry p
-                        JOIN tournament_players tp ON p.id = tp.player_id
-                        LEFT JOIN player_seeding ps ON p.id = ps.player_id
-                        WHERE tp.tournament_id = ?
-                        ORDER BY seed_points DESC
-                    """, (tournament_id,)).fetchall()
-                except (sqlite3.OperationalError, AttributeError):
-                    # Fallback if player_seeding view doesn't exist
-                    players_with_seeds = db.execute("""
-                        SELECT p.id, 0 as seed_points
-                        FROM player_registry p
-                        JOIN tournament_players tp ON p.id = tp.player_id
-                        WHERE tp.tournament_id = ?
-                    """, (tournament_id,)).fetchall()
-
-                players_with_seeds = [dict(p) for p in players_with_seeds]
-                court_assignments = generate_seeded_round1_pairings(players_with_seeds, num_courts)
-
-                # Create matches from seeded assignments using court labels
-                for court_idx, player_ids in enumerate(court_assignments):
-                    court_label = court_labels[court_idx] if court_idx < len(court_labels) else court_idx + 1
-                    db.execute(
-                        '''INSERT INTO matches
-                           (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
-                           VALUES (?, ?, ?, ?, ?, ?)''',
-                        (round_id, court_label, *player_ids)
-                    )
-
-                flash('Round 1 started with seeded pairings (based on recent performance)')
-        else:
-            # Round 2+: Movement-based pairing
-            previous_matches = db.execute(
-                '''SELECT m.* FROM matches m
-                   JOIN rounds r ON m.round_id = r.id
-                   WHERE r.tournament_id = ?
-                   AND r.round_number = ?
-                   AND m.completed = 1''',
-                (tournament_id, round_number - 1)
-            ).fetchall()
-
-            # Convert to list of dicts
-            previous_matches = [dict(m) for m in previous_matches]
-
-            # Generate new pairings
-            court_assignments = generate_next_round_pairings(previous_matches, num_courts)
-
-            # Create matches from assignments using court labels
-            for court_idx, players_on_court in enumerate(court_assignments):
-                court_label = court_labels[court_idx] if court_idx < len(court_labels) else court_idx + 1
-                db.execute(
-                    '''INSERT INTO matches
-                       (round_id, court_number, player1_id, player2_id, player3_id, player4_id)
-                       VALUES (?, ?, ?, ?, ?, ?)''',
-                    (round_id, court_label, *players_on_court)
-                )
-
-            # Add feedback message
-            flash(f'Round {round_number} started! Winners moved up, losers moved down.')
-
-        db.commit()
-
-        # Update tournament status to 'active' when starting Round 1
-        if round_number == 1:
-            db.execute(
-                'UPDATE tournaments SET status = "active" WHERE id = ?',
-                (tournament_id,)
-            )
-            db.commit()
-
-        flash(f"Kierros {round_number} luotu!")
-        return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
-
-    # Get current round if exists
-    current_round = db.execute(
-        '''SELECT * FROM rounds
-           WHERE tournament_id = ? AND status = "in_progress"
-           ORDER BY round_number DESC LIMIT 1''',
-        (tournament_id,)
-    ).fetchone()
-
-    # Check if there's any completed match data for leaderboard
-    completed_matches = db.execute(
-        '''SELECT COUNT(*) as count FROM matches m
-           JOIN rounds r ON m.round_id = r.id
-           WHERE r.tournament_id = ? AND m.completed = 1''',
-        (tournament_id,)
-    ).fetchone()
-    has_leaderboard_data = completed_matches['count'] > 0
-
-    return render_template('start_round.html',
-                         tournament=tournament,
-                         current_round=current_round,
-                         has_leaderboard_data=has_leaderboard_data)
-
-@app.route('/tournament/<int:tournament_id>/round/<int:round_id>/court/<int:court_number>/confirm', methods=['GET', 'POST'])
-def confirm_match_teams(tournament_id, round_id, court_number):
-    """
-    Show pre-match confirmation screen with drag-and-drop team shuffling (GET).
-    Save final team configuration and proceed to score entry (POST).
-
-    GET: Displays the 4 players assigned to this court, allowing users to
-    optionally shuffle teams via drag-and-drop before starting the match.
-
-    POST: Validates and saves the final team configuration (potentially shuffled),
-    then redirects to score entry.
-
-    Args:
-        tournament_id (int): ID of the tournament
-        round_id (int): ID of the round
-        court_number (int): Court number for this match
-
-    Returns:
-        GET: Rendered template (confirm_match.html) with team boxes
-        POST: Redirect to active_tournament (score entry) on success,
-              redirect back to confirm screen with error on validation failure
-
-    Redirects if:
-        - Tournament not found
-        - Tournament is archived
-        - Round not found
-        - Match not found
-        - Match already completed
-        - Scores already entered (prevents mid-match shuffle)
-    """
-    db = get_db_connection()
-
-    # Check if tournament is completed
-    tournament = db.execute('SELECT status FROM tournaments WHERE id = ?', (tournament_id,)).fetchone()
-    if tournament and tournament['status'] == 'completed':
-        flash('Turnaus on päättynyt')
-        return redirect(url_for('index'))
-
-    # Handle POST request (save shuffled teams)
-    if request.method == 'POST':
-        # Get match first
-        match = db.execute(
-            'SELECT * FROM matches WHERE round_id = ? AND court_number = ?',
-            (round_id, court_number)
-        ).fetchone()
-
-        if not match:
-            flash('Ottelua ei löytynyt')
-            return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
-
-        # Get submitted team configuration
-        try:
-            new_team1_p1 = int(request.form['team1_player1'])
-            new_team1_p2 = int(request.form['team1_player2'])
-            new_team2_p1 = int(request.form['team2_player1'])
-            new_team2_p2 = int(request.form['team2_player2'])
-        except (KeyError, ValueError):
-            flash("Invalid form submission.")
-            return redirect(url_for('confirm_match_teams',
-                                    tournament_id=tournament_id,
-                                    round_id=round_id,
-                                    court_number=court_number))
-
-        # Validation 1: Exactly 4 unique players
-        submitted_players = [new_team1_p1, new_team1_p2, new_team2_p1, new_team2_p2]
-        if len(set(submitted_players)) != 4:
-            flash("Invalid team configuration: All 4 players must be unique.")
-            return redirect(url_for('confirm_match_teams',
-                                    tournament_id=tournament_id,
-                                    round_id=round_id,
-                                    court_number=court_number))
-
-        # Validation 2: Players must be from original match
-        original_players = {match['player1_id'], match['player2_id'], match['player3_id'], match['player4_id']}
-        if set(submitted_players) != original_players:
-            flash("Invalid team configuration: Players must be from the original match.")
-            return redirect(url_for('confirm_match_teams',
-                                    tournament_id=tournament_id,
-                                    round_id=round_id,
-                                    court_number=court_number))
-
-        # Validation 3: Teams must have exactly 2 players each
-        if len({new_team1_p1, new_team1_p2}) != 2 or len({new_team2_p1, new_team2_p2}) != 2:
-            flash("Each team must have exactly 2 different players.")
-            return redirect(url_for('confirm_match_teams',
-                                    tournament_id=tournament_id,
-                                    round_id=round_id,
-                                    court_number=court_number))
-
-        # Check if teams were shuffled
-        original_team1 = {match['player1_id'], match['player2_id']}
-        new_team1 = {new_team1_p1, new_team1_p2}
-        teams_changed = original_team1 != new_team1
-
-        if teams_changed:
-            # Store original pairing before overwriting
-            db.execute('''
-                UPDATE matches
-                SET original_player1_id = ?,
-                    original_player2_id = ?,
-                    original_player3_id = ?,
-                    original_player4_id = ?,
-                    teams_shuffled = 1,
-                    player1_id = ?,
-                    player2_id = ?,
-                    player3_id = ?,
-                    player4_id = ?
-                WHERE id = ?
-            ''', (
-                match['player1_id'], match['player2_id'], match['player3_id'], match['player4_id'],
-                new_team1_p1, new_team1_p2, new_team2_p1, new_team2_p2,
-                match['id']
-            ))
-            db.commit()
-
-        # Redirect to score entry screen for this match
-        return redirect(url_for('score_entry', match_id=match['id']))
-
-    # Handle GET request (show confirmation screen)
-    # Get tournament
-    tournament = db.execute(
-        'SELECT * FROM tournaments WHERE id = ?',
-        (tournament_id,)
-    ).fetchone()
-
-    if not tournament:
-        flash('Tournament not found')
-        return redirect(url_for('index'))
-
-    # Check if tournament is archived
-    if tournament['status'] == 'archived':
-        flash("Cannot modify archived tournament.")
-        return redirect(url_for('index'))
-
-    # Get round
-    round_obj = db.execute(
-        'SELECT * FROM rounds WHERE id = ?',
-        (round_id,)
-    ).fetchone()
-
-    if not round_obj:
-        flash('Round not found')
-        return redirect(url_for('index'))
-
-    # Validate round belongs to tournament
-    if round_obj['tournament_id'] != tournament_id:
-        flash('Round not found in this tournament')
-        return redirect(url_for('index'))
-
-    # Get match
-    match = db.execute(
-        'SELECT * FROM matches WHERE round_id = ? AND court_number = ?',
-        (round_id, court_number)
-    ).fetchone()
-
-    if not match:
-        flash('Match not found')
-        return redirect(url_for('index'))
-
-    # Check if match already completed - allow editing in scenario 1 (no next round)
-    if match['completed']:
-        correction_scenario = get_result_correction_scenario(match['id'], db)
-        if correction_scenario['scenario'] == 2 and not session.get('logged_in_as_admin'):
-            flash(correction_scenario['message'])
-            return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
-        # Scenario 1 or admin: allow editing teams
-
-    # Get player details
-    players = {
-        'team1': [
-            get_player(match['player1_id']),
-            get_player(match['player2_id'])
-        ],
-        'team2': [
-            get_player(match['player3_id']),
-            get_player(match['player4_id'])
-        ]
-    }
-
-    return render_template(
-        'confirm_match.html',
-        tournament=tournament,
-        round=round_obj,
-        court_number=court_number,
-        match=match,
-        players=players
-    )
-
-@app.route('/api/tournament/<int:tournament_id>/pairings-text')
-def api_tournament_pairings_text(tournament_id):
-    """Return current round pairings as copyable text"""
-    db = get_db_connection()
-
-    tournament = db.execute('SELECT * FROM tournaments WHERE id = ?', (tournament_id,)).fetchone()
-    if not tournament:
-        return jsonify({'error': 'Tournament not found'}), 404
-
-    # Get the latest round
-    current_round = db.execute(
-        'SELECT * FROM rounds WHERE tournament_id = ? ORDER BY round_number DESC LIMIT 1',
-        (tournament_id,)
-    ).fetchone()
-    if not current_round:
-        return jsonify({'error': 'No rounds found'}), 404
-
-    matches = db.execute('''
-        SELECT m.court_number,
-               p1.first_name || ' ' || p1.last_name as player1_name,
-               p2.first_name || ' ' || p2.last_name as player2_name,
-               p3.first_name || ' ' || p3.last_name as player3_name,
-               p4.first_name || ' ' || p4.last_name as player4_name
-        FROM matches m
-        JOIN player_registry p1 ON m.player1_id = p1.id
-        JOIN player_registry p2 ON m.player2_id = p2.id
-        JOIN player_registry p3 ON m.player3_id = p3.id
-        JOIN player_registry p4 ON m.player4_id = p4.id
-        WHERE m.round_id = ?
-        ORDER BY m.court_number
-    ''', (current_round['id'],)).fetchall()
-
-    lines = []
-    for m in matches:
-        lines.append(f"Kenttä {m['court_number']}: {m['player1_name']} & {m['player2_name']} vs {m['player3_name']} & {m['player4_name']}")
-
-    return jsonify({
-        'text': '\n'.join(lines),
-        'round_number': current_round['round_number'],
-        'tournament_name': tournament['name']
-    })
-
-@app.route('/tournament/<int:tournament_id>')
-def active_tournament(tournament_id):
-    """Show active round for tournament"""
-    db = get_db_connection()
-
-    # Get current round
-    current_round = db.execute(
-        '''SELECT * FROM rounds
-           WHERE tournament_id = ? AND status = "in_progress"
-           ORDER BY round_number DESC LIMIT 1''',
-        (tournament_id,)
-    ).fetchone()
-
-    if not current_round:
-        return redirect(url_for('start_round', tournament_id=tournament_id))
-
-    return redirect(url_for('active_round',
-                           tournament_id=tournament_id,
-                           round_id=current_round['id']))
-
-@app.route('/tournament/<int:tournament_id>/round/<int:round_id>')
-def active_round(tournament_id, round_id):
-    """Display all matches in current round"""
-    db = get_db_connection()
-
-    tournament = db.execute('SELECT * FROM tournaments WHERE id = ?', (tournament_id,)).fetchone()
-    round_data = db.execute('SELECT * FROM rounds WHERE id = ?', (round_id,)).fetchone()
-
-    if not round_data:
-        flash('Round not found')
-        return redirect(url_for('index'))
-
-    if tournament and tournament['status'] == 'completed':
-        flash('Turnaus on päättynyt')
-        return redirect(url_for('index'))
-
-    # Get all matches (without player names - we'll add them below)
-    matches_raw = db.execute(
-        '''SELECT m.*
-           FROM matches m
-           WHERE m.round_id = ?
-           ORDER BY m.court_number''',
-        (round_id,)
-    ).fetchall()
-
-    # Add player names using helper function (Phase 3 compatible)
-    matches = []
-    for match in matches_raw:
-        match_dict = dict(match)
-        player1 = get_player(match_dict['player1_id'])
-        player2 = get_player(match_dict['player2_id'])
-        player3 = get_player(match_dict['player3_id'])
-        player4 = get_player(match_dict['player4_id'])
-        match_dict['player1_name'] = f"{player1['first_name']} {player1['last_name']}"
-        match_dict['player2_name'] = f"{player2['first_name']} {player2['last_name']}"
-        match_dict['player3_name'] = f"{player3['first_name']} {player3['last_name']}"
-        match_dict['player4_name'] = f"{player4['first_name']} {player4['last_name']}"
-        matches.append(match_dict)
-
-    # Check if all matches are completed
-    all_completed = all(match['completed'] for match in matches)
-
-    # Check if user is admin
-    is_admin = session.get('logged_in_as_admin', False)
-
-    # Get all rounds for this tournament (for admin navigation)
-    all_rounds = []
-    if is_admin:
-        all_rounds = db.execute(
-            'SELECT id, round_number FROM rounds WHERE tournament_id = ? ORDER BY round_number',
-            (tournament_id,)
-        ).fetchall()
-
-    # Check if previous round was edited after this round started (needs recalculation)
-    needs_recalculation = False
-    if is_admin and round_data['round_number'] > 1:
-        # Get the most recent result correction for previous round (after this round was created)
-        last_correction = db.execute(
-            '''SELECT MAX(changed_at) as last_changed FROM tournament_edit_history
-               WHERE tournament_id = ?
-               AND change_type = 'result_corrected'
-               AND changed_at > ?
-               AND json_extract(change_data, '$.round_id') = (
-                   SELECT id FROM rounds WHERE tournament_id = ? AND round_number = ?
-               )''',
-            (tournament_id, round_data['created_at'], tournament_id, round_data['round_number'] - 1)
-        ).fetchone()
-
-        if last_correction and last_correction['last_changed']:
-            # Check if this round was recalculated after the last correction
-            last_recalc = db.execute(
-                '''SELECT MAX(changed_at) as last_changed FROM tournament_edit_history
-                   WHERE tournament_id = ?
-                   AND change_type = 'round_recalculated'
-                   AND json_extract(change_data, '$.round_id') = ?''',
-                (tournament_id, round_id)
-            ).fetchone()
-
-            if last_recalc and last_recalc['last_changed']:
-                # Needs recalculation only if correction is newer than last recalc
-                needs_recalculation = last_correction['last_changed'] > last_recalc['last_changed']
-            else:
-                # No recalculation done yet, so needs it
-                needs_recalculation = True
-
-    return render_template('active_round.html',
-                          tournament_id=tournament_id,
-                          tournament=tournament,
-                          round_data=round_data,
-                          matches=matches,
-                          all_completed=all_completed,
-                          is_admin=is_admin,
-                          all_rounds=all_rounds,
-                          needs_recalculation=needs_recalculation)
-
-
-@app.route('/sse/round/<int:round_id>')
-def sse_round_stream(round_id):
-    """Server-Sent Events stream for live round updates."""
-    # Disable SSE on hosts that don't support long-polling (e.g., PythonAnywhere with 1 worker)
-    if os.environ.get('DISABLE_SSE'):
-        return jsonify({'error': 'SSE disabled', 'message': 'Use polling instead'}), 503
-
-    def event_stream():
-        q = sse_broadcaster.subscribe(round_id)
-        try:
-            # Send initial connection confirmation
-            yield f"data: {json.dumps({'type': 'connected', 'round_id': round_id})}\n\n"
-
-            while True:
-                try:
-                    # Wait for events with timeout (for keepalive)
-                    message = q.get(timeout=30)
-                    yield f"data: {json.dumps(message)}\n\n"
-                except queue.Empty:
-                    # Send keepalive comment to prevent connection timeout
-                    yield ": keepalive\n\n"
-        except GeneratorExit:
-            pass
-        finally:
-            sse_broadcaster.unsubscribe(round_id, q)
-
-    return Response(
-        event_stream(),
-        mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no'  # Disable nginx buffering
-        }
-    )
-
-
-@app.route('/tournament/<int:tournament_id>/round/<int:round_id>/matches-partial')
-def active_round_matches_partial(tournament_id, round_id):
-    """Return just the matches section HTML for AJAX refresh."""
-    db = get_db_connection()
-
-    round_data = db.execute('SELECT * FROM rounds WHERE id = ?', (round_id,)).fetchone()
-    if not round_data:
-        return '', 404
-
-    # Get all matches with player names
-    matches_raw = db.execute(
-        '''SELECT m.*
-           FROM matches m
-           WHERE m.round_id = ?
-           ORDER BY m.court_number''',
-        (round_id,)
-    ).fetchall()
-
-    matches = []
-    for match in matches_raw:
-        match_dict = dict(match)
-        player1 = get_player(match_dict['player1_id'])
-        player2 = get_player(match_dict['player2_id'])
-        player3 = get_player(match_dict['player3_id'])
-        player4 = get_player(match_dict['player4_id'])
-        match_dict['player1_name'] = f"{player1['first_name']} {player1['last_name']}"
-        match_dict['player2_name'] = f"{player2['first_name']} {player2['last_name']}"
-        match_dict['player3_name'] = f"{player3['first_name']} {player3['last_name']}"
-        match_dict['player4_name'] = f"{player4['first_name']} {player4['last_name']}"
-        matches.append(match_dict)
-
-    all_completed = all(match['completed'] for match in matches)
-
-    return render_template('_matches_partial.html',
-                          tournament_id=tournament_id,
-                          round_data=round_data,
-                          matches=matches,
-                          all_completed=all_completed)
-
-
-@app.route('/match/<int:match_id>/score', methods=['GET', 'POST'])
-def score_entry(match_id):
-    """Simple form for winners to enter their win"""
-    db = get_db_connection()
-
-    match = db.execute(
-        '''SELECT m.*, r.tournament_id
-           FROM matches m
-           JOIN rounds r ON m.round_id = r.id
-           WHERE m.id = ?''',
-        (match_id,)
-    ).fetchone()
-
-    if not match:
-        flash('Match not found')
-        return redirect(url_for('index'))
-
-    # Check if tournament is completed
-    tournament = db.execute('SELECT status FROM tournaments WHERE id = ?', (match['tournament_id'],)).fetchone()
-    if tournament and tournament['status'] == 'completed':
-        flash('Turnaus on päättynyt')
-        return redirect(url_for('index'))
-
-    # Check if editing completed match - detect scenario
-    is_editing = match['completed']
-    correction_scenario = None
-    if is_editing:
-        correction_scenario = get_result_correction_scenario(match_id, db)
-        # Scenario 2: Block regular users if next round has started
-        if correction_scenario['scenario'] == 2 and not session.get('logged_in_as_admin'):
-            flash(correction_scenario['message'])
-            return redirect(url_for('active_round',
-                                   tournament_id=match['tournament_id'],
-                                   round_id=match['round_id']))
-
-    # Get player details using helper function (Phase 3 compatible)
-    match = dict(match)
-    player1 = get_player(match['player1_id'])
-    player2 = get_player(match['player2_id'])
-    player3 = get_player(match['player3_id'])
-    player4 = get_player(match['player4_id'])
-    match['player1_name'] = f"{player1['first_name']} {player1['last_name']}"
-    match['player2_name'] = f"{player2['first_name']} {player2['last_name']}"
-    match['player3_name'] = f"{player3['first_name']} {player3['last_name']}"
-    match['player4_name'] = f"{player4['first_name']} {player4['last_name']}"
-
-    if request.method == 'POST':
-        winning_team = int(request.form.get('winning_team'))
-        submitted_version = int(request.form.get('version', 0))
-
-        # Check for concurrent modification (optimistic locking)
-        current_match = db.execute(
-            'SELECT version FROM matches WHERE id = ?', (match_id,)
-        ).fetchone()
-        current_version = current_match['version'] if current_match and current_match['version'] else 1
-
-        if submitted_version != current_version:
-            # Return 409 Conflict for AJAX requests
-            return jsonify({'error': 'version_conflict', 'message': 'Joku muu on muokannut tätä ottelua.'}), 409
-
-        # Determine winners (only winners get points in current scoring system)
-        if winning_team == 1:
-            winner_ids = [match['player1_id'], match['player2_id']]
-        else:
-            winner_ids = [match['player3_id'], match['player4_id']]
-
-        if match['completed']:
-            # Update existing scores
-            old_winning_team = match['winning_team']
-
-            # Log the correction to audit history
-            db.execute(
-                '''INSERT INTO tournament_edit_history (tournament_id, change_type, change_data)
-                   VALUES (?, ?, ?)''',
-                (match['tournament_id'], 'result_corrected', json.dumps({
-                    'match_id': match_id,
-                    'court_number': match['court_number'],
-                    'round_id': match['round_id'],
-                    'old_winning_team': old_winning_team,
-                    'new_winning_team': winning_team
-                }))
-            )
-
-            # Delete old scores and insert new ones
-            db.execute('DELETE FROM scores WHERE match_id = ?', (match_id,))
-            for player_id in winner_ids:
-                db.execute(
-                    'INSERT INTO scores (player_id, match_id, points) VALUES (?, ?, ?)',
-                    (player_id, match_id, 1)
-                )
-            flash('Tulos päivitetty!')
-        else:
-            # Record new scores (1 point for winners)
-            for player_id in winner_ids:
-                db.execute(
-                    'INSERT INTO scores (player_id, match_id, points) VALUES (?, ?, ?)',
-                    (player_id, match_id, 1)
-                )
-            flash('Tulos tallennettu!')
-
-        # Mark match as completed and increment version
-        db.execute(
-            'UPDATE matches SET completed = 1, winning_team = ?, version = ? WHERE id = ?',
-            (winning_team, current_version + 1, match_id)
-        )
-
-        db.commit()
-
-        # Broadcast score update for live refresh
-        sse_broadcaster.broadcast(match['round_id'], 'score_updated', {
-            'match_id': match_id,
-            'court_number': match['court_number'],
-            'winning_team': winning_team
-        })
-
-        return redirect(url_for('active_round',
-                               tournament_id=match['tournament_id'],
-                               round_id=match['round_id']))
-
-    return render_template('score_entry.html', match=match, is_editing=is_editing)
+## Routes moved to play_routes.py Blueprint:
+## start_round, confirm_match_teams, api_tournament_pairings_text,
+## active_tournament, active_round, sse_round_stream,
+## active_round_matches_partial, score_entry
 
 @app.route('/tournament/<int:tournament_id>/end', methods=['POST'])
 def end_tournament(tournament_id):
@@ -2188,7 +1197,7 @@ def complete_tournament(tournament_id):
 
         if result['status'] != 'active':
             flash(f'Cannot complete tournament with status: {result["status"]}', 'error')
-            return redirect(url_for('active_tournament', tournament_id=tournament_id))
+            return redirect(url_for('play.active_tournament', tournament_id=tournament_id))
 
         # Calculate final statistics for each player
         # Get all players who participated in this tournament
@@ -2275,12 +1284,12 @@ def complete_tournament(tournament_id):
 
         db.commit()
         flash('Tournament completed successfully!', 'success')
-        return redirect(url_for('active_tournament', tournament_id=tournament_id))
+        return redirect(url_for('play.active_tournament', tournament_id=tournament_id))
 
     except Exception as e:
         db.rollback()
         flash(f'Error completing tournament: {e}', 'error')
-        return redirect(url_for('active_tournament', tournament_id=tournament_id))
+        return redirect(url_for('play.active_tournament', tournament_id=tournament_id))
     finally:
         db.close()
 
@@ -2303,7 +1312,7 @@ def archive_tournament(tournament_id):
 
         if result['status'] != 'completed':
             flash(f'Cannot archive tournament with status: {result["status"]}', 'error')
-            return redirect(url_for('active_tournament', tournament_id=tournament_id))
+            return redirect(url_for('play.active_tournament', tournament_id=tournament_id))
 
         # Update tournament status to archived
         cursor.execute('''
@@ -2319,7 +1328,7 @@ def archive_tournament(tournament_id):
     except Exception as e:
         db.rollback()
         flash(f'Error archiving tournament: {e}', 'error')
-        return redirect(url_for('active_tournament', tournament_id=tournament_id))
+        return redirect(url_for('play.active_tournament', tournament_id=tournament_id))
     finally:
         db.close()
 
@@ -4140,7 +3149,7 @@ def admin_recalculate_round(tournament_id, round_id):
     # Can't recalculate round 1 (no previous round)
     if round_data['round_number'] == 1:
         flash('Ensimmäistä kierrosta ei voi laskea uudelleen.')
-        return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
+        return redirect(url_for('play.active_round', tournament_id=tournament_id, round_id=round_id))
 
     # Check that all matches in this round are incomplete (not started)
     matches = db.execute(
@@ -4156,7 +3165,7 @@ def admin_recalculate_round(tournament_id, round_id):
 
     if not previous_round:
         flash('Edellistä kierrosta ei löydy.')
-        return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
+        return redirect(url_for('play.active_round', tournament_id=tournament_id, round_id=round_id))
 
     previous_matches = db.execute(
         'SELECT * FROM matches WHERE round_id = ?',
@@ -4209,7 +3218,7 @@ def admin_recalculate_round(tournament_id, round_id):
         db.rollback()
         flash(f'Virhe kierroksen laskemisessa: {str(e)}')
 
-    return redirect(url_for('active_round', tournament_id=tournament_id, round_id=round_id))
+    return redirect(url_for('play.active_round', tournament_id=tournament_id, round_id=round_id))
 
 
 @app.route('/admin/logout', methods=['POST'])
