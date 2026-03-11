@@ -232,11 +232,35 @@ function selectPlayer(element) {
     }
 }
 
+function getPlayerName(slot) {
+    // Get only the direct text content, not seed badge text
+    for (const node of slot.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+            return node.textContent.trim();
+        }
+    }
+    return slot.textContent.trim();
+}
+
+function setSlotContent(slot, name, seedBadge) {
+    // Preserve DOM structure: set text node + optional seed badge
+    slot.textContent = '';
+    slot.appendChild(document.createTextNode(name + ' '));
+    if (seedBadge) {
+        slot.appendChild(seedBadge);
+    }
+}
+
 function swapPlayers(slot1, slot2) {
     const id1 = slot1.dataset.playerId;
     const id2 = slot2.dataset.playerId;
-    const name1 = slot1.textContent.trim();
-    const name2 = slot2.textContent.trim();
+    const name1 = getPlayerName(slot1);
+    const name2 = getPlayerName(slot2);
+    const badge1 = slot1.querySelector('.seed-badge');
+    const badge2 = slot2.querySelector('.seed-badge');
+    // Detach badges before swap to avoid removal
+    const badge1Clone = badge1 ? badge1.cloneNode(true) : null;
+    const badge2Clone = badge2 ? badge2.cloneNode(true) : null;
 
     const isSlot1Unassigned = slot1.classList.contains('unassigned-player');
     const isSlot2Unassigned = slot2.classList.contains('unassigned-player');
@@ -247,7 +271,7 @@ function swapPlayers(slot1, slot2) {
     if (isSlot1Unassigned && isSlot2Empty) {
         // Fill the court slot with the player
         slot2.dataset.playerId = id1;
-        slot2.textContent = name1;
+        setSlotContent(slot2, name1, badge1Clone);
         slot2.classList.remove('empty');
         // Remove from unassigned pool
         slot1.remove();
@@ -255,7 +279,7 @@ function swapPlayers(slot1, slot2) {
     } else if (isSlot2Unassigned && isSlot1Empty) {
         // Fill the court slot with the player
         slot1.dataset.playerId = id2;
-        slot1.textContent = name2;
+        setSlotContent(slot1, name2, badge2Clone);
         slot1.classList.remove('empty');
         // Remove from unassigned pool
         slot2.remove();
@@ -263,17 +287,17 @@ function swapPlayers(slot1, slot2) {
     } else if (isSlot1Unassigned || isSlot2Unassigned) {
         // Swapping unassigned player with assigned player - do a full swap
         slot1.dataset.playerId = id2;
-        slot1.textContent = name2;
+        setSlotContent(slot1, name2, badge2Clone);
         slot2.dataset.playerId = id1;
-        slot2.textContent = name1;
+        setSlotContent(slot2, name1, badge1Clone);
         slot1.classList.toggle('empty', isSlot2Empty);
         slot2.classList.toggle('empty', isSlot1Empty);
     } else {
         // Normal swap between two court slots
         slot1.dataset.playerId = id2;
-        slot1.textContent = name2;
+        setSlotContent(slot1, name2, badge2Clone);
         slot2.dataset.playerId = id1;
-        slot2.textContent = name1;
+        setSlotContent(slot2, name1, badge1Clone);
         slot1.classList.toggle('empty', isSlot2Empty);
         slot2.classList.toggle('empty', isSlot1Empty);
     }
@@ -294,7 +318,8 @@ function updateUnassignedPoolVisibility() {
 }
 
 async function regeneratePairings() {
-    if (!confirm('Luo uudet parit algoritmilla? Nykyiset parit korvataan.')) {
+    const hasPairings = document.querySelectorAll('.court-card').length > 0;
+    if (hasPairings && !confirm('Luo uudet parit algoritmilla? Nykyiset parit korvataan.')) {
         return;
     }
 

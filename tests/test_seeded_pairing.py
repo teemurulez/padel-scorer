@@ -84,7 +84,7 @@ def test_seeded_pairing_balances_teams():
 
 
 def test_seeded_pairing_handles_partial_court():
-    """Test that partial courts raise ValueError"""
+    """Test that too few players raises ValueError"""
     players_with_seeds = [
         {'id': 1, 'seed_points': 850},
         {'id': 2, 'seed_points': 820},
@@ -98,6 +98,26 @@ def test_seeded_pairing_handles_partial_court():
     # Should raise ValueError when not enough players
     with pytest.raises(ValueError, match="Not enough players for 2 courts"):
         generate_seeded_round1_pairings(players_with_seeds, num_courts=2)
+
+
+def test_seeded_pairing_truncates_extra_players():
+    """Extra players beyond num_courts*4 are truncated by seed rank."""
+    players_with_seeds = [
+        {'id': i, 'seed_points': 1000 - i * 30}
+        for i in range(1, 11)  # 10 players
+    ]
+
+    pairings = generate_seeded_round1_pairings(players_with_seeds, num_courts=2)
+
+    assert len(pairings) == 2
+    all_assigned = set()
+    for court in pairings:
+        assert len(court) == 4
+        all_assigned.update(court)
+
+    # Only top 8 players should be used (ids 1-8, highest seed_points)
+    assert len(all_assigned) == 8
+    assert all_assigned <= set(range(1, 9)), f"Expected top 8 players, got {all_assigned}"
 
 
 def test_seeded_pairing_6_courts_all_players_assigned():

@@ -257,15 +257,22 @@
                             </td>
                             <td>{{ player.tournaments_played }}</td>
                             <td>{{ "%.2f"|format(player.wins_per_tournament or 0) }}</td>
-                            <td>{{ player.matches_played }}</td>
+                            <td>
+                                {{ player.matches_played }}
+                                {% if player.matches_adjustment and player.matches_adjustment != 0 %}
+                                <span style="color: {% if player.matches_adjustment > 0 %}#22c55e{% else %}#ef4444{% endif %}; font-size: 0.8em;">
+                                    ({% if player.matches_adjustment > 0 %}+{% endif %}{{ player.matches_adjustment }})
+                                </span>
+                                {% endif %}
+                            </td>
                             <td>{{ "%.2f"|format(player.win_rate or 0) }}</td>
                             <td>
-                                <button type="button" class="btn-secondary btn-small toggle-edit-btn" data-player-id="{{ player.id }}" data-wins="{{ player.wins }}" data-adjustment="{{ player.adjustment or 0 }}" data-total="{{ player.total_points }}">Muokkaa</button>
+                                <button type="button" class="btn-secondary btn-small toggle-edit-btn" data-player-id="{{ player.id }}" data-wins="{{ player.wins }}" data-adjustment="{{ player.adjustment or 0 }}" data-total="{{ player.total_points }}" data-matches="{{ player.matches_played }}" data-matches-adj="{{ player.matches_adjustment or 0 }}">Muokkaa</button>
                             </td>
                         </tr>
                         <tr id="edit-player-row-{{ player.id }}" class="edit-row" style="display: none; background: #f8f9fa;">
                             <td colspan="9">
-                                <form method="POST" action="/admin/players/{{ player.id }}/edit" style="display: flex; align-items: center; gap: 1rem; padding: 0.5rem;">
+                                <form method="POST" action="/admin/players/{{ player.id }}/edit" style="display: flex; align-items: center; gap: 1rem; padding: 0.5rem; flex-wrap: wrap;">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <span><strong>{{ player.first_name }} {{ player.last_name }}</strong></span>
                                     <span>Voitot: {{ player.wins }}</span>
@@ -273,6 +280,13 @@
                                     <label>
                                         Uudet pisteet:
                                         <input type="number" name="new_total_points" value="{{ player.total_points }}" class="points-input" data-player-id="{{ player.id }}" data-wins="{{ player.wins }}" style="width: 80px; padding: 0.25rem;">
+                                    </label>
+                                    <span style="color: #666;">|</span>
+                                    <span>Ottelut: {{ player.matches_played - (player.matches_adjustment or 0) }}</span>
+                                    <span>Korjaus: <span id="matches-adj-display-{{ player.id }}">{{ player.matches_adjustment or 0 }}</span></span>
+                                    <label>
+                                        Uudet ottelut:
+                                        <input type="number" name="new_total_matches" value="{{ player.matches_played }}" class="matches-input" data-player-id="{{ player.id }}" data-auto-matches="{{ player.matches_played - (player.matches_adjustment or 0) }}" style="width: 80px; padding: 0.25rem;">
                                     </label>
                                     <button type="submit" class="btn-primary btn-small">Tallenna</button>
                                     <button type="button" class="btn-secondary btn-small cancel-edit-btn" data-player-id="{{ player.id }}">Peruuta</button>
@@ -452,6 +466,14 @@
         function updateAdjustmentDisplay(playerId, autoPoints, newTotal) {
             const adjDisplay = document.getElementById(`adj-display-${playerId}`);
             const newAdj = parseInt(newTotal) - autoPoints;
+            adjDisplay.textContent = newAdj >= 0 ? `+${newAdj}` : newAdj;
+            adjDisplay.style.color = newAdj >= 0 ? '#22c55e' : '#ef4444';
+        }
+
+        // Update matches adjustment display when matches input changes
+        function updateMatchesAdjustmentDisplay(playerId, autoMatches, newTotal) {
+            const adjDisplay = document.getElementById(`matches-adj-display-${playerId}`);
+            const newAdj = parseInt(newTotal) - autoMatches;
             adjDisplay.textContent = newAdj >= 0 ? `+${newAdj}` : newAdj;
             adjDisplay.style.color = newAdj >= 0 ? '#22c55e' : '#ef4444';
         }
@@ -837,6 +859,11 @@
                     const wins = parseInt(e.target.dataset.wins);
                     updateAdjustmentDisplay(playerId, wins, e.target.value);
                 }
+                if (e.target.classList.contains('matches-input')) {
+                    const playerId = e.target.dataset.playerId;
+                    const autoMatches = parseInt(e.target.dataset.autoMatches);
+                    updateMatchesAdjustmentDisplay(playerId, autoMatches, e.target.value);
+                }
             });
 
             // Confirm form handler (event delegation)
@@ -849,16 +876,44 @@
                 }
             });
 
-            // Update player count hint when courts selection changes
-            const courtsSelect = document.getElementById('num_courts');
-            const minPlayersSpan = document.getElementById('min_players');
-            const selectedCourtsSpan = document.getElementById('selected_courts');
+            // Auto-calculate courts from player count
+            const courtsHidden = document.getElementById('num_courts');
+            const courtsAutoValue = document.getElementById('courts-auto-value');
+            const playersTextarea = document.getElementById('players');
             const courtStartFrom = document.getElementById('court_start_from');
             const courtSkip = document.getElementById('court_skip');
             const courtLabelsPreview = document.getElementById('court_labels_preview');
+            const playersHint = document.getElementById('players-hint');
+
+            function updateCourtsFromPlayers() {
+                const text = playersTextarea.value;
+                const lines = text.split('\n').filter(l => l.trim().length > 0);
+                const count = lines.length;
+                const courts = Math.floor(count / 4);
+                const remainder = count % 4;
+
+                courtsHidden.value = courts;
+
+                if (count < 4) {
+                    courtsAutoValue.textContent = '0 kenttää';
+                    playersHint.textContent = 'Syötä vähintään 4 pelaajaa';
+                    playersHint.style.color = '';
+                } else if (remainder === 0) {
+                    courtsAutoValue.textContent = courts + (courts === 1 ? ' kenttä' : ' kenttää');
+                    playersHint.textContent = count + ' pelaajaa → ' + courts + (courts === 1 ? ' kenttä' : ' kenttää') + ' ✓';
+                    playersHint.style.color = '#2a7d2a';
+                } else {
+                    const need = 4 - remainder;
+                    courtsAutoValue.textContent = courts + (courts === 1 ? ' kenttä' : ' kenttää');
+                    playersHint.textContent = count + ' pelaajaa → ' + courts + (courts === 1 ? ' kenttä' : ' kenttää') + ' (lisää ' + need + ' tai poista ' + remainder + ' pelaajaa)';
+                    playersHint.style.color = '#b8860b';
+                }
+
+                updateCourtPreview();
+            }
 
             function updateCourtPreview() {
-                const numCourts = parseInt(courtsSelect.value) || 0;
+                const numCourts = parseInt(courtsHidden.value) || 0;
                 const startFrom = parseInt(courtStartFrom.value) || 1;
                 const skipRaw = courtSkip.value.trim();
 
@@ -878,18 +933,13 @@
                 }
 
                 courtLabelsPreview.textContent = courts.length > 0 ? courts.join(', ') : '-';
-
-                // Update player count
-                const minPlayers = numCourts * 4;
-                minPlayersSpan.textContent = minPlayers;
-                selectedCourtsSpan.textContent = numCourts;
             }
 
-            if (courtsSelect) {
-                courtsSelect.addEventListener('change', updateCourtPreview);
+            if (playersTextarea) {
+                playersTextarea.addEventListener('input', updateCourtsFromPlayers);
                 courtStartFrom.addEventListener('input', updateCourtPreview);
                 courtSkip.addEventListener('input', updateCourtPreview);
-                updateCourtPreview();  // Initial update
+                updateCourtsFromPlayers();  // Initial update
             }
         });
 
@@ -1217,20 +1267,12 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="num_courts">Kenttien määrä</label>
-                        <select id="num_courts" name="num_courts" required>
-                            <option value="">Valitse kentät...</option>
-                            <option value="1">1 kenttä (4 pelaajaa)</option>
-                            <option value="2">2 kenttää (8 pelaajaa)</option>
-                            <option value="3">3 kenttää (12 pelaajaa)</option>
-                            <option value="4">4 kenttää (16 pelaajaa)</option>
-                            <option value="5">5 kenttää (20 pelaajaa)</option>
-                            <option value="6">6 kenttää (24 pelaajaa)</option>
-                            <option value="7">7 kenttää (28 pelaajaa)</option>
-                            <option value="8">8 kenttää (32 pelaajaa)</option>
-                            <option value="9">9 kenttää (36 pelaajaa)</option>
-                            <option value="10">10 kenttää (40 pelaajaa)</option>
-                        </select>
+                        <label>Kenttien määrä</label>
+                        <input type="hidden" id="num_courts" name="num_courts" value="0">
+                        <div id="courts-auto-display" class="courts-auto-display">
+                            <span id="courts-auto-value">0 kenttää</span>
+                        </div>
+                        <p class="form-hint" id="courts-auto-hint">Syötä pelaajat alla – kentät lasketaan automaattisesti</p>
                     </div>
 
                     <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
@@ -1248,7 +1290,7 @@
                     <div class="form-group">
                         <label for="players">Pelaajien nimet (yksi per rivi)</label>
                         <textarea id="players" name="players" placeholder="Syötä pelaajien nimet, yksi per rivi&#10;Esimerkki:&#10;Matti Meikäläinen&#10;Maija Meikäläinen&#10;..." required></textarea>
-                        <p class="form-hint">Vähintään <span id="min_players">12</span> pelaajaa vaaditaan <span id="selected_courts">3</span> kentälle</p>
+                        <p class="form-hint" id="players-hint">Syötä vähintään 4 pelaajaa</p>
                         <button type="button" id="validate-players-btn" class="btn-secondary" style="margin-top: 8px;">Tarkista nimet</button>
                     </div>
 

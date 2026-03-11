@@ -27,6 +27,9 @@ def generate_seeded_round1_pairings(players_with_seeds, num_courts):
     Returns:
         List of lists - court_assignments[court_idx] = [p1_id, p2_id, p3_id, p4_id]
     """
+    if num_courts < 1:
+        raise ValueError("num_courts must be at least 1")
+
     # Sort players by seed (high to low)
     sorted_players = sorted(
         players_with_seeds,
@@ -42,6 +45,9 @@ def generate_seeded_round1_pairings(players_with_seeds, num_courts):
             f"Not enough players for {num_courts} courts. "
             f"Need {total_players_needed} players, have {len(sorted_players)}."
         )
+
+    # Truncate to exactly the number needed (top players by seed rank)
+    sorted_players = sorted_players[:total_players_needed]
 
     # Calculate optimal overflow size (players that roll to next pool)
     # Target: pool of 6, so overflow of 2

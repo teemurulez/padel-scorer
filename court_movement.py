@@ -39,78 +39,43 @@ def get_previous_teammates(player_id, previous_matches):
 
     return teammates
 
-def sort_players_by_court_position(matches):
+def best_team_arrangement(players, previous_matches):
     """
-    Sort players by their position in court hierarchy.
-    Winners move up, losers move down.
+    Find the team arrangement with fewest previous-teammate conflicts.
+
+    Evaluates all 3 possible ways to split 4 players into 2 teams of 2:
+      [p1,p2 vs p3,p4], [p1,p3 vs p2,p4], [p1,p4 vs p2,p3]
 
     Args:
-        matches: List of completed match dicts with court_number and winning_team
+        players: List of 4 player IDs [p1, p2, p3, p4]
+        previous_matches: List of match dicts for teammate history
 
     Returns:
-        List of player IDs in order: Court 1 winners, Court 1 losers,
-        Court 2 winners, Court 2 losers, etc.
+        List of 4 player IDs [t1a, t1b, t2a, t2b] with fewest conflicts
     """
-    # Sort matches by court number
-    sorted_matches = sorted(matches, key=lambda m: m['court_number'])
+    p1, p2, p3, p4 = players
 
-    result = []
+    # Build teammate sets for all 4 players
+    teammates = {p: get_previous_teammates(p, previous_matches) for p in players}
 
-    for match in sorted_matches:
-        if match['winning_team'] == 1:
-            # Team 1 won
-            winners = [match['player1_id'], match['player2_id']]
-            losers = [match['player3_id'], match['player4_id']]
-        else:
-            # Team 2 won
-            winners = [match['player3_id'], match['player4_id']]
-            losers = [match['player1_id'], match['player2_id']]
+    arrangements = [
+        [p1, p2, p3, p4],  # p1+p2 vs p3+p4
+        [p1, p3, p2, p4],  # p1+p3 vs p2+p4
+        [p1, p4, p2, p3],  # p1+p4 vs p2+p3
+    ]
 
-        # Winners first, then losers
-        result.extend(winners)
-        result.extend(losers)
+    def count_conflicts(arr):
+        conflicts = 0
+        if arr[1] in teammates[arr[0]]:
+            conflicts += 1
+        if arr[3] in teammates[arr[2]]:
+            conflicts += 1
+        return conflicts
 
-    return result
+    # Pick arrangement with fewest conflicts (first one wins ties for stability)
+    best = min(arrangements, key=count_conflicts)
+    return best
 
-def assign_teams_with_separation(sorted_player_ids, previous_matches, num_courts):
-    """
-    Assign players to courts and teams, avoiding previous teammates.
-
-    Args:
-        sorted_player_ids: Players in court hierarchy order (winners->losers)
-        previous_matches: Previous round matches for teammate history
-        num_courts: Number of courts to fill
-
-    Returns:
-        List of court assignments, each court is [p1, p2, p3, p4]
-        where p1+p2 are team 1, p3+p4 are team 2
-    """
-    courts = []
-    players_per_court = 4
-
-    for court_idx in range(num_courts):
-        start_idx = court_idx * players_per_court
-        end_idx = start_idx + players_per_court
-
-        if end_idx > len(sorted_player_ids):
-            break  # Not enough players for this court
-
-        court_players = sorted_player_ids[start_idx:end_idx]
-
-        # Try to assign teams avoiding previous teammates
-        # Strategy: Take players in order but swap if needed
-        p1, p2, p3, p4 = court_players
-
-        # Check if p1 and p2 were previous teammates
-        p1_teammates = get_previous_teammates(p1, previous_matches)
-
-        if p2 in p1_teammates:
-            # Swap p2 with p3 to separate teammates
-            p2, p3 = p3, p2
-
-        courts.append([p1, p2, p3, p4])
-
-    return courts
 
 def generate_next_round_pairings(previous_matches, num_courts):
     """
@@ -129,6 +94,9 @@ def generate_next_round_pairings(previous_matches, num_courts):
         List of court assignments [court1, court2, ...] where each court
         is [player1_id, player2_id, player3_id, player4_id]
     """
+    if num_courts < 1:
+        raise ValueError("num_courts must be at least 1")
+
     # Validate all matches are completed
     for match in previous_matches:
         # Check if match has a winner - winning_team must be set
@@ -181,14 +149,7 @@ def generate_next_round_pairings(previous_matches, num_courts):
         if len(court_players) < 4:
             break
 
-        p1, p2, p3, p4 = court_players
-
         # Step 3: Separate previous teammates within each court
-        p1_teammates = get_previous_teammates(p1, previous_matches)
-
-        if p2 in p1_teammates:
-            p2, p3 = p3, p2
-
-        final_courts.append([p1, p2, p3, p4])
+        final_courts.append(best_team_arrangement(court_players, previous_matches))
 
     return final_courts

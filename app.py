@@ -1842,6 +1842,7 @@ def admin_dashboard():
                       NULLIF(COUNT(DISTINCT m.id) + COALESCE(adj.matches_adjustment, 0), 0), 2) as win_rate,
                 COALESCE(adj.adjustment, 0) as adjustment,
                 COALESCE(adj.tournaments_adjustment, 0) as tournaments_adjustment,
+                COALESCE(adj.matches_adjustment, 0) as matches_adjustment,
                 COUNT(DISTINCT CASE WHEN s.points > 0 THEN m.id END) + COALESCE(adj.adjustment, 0) as total_points
             FROM player_registry pr
             LEFT JOIN player_points_adjustment adj ON (pr.id = adj.player_id AND adj.season_id = ?)
@@ -2219,9 +2220,13 @@ def admin_edit_player_points(player_id):
         flash('Virheellinen pistemäärä')
         return redirect('/admin')
 
+    new_total_matches_str = request.form.get('new_total_matches', '').strip()
+
     # Get player's current auto points (from scores table, same as season_leaderboard)
     auto_result = db.execute('''
-        SELECT COALESCE(SUM(s.points), 0) as auto_points
+        SELECT
+            COALESCE(SUM(s.points), 0) as auto_points,
+            COUNT(DISTINCT m.id) as auto_matches
         FROM matches m
         JOIN rounds r ON m.round_id = r.id
         JOIN tournaments t ON r.tournament_id = t.id
@@ -2232,21 +2237,43 @@ def admin_edit_player_points(player_id):
     ''', (player_id, player_id, current_season['id'])).fetchone()
 
     auto_points = auto_result['auto_points'] if auto_result else 0
+    auto_matches = auto_result['auto_matches'] if auto_result else 0
     adjustment = new_total - auto_points
 
+    # Calculate matches_adjustment if provided
+    matches_adjustment = None
+    if new_total_matches_str:
+        try:
+            new_total_matches = int(new_total_matches_str)
+            matches_adjustment = new_total_matches - auto_matches
+        except ValueError:
+            flash('Virheellinen ottelumäärä')
+            return redirect('/admin')
+
     # Insert or update adjustment
-    db.execute('''
-        INSERT INTO player_points_adjustment (player_id, season_id, adjustment, updated_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(player_id, season_id)
-        DO UPDATE SET adjustment = ?, updated_at = CURRENT_TIMESTAMP
-    ''', (player_id, current_season['id'], adjustment, adjustment))
+    if matches_adjustment is not None:
+        db.execute('''
+            INSERT INTO player_points_adjustment (player_id, season_id, adjustment, matches_adjustment, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(player_id, season_id)
+            DO UPDATE SET adjustment = ?, matches_adjustment = ?, updated_at = CURRENT_TIMESTAMP
+        ''', (player_id, current_season['id'], adjustment, matches_adjustment, adjustment, matches_adjustment))
+    else:
+        db.execute('''
+            INSERT INTO player_points_adjustment (player_id, season_id, adjustment, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(player_id, season_id)
+            DO UPDATE SET adjustment = ?, updated_at = CURRENT_TIMESTAMP
+        ''', (player_id, current_season['id'], adjustment, adjustment))
 
     db.commit()
 
     # Get player name for flash message
     player = db.execute('SELECT first_name, last_name FROM player_registry WHERE id = ?', (player_id,)).fetchone()
-    flash(f'Pisteet päivitetty: {player["first_name"]} {player["last_name"]} = {new_total}')
+    msg_parts = [f'Pisteet = {new_total}']
+    if matches_adjustment is not None:
+        msg_parts.append(f'Ottelut = {int(new_total_matches_str)}')
+    flash(f'Päivitetty: {player["first_name"]} {player["last_name"]} — {", ".join(msg_parts)}')
 
     return redirect(f'/admin?tab=players&edit_player={player_id}')
 

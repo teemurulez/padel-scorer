@@ -1,7 +1,7 @@
 # tests/test_court_movement.py
 import random
 import pytest
-from court_movement import get_previous_teammates, sort_players_by_court_position, assign_teams_with_separation, generate_next_round_pairings
+from court_movement import get_previous_teammates, best_team_arrangement, generate_next_round_pairings
 
 def test_get_previous_teammates_empty_round():
     """Test that empty round history returns empty set"""
@@ -37,49 +37,23 @@ def test_get_previous_teammates_identifies_team2_partner():
     result = get_previous_teammates(player_id=3, previous_matches=previous_matches)
     assert result == {4}
 
-def test_sort_players_by_court_position_winners_first():
-    """Test that winners are sorted before losers within same court"""
-    matches = [
-        {
-            'court_number': 1,
-            'player1_id': 1,
-            'player2_id': 2,
-            'player3_id': 3,
-            'player4_id': 4,
-            'winning_team': 2  # Team 2 won
-        }
-    ]
-    result = sort_players_by_court_position(matches)
-    # Winners (3, 4) should come before losers (1, 2) for court 1
-    assert result == [3, 4, 1, 2]
+def _make_match(court_number, p1, p2, p3, p4, winning_team):
+    """Helper to create a match dict."""
+    return {
+        'id': court_number,
+        'court_number': court_number,
+        'player1_id': p1,
+        'player2_id': p2,
+        'player3_id': p3,
+        'player4_id': p4,
+        'winning_team': winning_team,
+        'completed': 1,
+    }
 
-def test_sort_players_multi_court():
-    """Test sorting across multiple courts maintains court order"""
-    matches = [
-        {
-            'court_number': 1,
-            'player1_id': 1,
-            'player2_id': 2,
-            'player3_id': 3,
-            'player4_id': 4,
-            'winning_team': 1
-        },
-        {
-            'court_number': 2,
-            'player1_id': 5,
-            'player2_id': 6,
-            'player3_id': 7,
-            'player4_id': 8,
-            'winning_team': 2
-        }
-    ]
-    result = sort_players_by_court_position(matches)
-    # Court 1 winners, Court 1 losers, Court 2 winners, Court 2 losers
-    assert result == [1, 2, 3, 4, 7, 8, 5, 6]
 
-def test_assign_teams_prevents_same_teammates():
-    """Test that previous teammates are not paired together"""
-    sorted_player_ids = [1, 2, 3, 4]  # 4 players for 1 court
+def test_best_team_arrangement_avoids_previous_teammates():
+    """Test that best_team_arrangement picks arrangement with zero conflicts."""
+    # Players 1+2 were teammates, 3+4 were teammates
     previous_matches = [
         {
             'player1_id': 1,
@@ -89,24 +63,40 @@ def test_assign_teams_prevents_same_teammates():
             'winning_team': 1
         }
     ]
+    result = best_team_arrangement([1, 2, 3, 4], previous_matches)
+    # Team 1 (result[0], result[1]) should NOT be previous teammates
+    # Team 2 (result[2], result[3]) should NOT be previous teammates
+    team1 = {result[0], result[1]}
+    team2 = {result[2], result[3]}
+    assert {1, 2} != team1, "Previous teammates 1+2 should not be on same team"
+    assert {3, 4} != team2, "Previous teammates 3+4 should not be on same team"
+    assert team1 | team2 == {1, 2, 3, 4}
 
-    result = assign_teams_with_separation(
-        sorted_player_ids=sorted_player_ids,
-        previous_matches=previous_matches,
-        num_courts=1
-    )
 
-    # Result should be list of court assignments
-    # Each court has [p1, p2, p3, p4] where p1+p2 are NOT previous teammates
-    assert len(result) == 1
-    court = result[0]
-    assert len(court) == 4
+def test_best_team_arrangement_no_conflicts_keeps_original():
+    """With no previous matches, the original arrangement is preserved."""
+    result = best_team_arrangement([1, 2, 3, 4], [])
+    assert result == [1, 2, 3, 4]
 
-    # Player 1 and 2 were teammates, should NOT be together
-    if court[0] == 1:
-        assert court[1] != 2
-    if court[0] == 2:
-        assert court[1] != 1
+
+def test_teammate_separation_across_all_courts():
+    """Verify teammate separation works across all courts, not just first pair."""
+    # Set up so court 2 would have players 3,4 (prev teammates) + 9,10 (prev teammates)
+    previous_matches = [
+        _make_match(1, 1, 2, 3, 4, winning_team=1),      # 1+2 win, 3+4 lose
+        _make_match(2, 5, 6, 7, 8, winning_team=1),       # 5+6 win, 7+8 lose
+        _make_match(3, 9, 10, 11, 12, winning_team=1),    # 9+10 win, 11+12 lose
+    ]
+    result = generate_next_round_pairings(previous_matches, num_courts=3)
+    # Court 2 gets: C1 losers (3,4) + C3 winners (9,10)
+    # 3+4 were teammates, 9+10 were teammates — both pairs should be separated
+    court2 = result[1]
+    assert set(court2) == {3, 4, 9, 10}
+    team1 = {court2[0], court2[1]}
+    team2 = {court2[2], court2[3]}
+    assert {3, 4} != team1 and {3, 4} != team2, "Previous teammates 3+4 should be separated"
+    assert {9, 10} != team1 and {9, 10} != team2, "Previous teammates 9+10 should be separated"
+
 
 def test_generate_next_round_pairings_moves_winners_up():
     """Test that winners from court 2 move to court 1"""
@@ -140,19 +130,6 @@ def test_generate_next_round_pairings_moves_winners_up():
     assert set(court1) == {3, 4, 5, 6}
     # Losers: 1, 2, 7, 8 should be on court 2
     assert set(court2) == {1, 2, 7, 8}
-
-def _make_match(court_number, p1, p2, p3, p4, winning_team):
-    """Helper to create a match dict."""
-    return {
-        'id': court_number,
-        'court_number': court_number,
-        'player1_id': p1,
-        'player2_id': p2,
-        'player3_id': p3,
-        'player4_id': p4,
-        'winning_team': winning_team,
-        'completed': 1,
-    }
 
 
 def test_movement_3_courts_winners_move_up_one():

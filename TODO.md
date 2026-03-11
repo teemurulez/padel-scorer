@@ -1,10 +1,10 @@
 # Padel Paroni - Current Status & Next Steps
 
-> **Last updated:** 2026-02-08
+> **Last updated:** 2026-03-10
 
 ## Project Status
 
-**PUBLIC BETA** - App released for club-wide testing. All 209 tests pass.
+**PUBLIC BETA** - App released for club-wide testing. All 217 tests pass.
 
 ## Completed Items
 
@@ -39,27 +39,46 @@
 - [x] Fix imported matches not showing in season standings (done 2026-02-07)
 - [x] Fix tournament count for imported tournaments (done 2026-02-07)
 - [x] Fix court movement algorithm for 3+ courts (done 2026-02-08)
+- [x] 6-court testing: parameterized tests, simulation scripts, test data seeder (done 2026-03-05)
+- [x] Fix player profile season ranking ignoring imported points (done 2026-03-06)
+- [x] Fix tournament edit page showing seeding rank instead of leaderboard rank (done 2026-03-06)
+- [x] Fix "Aloita turnaus" button 404 and missing CSRF token (done 2026-03-06)
+- [x] Add empty database button to admin dashboard (done 2026-03-06)
+- [x] Add copy pairings button to admin season management view (done 2026-03-06)
+- [x] Allow round recalculation even when scores exist (done 2026-03-09)
 
 ## Known Bugs
 
-- [ ] Tournament creation modal closes on validation error (wrong player count) - should stay open and preserve data
+- [x] Tournament creation modal closes on validation error (wrong player count) - should stay open and preserve data (done 2026-03-10)
+- [x] Player slot styling breaks after manual drag-and-drop pair changes (done 2026-03-10)
+- [x] Page header font size inconsistency on standings view (done 2026-03-10)
 
 ## Feature Requests
 
-- [ ] Auto-calculate number of courts from player list (player count / 4) in tournament creation modal
+- [x] Auto-calculate number of courts from player list (player count / 4) in tournament creation modal (done 2026-03-11)
+- [x] Admin feature to manually edit number of games played per player (for correction after tournaments) (done 2026-03-11)
+- [ ] Admin player edit row: vertical alignment — text labels not centered with inputs
+- [ ] Admin player edit: make player name editable (show name in text input when editing)
+- [ ] Current season should be expanded by default in admin view
+- [ ] Add gender field to player registry — enables mixed-gender team pairing, separate male/female standings, and gender-based statistics. Needs careful planning: schema migration, admin UI for setting gender, handling existing players, optional/required field decision
+- [ ] Smarter team pairing for rounds 2+ — currently `best_team_arrangement()` only avoids previous-round teammates. Could improve by: (1) avoiding players who were teammates earlier in the same tournament (not just last round), (2) preferring mixed-gender teams (one male + one female) when a court has 2 men and 2 women (requires gender data)
 
 ## Technical Debt
 
+- [x] Review and clean up pair creation algorithm — removed dead code, improved teammate separation with `best_team_arrangement()`, added extra player truncation and zero courts validation (done 2026-03-10)
 - [ ] Extract tournament count fallback logic to helper function (duplicated in index and season_leaderboard routes) and add test
-- [ ] Review all features that were only tested with 2 courts — verify they work correctly with 4-8 courts (the court movement bug went unnoticed because tests only covered 2 courts)
+- [x] Review all features that were only tested with 2 courts — verify they work correctly with 4-8 courts (done 2026-03-05, parameterized tests for 3-8 courts)
+- [ ] Comprehensive code review of `app.py` for refactoring — file is ~2700 lines with all routes in one file. Review for: extracting route groups into blueprints, identifying duplicated logic, cleaning up dead code, improving error handling consistency. Goal is a refactoring plan, not just spot fixes
+- [ ] Check code commenting quality — review comments across codebase for clarity, accuracy, and completeness
+- [ ] Improve test quality and coverage — current tests were largely AI-generated and may not catch real-world bugs. Known gap: bad request / error pages break silently after bug fixes without any test catching it. Need: (1) end-to-end tests that simulate real user flows (create tournament → add players → play rounds → complete), (2) error page tests (400, 404, 500 responses render correctly), (3) regression tests for bugs found in production, (4) review existing tests for cases that only test the happy path
 
 ## Code Review Backlog
 
 **High Impact (tournament-critical):**
-- [x] Pairing algorithm - rolling pool randomization, seeded pairing (reviewed 2026-02-07)
-  - [ ] **Critical:** Add validation/truncation when extra players exist (design with user)
-  - [ ] **Important:** Add tests for larger tournaments 6+ courts (design with user)
-  - [ ] **Minor:** Add zero courts validation
+- [x] Pairing algorithm - rolling pool randomization, seeded pairing (reviewed 2026-02-07, cleaned up 2026-03-10)
+  - [x] **Critical:** Add validation/truncation when extra players exist (done 2026-03-10)
+  - [x] **Important:** Add tests for larger tournaments 6+ courts (done 2026-03-05)
+  - [x] **Minor:** Add zero courts validation (done 2026-03-10)
   - [ ] **Minor:** Clarify docstring about pool boundaries (design with user)
 - [ ] Score entry flow - entering results, team shuffling, result correction
 - [ ] Tournament lifecycle - Setup → Active → Completed transitions
